@@ -30,8 +30,8 @@ export interface Category {
 export interface Menu {
     id: number;
     category_id: number;
-    category_slug: string;
-    category_name: string;
+    category_slug?: string;
+    category_name?: string;
     name: string;
     slug: string;
     description: string;
@@ -39,8 +39,8 @@ export interface Menu {
     stock_quantity: number;
     is_available: boolean;
     is_featured: boolean;
-    is_best_seller: boolean;
-    image_path: string;
+    is_best_seller?: boolean;
+    image_path?: string;
 }
 
 export interface DiningExperience {
@@ -104,6 +104,10 @@ export interface Order {
     total: number;
     customer_notes: string | null;
     created_at: string;
+    customer_name?: string;
+    customer_phone?: string;
+    table_number?: string;
+    session_code?: string;
     items?: OrderItem[];
     payment?: {
         payment_method: string;
@@ -128,6 +132,50 @@ export interface RestaurantTable {
     table_number: string;
     capacity: number;
     location: string;
-    status: string;
+    status: 'Available' | 'Occupied' | 'Reserved' | 'Cleaning' | 'Inactive';
     is_active: boolean;
+    active_session?: {
+        id: number;
+        session_code: string;
+        status: string;
+        started_at?: string;
+    } | null;
+}
+
+export interface Reservation {
+    id: number;
+    reservation_code: string;
+    customer_id: number;
+    customer_name?: string;
+    customer_phone?: string;
+    experience_id?: number | null;
+    experience_name?: string | null;
+    reservation_datetime: string;
+    guest_count: number;
+    duration_minutes: number;
+    status: 'Pending' | 'Confirmed' | 'Rejected' | 'Cancelled' | 'Completed' | 'No Show';
+    special_request?: string | null;
+    source: string;
+    created_at: string;
+}
+
+export interface AuditLog {
+    id: number;
+    user_id?: number | null;
+    user_name?: string | null;
+    action: string;
+    entity_type: string;
+    entity_id?: number | null;
+    description?: string | null;
+    created_at: string;
+}
+
+export interface AdminMetrics {
+    todayRevenue: number;
+    monthlyRevenue: number;
+    totalOrders: number;
+    activeOrders: number;
+    occupiedTables: number;
+    totalTables: number;
+    pendingReservations: number;
 }

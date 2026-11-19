@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\OrderController;
@@ -22,4 +23,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/order/{id}/rating', [OrderController::class, 'submitRating'])->name('order.rating');
     Route::post('/chat/send', [OrderController::class, 'sendMessage'])->name('chat.send');
     Route::post('/favorites/toggle', [OrderController::class, 'toggleFavorite'])->name('favorites.toggle');
+});
+
+// Admin Single Branch Management Dashboard
+Route::middleware('auth')->prefix('admin')->group(function () {
+    Route::get('/', [AdminController::class, 'index'])->name('admin.dashboard');
+    Route::post('/order/{id}/status', [AdminController::class, 'updateOrderStatus'])->name('admin.order.status');
+    Route::post('/menu/{id}/stock', [AdminController::class, 'updateMenuStock'])->name('admin.menu.stock');
+    Route::post('/table/{id}/status', [AdminController::class, 'updateTableStatus'])->name('admin.table.status');
+    Route::post('/reservation/{id}/status', [AdminController::class, 'updateReservationStatus'])->name('admin.reservation.status');
 });
