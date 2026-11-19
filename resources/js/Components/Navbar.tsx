@@ -105,6 +105,14 @@ export default function Navbar({ onOpenReservation, onOpenOrderType }: Props) {
                             <a href="#kontak" className="hover:text-[#D4B886] transition-colors">
                                 Lokasi & Jam
                             </a>
+                            <Link 
+                                href="/splash" 
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#32151F]/80 border border-[#B99A65]/40 text-[#D4B886] hover:bg-[#B99A65]/20 hover:border-[#D4B886] text-xs font-medium transition-all"
+                                title="Lihat animasi logo reveal NUSARA"
+                            >
+                                <Sparkles className="w-3 h-3" />
+                                <span>Logo Reveal</span>
+                            </Link>
                         </div>
 
                         {/* Action Buttons */}
@@ -234,6 +242,14 @@ export default function Navbar({ onOpenReservation, onOpenOrderType }: Props) {
                             >
                                 Lokasi & Jam Operasional
                             </a>
+                            <Link
+                                href="/splash"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="inline-flex items-center gap-2 text-[#D4B886] py-1 font-semibold"
+                            >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>Animasi Logo Reveal (Splashscreen)</span>
+                            </Link>
                         </div>
 
                         <div className="pt-4 border-t border-[#32151F] flex flex-col gap-2.5">

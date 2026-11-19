@@ -7,6 +7,7 @@ import ExperienceCard from '../Components/ExperienceCard';
 import ReservationModal from '../Components/ReservationModal';
 import OrderTypeModal from '../Components/OrderTypeModal';
 import FavoriteLoginPromptModal from '../Components/FavoriteLoginPromptModal';
+import NusaraSplashScreen from '../Components/NusaraSplashScreen';
 import { 
     RestaurantSettings, 
     Category, 
@@ -50,6 +51,13 @@ export default function LandingPage({ settings, categories, menus, experiences, 
     const [orderTypeModalOpen, setOrderTypeModalOpen] = useState(false);
     const [favoritePromptMenu, setFavoritePromptMenu] = useState<Menu | null>(null);
     const [selectedExperience, setSelectedExperience] = useState<DiningExperience | null>(null);
+    const [showSplash, setShowSplash] = useState<boolean>(() => {
+        if (typeof window !== 'undefined') {
+            const hasSeen = sessionStorage.getItem('nusara_splash_seen');
+            return !hasSeen;
+        }
+        return false;
+    });
 
     // Filter & Search state for menus
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -110,6 +118,23 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                 }}
                 onOpenOrderType={() => setOrderTypeModalOpen(true)}
             />
+
+            {/* Splashscreen Animation Overlay (First visit or manual trigger) */}
+            {showSplash && (
+                <div className="fixed inset-0 z-[9999] overflow-hidden">
+                    <NusaraSplashScreen 
+                        autoDismiss={true}
+                        dismissDelayMs={2000}
+                        showControls={true}
+                        onFinish={() => {
+                            setShowSplash(false);
+                            if (typeof window !== 'undefined') {
+                                sessionStorage.setItem('nusara_splash_seen', 'true');
+                            }
+                        }}
+                    />
+                </div>
+            )}
 
             {/* Flash Success Notification */}
             {flash?.success && (
@@ -179,6 +204,15 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                         >
                             <QrCode className="w-4 h-4" />
                             <span>Scan Meja / Takeaway</span>
+                        </button>
+
+                        <button
+                            onClick={() => setShowSplash(true)}
+                            className="w-full sm:w-auto px-5 py-4 rounded-full bg-black/60 border border-[#B99A65]/40 text-[#D4B886] font-semibold text-xs tracking-wider hover:bg-[#B99A65]/20 hover:border-[#D4B886] transition-all flex items-center justify-center gap-2 shadow-lg"
+                            title="Tonton animasi logo reveal NUSARA"
+                        >
+                            <Sparkles className="w-4 h-4 text-[#B99A65]" />
+                            <span>Logo Reveal</span>
                         </button>
                     </div>
 
