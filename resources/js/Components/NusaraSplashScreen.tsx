@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Play, RotateCcw, X, Volume2, Sparkles, ArrowRight } from 'lucide-react';
+import { Link } from '@inertiajs/react';
 
 interface Props {
     onFinish?: () => void;
+    autoTransition?: boolean;
+    autoTransitionDelayMs?: number;
     autoDismiss?: boolean;
     dismissDelayMs?: number;
     showControls?: boolean;
@@ -44,72 +46,98 @@ const DATA = {
 
 export default function NusaraSplashScreen({ 
     onFinish, 
-    autoDismiss = true, 
-    dismissDelayMs = 6800,
-    showControls = true 
+    autoTransition,
+    autoTransitionDelayMs,
+    autoDismiss,
+    dismissDelayMs,
+    showControls = true
 }: Props) {
-    const [renderKey, setRenderKey] = useState(0);
-    const [isFadingOut, setIsFadingOut] = useState(false);
+    const effectiveAutoTransition = autoTransition ?? autoDismiss ?? true;
+    const effectiveDelay = autoTransitionDelayMs ?? dismissDelayMs ?? 8200;
 
-    useEffect(() => {
-        if (!autoDismiss) return;
+    const [renderKey, setRenderKey] = useState<number>(0);
+    const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+    const [progressPercent, setProgressPercent] = useState<number>(0);
+    const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-        const timer = setTimeout(() => {
-            setIsFadingOut(true);
-            setTimeout(() => {
-                onFinish?.();
-            }, 700); // 700ms smooth fade transition
-        }, dismissDelayMs);
-
-        return () => clearTimeout(timer);
-    }, [renderKey, autoDismiss, dismissDelayMs, onFinish]);
-
+    // Replay handler
     const handleReplay = () => {
         setIsFadingOut(false);
+        setProgressPercent(0);
         setRenderKey(prev => prev + 1);
     };
 
-    const handleSkip = () => {
-        setIsFadingOut(true);
-        setTimeout(() => {
-            onFinish?.();
-        }, 300);
+    // Theme toggle
+    const handleToggleTheme = () => {
+        setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
     };
 
+    const handleFinishAction = () => {
+        setIsFadingOut(true);
+        setTimeout(() => {
+            if (onFinish) onFinish();
+        }, 500);
+    };
+
+    // Auto transition timer when animation finishes (~8.2 seconds)
+    useEffect(() => {
+        const startTime = Date.now();
+        const duration = effectiveDelay;
+
+        const interval = setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            const pct = Math.min(100, Math.round((elapsed / duration) * 100));
+            setProgressPercent(pct);
+
+            if (elapsed >= duration) {
+                clearInterval(interval);
+                if (effectiveAutoTransition) {
+                    setIsFadingOut(true);
+                    setTimeout(() => {
+                        if (onFinish) {
+                            onFinish();
+                        }
+                    }, 500);
+                }
+            }
+        }, 80);
+
+        return () => clearInterval(interval);
+    }, [renderKey, effectiveAutoTransition, effectiveDelay, onFinish]);
+
     return (
-        <div 
-            className={`fixed inset-0 z-[100] flex flex-col items-center justify-between bg-[#0e0d0c] text-[#efe9dd] transition-opacity duration-700 select-none ${
-                isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        <div
+            ref={containerRef}
+            data-theme={theme}
+            className={`nusara-splash-root fixed inset-0 z-[9999] flex flex-col items-center justify-between overflow-x-hidden select-none transition-all duration-500 ${
+                isFadingOut ? 'opacity-0 pointer-events-none scale-[0.99]' : 'opacity-100 scale-100'
             }`}
             style={{
-                fontFamily: "'Cormorant Garamond', 'Jost', serif"
+                background: theme === 'dark' ? '#0e0d0c' : '#f8f7f4',
+                color: theme === 'dark' ? '#efe9dd' : '#221f1c',
+                fontFamily: "'Jost', system-ui, -apple-system, 'Segoe UI', sans-serif",
+                paddingTop: 'clamp(16px, 4vh, 40px)',
+                paddingBottom: 'clamp(16px, 4vh, 40px)',
+                paddingLeft: 'max(16px, env(safe-area-inset-left, 0px))',
+                paddingRight: 'max(16px, env(safe-area-inset-right, 0px))',
+                boxSizing: 'border-box'
             }}
         >
             <style>{`
-                /* Keyframe Animation for Glyph Stroke & Fill */
-                @keyframes nusaraDraw {
-                    to { stroke-dashoffset: 0; }
-                }
-                @keyframes nusaraFillin {
-                    0% { fill-opacity: 0; stroke-opacity: 1; }
-                    100% { fill-opacity: 1; stroke-opacity: 0; }
-                }
-                @keyframes nusaraGone {
-                    to { stroke-opacity: 0; }
-                }
-                @keyframes nusaraPop {
-                    from { opacity: 0; transform: scale(0.4); }
-                    to { opacity: 1; transform: scale(1); }
-                }
-                @keyframes nusaraSweep {
-                    to { transform: translateX(2900px) skewX(-18deg); }
+                .nusara-splash-root {
+                    --bg: ${theme === 'dark' ? '#0e0d0c' : '#f8f7f4'};
+                    --ink: ${theme === 'dark' ? '#efe9dd' : '#221f1c'};
+                    --gold: ${theme === 'dark' ? '#c9a45c' : '#a67f2c'};
+                    --muted: ${theme === 'dark' ? '#8f887b' : '#7a7469'};
+                    --line: ${theme === 'dark' ? '#2a2723' : '#dedad2'};
                 }
 
                 .nusara-glyph {
-                    fill: #efe9dd;
+                    fill: var(--ink);
                     fill-rule: evenodd;
                     fill-opacity: 0;
-                    stroke: #c9a45c;
+                    stroke: var(--gold);
                     stroke-opacity: 1;
                     stroke-width: var(--sw, 3.6);
                     stroke-linejoin: round;
@@ -117,82 +145,149 @@ export default function NusaraSplashScreen({
                     stroke-dasharray: 1;
                     stroke-dashoffset: 1;
                     animation:
-                        nusaraDraw var(--dur, 1.6s) cubic-bezier(0.7, 0, 0.2, 1) var(--d, 0s) forwards,
-                        nusaraFillin var(--fd, 0.9s) cubic-bezier(0.3, 0, 0.2, 1) var(--fdl, 1s) forwards;
+                        nusaraDraw var(--dur, 1.6s) cubic-bezier(.7,0,.2,1) var(--d, 0s) forwards,
+                        nusaraFillin var(--fd, .9s) cubic-bezier(.3,0,.2,1) var(--fdl, 1s) forwards;
+                }
+
+                @keyframes nusaraDraw {
+                    to { stroke-dashoffset: 0; }
+                }
+
+                @keyframes nusaraFillin {
+                    0% { fill-opacity: 0; stroke-opacity: 1; }
+                    100% { fill-opacity: 1; stroke-opacity: 0; }
                 }
 
                 .nusara-guide {
                     fill: none;
-                    stroke: #c9a45c;
+                    stroke: var(--gold);
                     stroke-width: 1.6;
-                    stroke-opacity: 0.55;
+                    stroke-opacity: .55;
                     stroke-dasharray: 1;
                     stroke-dashoffset: 1;
-                    animation: 
-                        nusaraDraw var(--dur, 1.2s) cubic-bezier(0.6, 0, 0.3, 1) var(--d, 0s) forwards, 
-                        nusaraGone 0.8s ease-in var(--gl, 3s) forwards;
+                    animation:
+                        nusaraDraw var(--dur, 1.2s) cubic-bezier(.6,0,.3,1) var(--d, 0s) forwards,
+                        nusaraGone .8s ease-in var(--gl, 3s) forwards;
+                }
+
+                @keyframes nusaraGone {
+                    to { stroke-opacity: 0; }
                 }
 
                 .nusara-reg {
                     opacity: 0;
                     transform-box: fill-box;
                     transform-origin: center;
-                    animation: nusaraPop 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) var(--d, 6s) forwards;
+                    animation: nusaraPop .9s cubic-bezier(.2,.8,.2,1) var(--d, 6s) forwards;
                 }
-
                 .nusara-reg .nusara-glyph {
                     animation: none;
                     fill-opacity: 1;
                     stroke-opacity: 0;
                 }
 
+                @keyframes nusaraPop {
+                    from { opacity: 0; transform: scale(.4); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+
                 .nusara-sheen {
                     transform: translateX(-900px) skewX(-18deg);
-                    animation: nusaraSweep 1.7s cubic-bezier(0.5, 0, 0.2, 1) var(--d, 6.3s) forwards;
+                    animation: nusaraSweep 1.7s cubic-bezier(.5,0,.2,1) var(--d, 6.3s) forwards;
+                }
+
+                @keyframes nusaraSweep {
+                    to { transform: translateX(2900px) skewX(-18deg); }
+                }
+
+                .nusara-btn {
+                    font: 500 13px/1 'Jost', system-ui, -apple-system, sans-serif;
+                    letter-spacing: .14em;
+                    text-transform: uppercase;
+                    color: var(--muted);
+                    background: transparent;
+                    border: 1px solid var(--line);
+                    border-radius: 999px;
+                    padding: 12px 18px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 10px;
+                    cursor: pointer;
+                    transition: color .3s, border-color .3s, background-color .3s, transform .2s;
+                }
+                .nusara-btn:hover {
+                    color: var(--ink);
+                    border-color: var(--gold);
+                    transform: translateY(-1px);
+                }
+                .nusara-btn:active {
+                    transform: translateY(0);
+                }
+
+                .nusara-btn-gold {
+                    color: #0e0d0c !important;
+                    background: linear-gradient(135deg, #c9a45c, #f3d89a) !important;
+                    border-color: #c9a45c !important;
+                    font-weight: 600 !important;
+                }
+                .nusara-btn-gold:hover {
+                    box-shadow: 0 4px 20px rgba(201, 164, 92, 0.35);
                 }
             `}</style>
 
-            {/* Skip Button Top Right */}
-            <div className="w-full max-w-6xl px-6 pt-6 flex items-center justify-between z-20">
-                <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#c9a45c] animate-ping" />
-                    <span className="text-[11px] font-sans tracking-[0.25em] uppercase text-[#c9a45c] font-semibold">
-                        Nusara Gastronomi Indonesia
-                    </span>
+            {/* Top Bar Status with Progress bar */}
+            <div className="w-full max-w-4xl flex flex-col gap-2 px-4 z-10">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#c9a45c] animate-pulse" />
+                        <span className="text-[11px] uppercase tracking-[0.2em] text-[#8f887b] font-medium">
+                            Harmoni Rasa Nusantara
+                        </span>
+                    </div>
+                    {/* Countdown progress indicator */}
+                    <div className="text-[11px] tracking-widest text-[#8f887b] font-mono">
+                        {progressPercent < 100 
+                            ? `${Math.max(1, Math.round(((effectiveDelay - (progressPercent / 100) * effectiveDelay)) / 1000))}s menuju landing page` 
+                            : 'Membuka Landing Page...'}
+                    </div>
                 </div>
-                <button
-                    onClick={handleSkip}
-                    type="button"
-                    className="px-4 py-2 rounded-full border border-[#2a2723] hover:border-[#c9a45c] bg-[#181614]/80 text-xs font-sans font-medium tracking-wider text-[#8f887b] hover:text-[#efe9dd] transition-all flex items-center gap-1.5 backdrop-blur-md"
-                >
-                    <span>Lewati</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                {/* Thin golden progress bar */}
+                <div className="w-full h-0.5 bg-[#2a2723] rounded-full overflow-hidden">
+                    <div 
+                        className="h-full bg-gradient-to-r from-[#c9a45c] via-[#f3d89a] to-[#c9a45c] transition-all duration-100 ease-out" 
+                        style={{ width: `${progressPercent}%` }}
+                    />
+                </div>
             </div>
 
-            {/* Stage Center */}
-            <div className="flex-1 w-full flex items-center justify-center p-4">
+            {/* Stage: SVG Logo Reveal */}
+            <div className="flex-1 w-full flex items-center justify-center min-h-0 py-4">
                 <svg
                     key={renderKey}
                     viewBox="-30 -30 2020 1404"
                     role="img"
                     aria-label="Logo Nusara, Nusantara & Rasa"
-                    className="w-full max-w-[760px] max-h-[75vh] h-auto overflow-visible block drop-shadow-[0_15px_35px_rgba(201,164,92,0.15)]"
+                    style={{
+                        width: 'min(100%, clamp(300px, 62vw, 760px))',
+                        height: 'auto',
+                        maxHeight: '78vh',
+                        overflow: 'visible',
+                        display: 'block'
+                    }}
                 >
                     <defs>
                         <mask id="lm" maskUnits="userSpaceOnUse" x="-30" y="-30" width="2020" height="1404">
-                            {/* All paths fill mask for sheen effect */}
                             {DATA.tiles.map((d, i) => (
-                                <path key={`mask-tile-${i}`} d={d} fill="#fff" fillRule="evenodd" />
+                                <path key={`mt-${i}`} d={d} fill="#fff" fillRule="evenodd" />
                             ))}
                             {DATA.letters.map((d, i) => (
-                                <path key={`mask-letter-${i}`} d={d} fill="#fff" fillRule="evenodd" />
+                                <path key={`ml-${i}`} d={d} fill="#fff" fillRule="evenodd" />
                             ))}
                             {DATA.tag.map((d, i) => (
-                                <path key={`mask-tag-${i}`} d={d} fill="#fff" fillRule="evenodd" />
+                                <path key={`mtg-${i}`} d={d} fill="#fff" fillRule="evenodd" />
                             ))}
                         </mask>
-                        <linearGradient id="sg" x1="0" x2="1" y1="0" y2="0">
+                        <linearGradient id="sg" x1={0} x2={1} y1={0} y2={0}>
                             <stop offset="0" stopColor="#f3d89a" stopOpacity="0" />
                             <stop offset="0.5" stopColor="#f3d89a" stopOpacity="0.95" />
                             <stop offset="1" stopColor="#f3d89a" stopOpacity="0" />
@@ -205,23 +300,24 @@ export default function NusaraSplashScreen({
                             { d: 'M631 63H1143V600H631Z', t: 0, dur: 1.3, gl: 3.1 },
                             { d: 'M887 20V645', t: 0.35, dur: 1.1, gl: 3.1 },
                             { d: 'M590 331H1184', t: 0.5, dur: 1.1, gl: 3.1 }
-                        ].map((guide, idx) => (
+                        ].map((g, idx) => (
                             <path
                                 key={`guide-${idx}`}
-                                d={guide.d}
+                                d={g.d}
                                 className="nusara-guide"
                                 pathLength={1}
                                 style={{
-                                    ['--d' as any]: `${guide.t}s`,
-                                    ['--dur' as any]: `${guide.dur}s`,
-                                    ['--gl' as any]: `${guide.gl}s`
+                                    ['--d' as any]: `${g.t}s`,
+                                    ['--dur' as any]: `${g.dur}s`,
+                                    ['--gl' as any]: `${g.gl}s`
                                 }}
                             />
                         ))}
                     </g>
 
-                    {/* 1. Ikon 4 Keping */}
+                    {/* Logo Group */}
                     <g>
+                        {/* 1. Ikon 4 Keping searah jarum jam */}
                         {DATA.tiles.map((d, i) => {
                             const delay = 0.55 + i * 0.28;
                             const dur = 1.9;
@@ -242,17 +338,15 @@ export default function NusaraSplashScreen({
                                 />
                             );
                         })}
-                    </g>
 
-                    {/* 2. Huruf N-U-S-A-R-A */}
-                    <g>
+                        {/* 2. NUSARA huruf demi huruf */}
                         {DATA.letters.map((d, i) => {
                             const delay = 2.7 + i * 0.15;
                             const dur = 1.5;
                             const fdl = delay + dur * 0.72;
                             return (
                                 <path
-                                    key={`letter-${i}`}
+                                    key={`let-${i}`}
                                     d={d}
                                     className="nusara-glyph"
                                     pathLength={1}
@@ -260,16 +354,14 @@ export default function NusaraSplashScreen({
                                         ['--d' as any]: `${delay}s`,
                                         ['--dur' as any]: `${dur}s`,
                                         ['--fdl' as any]: `${fdl}s`,
-                                        ['--fd' as any]: '1.0s',
+                                        ['--fd' as any]: '1s',
                                         ['--sw' as any]: 3.8
                                     }}
                                 />
                             );
                         })}
-                    </g>
 
-                    {/* 3. Tagline Huruf demi Huruf */}
-                    <g>
+                        {/* 3. Tagline Nusantara & Rasa */}
                         {DATA.tag.map((d, i) => {
                             const delay = 4.5 + i * 0.055;
                             const dur = 0.95;
@@ -290,48 +382,75 @@ export default function NusaraSplashScreen({
                                 />
                             );
                         })}
-                    </g>
 
-                    {/* 4. Tanda ® Registered */}
-                    <g className="nusara-reg" style={{ ['--d' as any]: '5.9s' }}>
-                        <path d={DATA.reg} className="nusara-glyph" fillRule="evenodd" />
-                    </g>
+                        {/* 4. Tanda ® Registered */}
+                        <g className="nusara-reg" style={{ ['--d' as any]: '5.9s' }}>
+                            <path d={DATA.reg} className="nusara-glyph" fillRule="evenodd" />
+                        </g>
 
-                    {/* 5. Kilau Emas (Sheen) */}
-                    <g mask="url(#lm)">
-                        <rect
-                            className="nusara-sheen"
-                            x="-300"
-                            y="-60"
-                            width="280"
-                            height="1500"
-                            fill="url(#sg)"
-                            style={{ ['--d' as any]: '6.2s' }}
-                        />
+                        {/* 5. Kilau Emas sekali lewat */}
+                        <g mask="url(#lm)">
+                            <rect
+                                className="nusara-sheen"
+                                x={-300}
+                                y={-60}
+                                width={280}
+                                height={1500}
+                                fill="url(#sg)"
+                                style={{ ['--d' as any]: '6.2s' }}
+                            />
+                        </g>
                     </g>
                 </svg>
             </div>
 
-            {/* Bottom Controls Bar */}
+            {/* Controls Bar persis seperti HTML + Tombol Lanjut ke Landing Page & Tombol Dashboard */}
             {showControls && (
-                <div className="w-full max-w-md px-6 pb-6 flex items-center justify-center gap-3 z-20">
-                    <button
-                        onClick={handleReplay}
-                        type="button"
-                        className="px-4 py-2 rounded-full border border-[#2a2723] hover:border-[#c9a45c] bg-[#181614]/80 text-xs font-sans font-medium tracking-wider text-[#8f887b] hover:text-[#efe9dd] transition-all flex items-center gap-2"
-                    >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        <span>Putar Ulang</span>
+                <div className="flex gap-2 flex-wrap justify-center items-center z-20 max-w-3xl px-4 pb-2">
+                    <button id="replay" type="button" onClick={handleReplay} className="nusara-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 14, height: 14 }}>
+                            <path d="M3 12a9 9 0 1 0 3-6.7" />
+                            <path d="M3 4v5h5" />
+                        </svg>
+                        <span>Putar ulang</span>
+                    </button>
+
+                    <button id="theme" type="button" onClick={handleToggleTheme} className="nusara-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 14, height: 14 }}>
+                            <circle cx={12} cy={12} r={9} />
+                            <path d="M12 3v18" />
+                            <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" />
+                        </svg>
+                        <span>Terang / Gelap</span>
                     </button>
 
                     <button
-                        onClick={handleSkip}
                         type="button"
-                        className="px-5 py-2 rounded-full bg-gradient-to-r from-[#c9a45c] to-[#f3d89a] text-[#0e0d0c] text-xs font-sans font-bold tracking-wider uppercase transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center gap-1.5"
+                        onClick={handleFinishAction}
+                        className="nusara-btn nusara-btn-gold"
                     >
-                        <span>Masuk ke Restoran</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <span>Ke Landing Page</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+                            <path d="M5 12h14" />
+                            <path d="m12 5 7 7-7 7" />
+                        </svg>
                     </button>
+
+                    <Link
+                        href="/order"
+                        className="nusara-btn"
+                        style={{ borderColor: 'rgba(201, 164, 92, 0.4)', color: 'var(--ink)' }}
+                    >
+                        <span>📱 Dashboard Pemesanan</span>
+                    </Link>
+
+                    <Link
+                        href="/admin"
+                        className="nusara-btn"
+                        style={{ borderColor: 'rgba(201, 164, 92, 0.4)', color: 'var(--ink)' }}
+                    >
+                        <span>🛡️ Dashboard Admin</span>
+                    </Link>
                 </div>
             )}
         </div>

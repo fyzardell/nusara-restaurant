@@ -106,6 +106,20 @@ export default function Navbar({ onOpenReservation, onOpenOrderType }: Props) {
                                 Lokasi & Jam
                             </a>
                             <Link 
+                                href="/order" 
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#B99A65]/20 border border-[#B99A65]/50 text-[#D4B886] hover:bg-[#B99A65] hover:text-[#211D1B] text-xs font-semibold transition-all shadow"
+                            >
+                                <ShoppingBag className="w-3.5 h-3.5" />
+                                <span>Order App</span>
+                            </Link>
+                            <Link 
+                                href="/admin" 
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-stone-900/80 border border-stone-600 text-[#F4EFE6] hover:border-[#B99A65] text-xs font-medium transition-all"
+                            >
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>Admin</span>
+                            </Link>
+                            <Link 
                                 href="/splash" 
                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#32151F]/80 border border-[#B99A65]/40 text-[#D4B886] hover:bg-[#B99A65]/20 hover:border-[#D4B886] text-xs font-medium transition-all"
                                 title="Lihat animasi logo reveal NUSARA"

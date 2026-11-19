@@ -8,6 +8,7 @@ import ReservationModal from '../Components/ReservationModal';
 import OrderTypeModal from '../Components/OrderTypeModal';
 import FavoriteLoginPromptModal from '../Components/FavoriteLoginPromptModal';
 import NusaraSplashScreen from '../Components/NusaraSplashScreen';
+import DashboardGatewayModal from '../Components/DashboardGatewayModal';
 import { 
     RestaurantSettings, 
     Category, 
@@ -32,7 +33,8 @@ import {
     ArrowRight,
     Utensils,
     HeartHandshake,
-    ShieldAlert
+    ShieldAlert,
+    ShieldCheck
 } from 'lucide-react';
 
 interface Props {
@@ -51,13 +53,26 @@ export default function LandingPage({ settings, categories, menus, experiences, 
     const [orderTypeModalOpen, setOrderTypeModalOpen] = useState(false);
     const [favoritePromptMenu, setFavoritePromptMenu] = useState<Menu | null>(null);
     const [selectedExperience, setSelectedExperience] = useState<DiningExperience | null>(null);
+    const [showDashboardGateway, setShowDashboardGateway] = useState<boolean>(false);
+    const [splashFading, setSplashFading] = useState<boolean>(false);
     const [showSplash, setShowSplash] = useState<boolean>(() => {
         if (typeof window !== 'undefined') {
-            const hasSeen = sessionStorage.getItem('nusara_splash_seen');
-            return !hasSeen;
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('nosplash') === '1') {
+                return false;
+            }
         }
-        return false;
+        return true;
     });
+
+    const handleSplashFinish = () => {
+        setSplashFading(true);
+        setTimeout(() => {
+            setShowSplash(false);
+            setSplashFading(false);
+            setShowDashboardGateway(true);
+        }, 500);
+    };
 
     // Filter & Search state for menus
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -119,22 +134,57 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                 onOpenOrderType={() => setOrderTypeModalOpen(true)}
             />
 
-            {/* Splashscreen Animation Overlay (First visit or manual trigger) */}
+            {/* Splashscreen Animation Overlay (Plays first on visit or manual trigger) */}
             {showSplash && (
-                <div className="fixed inset-0 z-[9999] overflow-hidden">
+                <div className={`fixed inset-0 z-[9999] overflow-hidden transition-opacity duration-500 ${
+                    splashFading ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                }`}>
                     <NusaraSplashScreen 
-                        autoDismiss={true}
-                        dismissDelayMs={2000}
+                        autoTransition={true}
+                        autoTransitionDelayMs={8200}
                         showControls={true}
-                        onFinish={() => {
-                            setShowSplash(false);
-                            if (typeof window !== 'undefined') {
-                                sessionStorage.setItem('nusara_splash_seen', 'true');
-                            }
-                        }}
+                        onFinish={handleSplashFinish}
                     />
                 </div>
             )}
+
+            {/* Quick Access Strip / Guided Banner to Dashboards */}
+            <div className="bg-[#1A1215] text-[#D4B886] border-b border-[#B99A65]/30 pt-20 pb-2.5 px-4 text-xs">
+                <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="w-3.5 h-3.5 text-[#B99A65] animate-pulse" />
+                        <span className="font-semibold tracking-wide text-[#F4EFE6]">
+                            Pilih Akses Cepat Dashboard NUSARA:
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Link
+                            href="/order"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-[11px] hover:scale-105 active:scale-95 transition-all shadow"
+                        >
+                            <ShoppingBag className="w-3.5 h-3.5" />
+                            <span>Dashboard Pemesanan (Pelanggan)</span>
+                        </Link>
+
+                        <Link
+                            href="/admin"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-stone-800 border border-stone-600 text-[#F4EFE6] font-semibold text-[11px] hover:border-[#B99A65] transition-all"
+                        >
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Dashboard Operasional (Admin)</span>
+                        </Link>
+
+                        <button
+                            type="button"
+                            onClick={() => setShowDashboardGateway(true)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886] font-medium text-[11px] hover:bg-[#32151F]/80 transition-all"
+                        >
+                            <span>Panduan Alur</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             {/* Flash Success Notification */}
             {flash?.success && (
@@ -178,37 +228,45 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                     </p>
 
                     {/* Hero CTAs */}
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-4 flex-wrap">
+                        <Link
+                            href="/order"
+                            className="w-full sm:w-auto px-7 py-4 rounded-full bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#B99A65]/20 flex items-center justify-center gap-2"
+                        >
+                            <ShoppingBag className="w-4 h-4" />
+                            <span>Buka Dashboard Pemesanan</span>
+                        </Link>
+
+                        <Link
+                            href="/admin"
+                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-stone-900/90 border border-stone-600 text-[#F4EFE6] font-semibold text-xs uppercase tracking-wider hover:bg-stone-800 hover:border-[#B99A65] transition-all flex items-center justify-center gap-2"
+                        >
+                            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                            <span>Dashboard Admin</span>
+                        </Link>
+
                         <button
                             onClick={() => {
                                 setSelectedExperience(null);
                                 setReservationModalOpen(true);
                             }}
-                            className="w-full sm:w-auto px-8 py-4 rounded-full bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#B99A65]/20 flex items-center justify-center gap-2"
+                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-[#32151F]/80 border border-[#B99A65]/60 text-[#F4EFE6] font-semibold text-xs uppercase tracking-widest hover:bg-[#B99A65]/20 hover:border-[#D4B886] transition-all flex items-center justify-center gap-2"
                         >
-                            <Calendar className="w-4 h-4" />
-                            <span>Reservasi Meja Anda</span>
+                            <Calendar className="w-4 h-4 text-[#D4B886]" />
+                            <span>Reservasi Meja</span>
                         </button>
 
                         <a
                             href="#menu"
-                            className="w-full sm:w-auto px-8 py-4 rounded-full bg-[#32151F]/80 border border-[#B99A65]/60 text-[#F4EFE6] font-semibold text-xs uppercase tracking-widest hover:bg-[#B99A65]/20 hover:border-[#D4B886] transition-all flex items-center justify-center gap-2"
+                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-black/40 border border-stone-700 text-[#F4EFE6] font-semibold text-xs uppercase tracking-widest hover:border-[#D4B886] transition-all flex items-center justify-center gap-2"
                         >
-                            <span>Jelajahi Menu & Best Seller</span>
+                            <span>Jelajahi Menu</span>
                             <ArrowRight className="w-4 h-4 text-[#D4B886]" />
                         </a>
 
                         <button
-                            onClick={() => setOrderTypeModalOpen(true)}
-                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-stone-900/90 border border-stone-700 text-[#D4B886] font-semibold text-xs tracking-wider hover:bg-stone-800 transition-all flex items-center justify-center gap-2"
-                        >
-                            <QrCode className="w-4 h-4" />
-                            <span>Scan Meja / Takeaway</span>
-                        </button>
-
-                        <button
                             onClick={() => setShowSplash(true)}
-                            className="w-full sm:w-auto px-5 py-4 rounded-full bg-black/60 border border-[#B99A65]/40 text-[#D4B886] font-semibold text-xs tracking-wider hover:bg-[#B99A65]/20 hover:border-[#D4B886] transition-all flex items-center justify-center gap-2 shadow-lg"
+                            className="w-full sm:w-auto px-4 py-4 rounded-full bg-black/60 border border-[#B99A65]/40 text-[#D4B886] font-semibold text-xs tracking-wider hover:bg-[#B99A65]/20 hover:border-[#D4B886] transition-all flex items-center justify-center gap-2 shadow-lg"
                             title="Tonton animasi logo reveal NUSARA"
                         >
                             <Sparkles className="w-4 h-4 text-[#B99A65]" />
@@ -673,6 +731,12 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                 isOpen={!!favoritePromptMenu}
                 onClose={() => setFavoritePromptMenu(null)}
                 menu={favoritePromptMenu}
+            />
+
+            {/* Dashboard Gateway Guided Modal (Appears after splashscreen completes or on demand) */}
+            <DashboardGatewayModal
+                isOpen={showDashboardGateway}
+                onClose={() => setShowDashboardGateway(false)}
             />
         </div>
     );
