@@ -279,7 +279,7 @@ export default function Navbar({ onOpenReservation, onOpenOrderType }: Props) {
                                     className="w-full py-2.5 text-xs font-semibold text-center text-[#F4EFE6] bg-[#32151F] border border-[#B99A65]/40 rounded-lg flex items-center justify-center gap-2"
                                 >
                                     <UserIcon className="w-4 h-4" />
-                                    <span>Masuk ke Akun / Portal Staf</span>
+                                    <span>Masuk ke Akun</span>
                                 </Link>
                             )}
                         </div>

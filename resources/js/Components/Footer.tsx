@@ -74,7 +74,7 @@ export default function Footer({ settings, operatingHours }: Props) {
                             <li><a href="#menu" className="hover:text-[#D4B886] transition-colors">Pusaka Menu & Best Seller</a></li>
                             <li><a href="#pengalaman" className="hover:text-[#D4B886] transition-colors">Royal Rijsttafel & Chef's Table</a></li>
                             <li><a href="#alur-pesan" className="hover:text-[#D4B886] transition-colors">Panduan Dine-in QR & Takeaway</a></li>
-                            <li><Link href="/login" className="hover:text-[#D4B886] transition-colors">Portal Staf (Admin, Kasir, Waiter)</Link></li>
+                            <li><Link href="/login" className="hover:text-[#D4B886] transition-colors">Akses Akun & Keanggotaan</Link></li>
                         </ul>
                     </div>
 
