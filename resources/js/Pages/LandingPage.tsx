@@ -8,7 +8,6 @@ import ReservationModal from '../Components/ReservationModal';
 import OrderTypeModal from '../Components/OrderTypeModal';
 import FavoriteLoginPromptModal from '../Components/FavoriteLoginPromptModal';
 import NusaraSplashScreen from '../Components/NusaraSplashScreen';
-import DashboardGatewayModal from '../Components/DashboardGatewayModal';
 import { 
     RestaurantSettings, 
     Category, 
@@ -53,7 +52,6 @@ export default function LandingPage({ settings, categories, menus, experiences, 
     const [orderTypeModalOpen, setOrderTypeModalOpen] = useState(false);
     const [favoritePromptMenu, setFavoritePromptMenu] = useState<Menu | null>(null);
     const [selectedExperience, setSelectedExperience] = useState<DiningExperience | null>(null);
-    const [showDashboardGateway, setShowDashboardGateway] = useState<boolean>(false);
     const [sidePanelOpen, setSidePanelOpen] = useState<boolean>(false);
     const [splashFading, setSplashFading] = useState<boolean>(false);
     const [showSplash, setShowSplash] = useState<boolean>(() => {
@@ -71,7 +69,6 @@ export default function LandingPage({ settings, categories, menus, experiences, 
         setTimeout(() => {
             setShowSplash(false);
             setSplashFading(false);
-            setShowDashboardGateway(true);
         }, 500);
     };
 
@@ -703,12 +700,6 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                 isOpen={!!favoritePromptMenu}
                 onClose={() => setFavoritePromptMenu(null)}
                 menu={favoritePromptMenu}
-            />
-
-            {/* Dashboard Gateway Guided Modal (Appears after splashscreen completes or on demand) */}
-            <DashboardGatewayModal
-                isOpen={showDashboardGateway}
-                onClose={() => setShowDashboardGateway(false)}
             />
         </div>
     );

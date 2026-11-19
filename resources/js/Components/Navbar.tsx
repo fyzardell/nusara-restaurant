@@ -85,7 +85,8 @@ export default function Navbar({
         <>
             {/* ========================================================
                 1. MAIN HEADER (Ultra-clean, shifts alongside page content)
-                HANYA ADA: Tombol Side Panel, Logo, Pilih Menu, Reservasi, Log In
+                KIRI: Button Side Panel (Icon Only, Warna Cerah) + Logo NUSARA
+                KANAN: Pilih Menu, Reservasi, Log In
             ======================================================== */}
             <header 
                 className={`fixed top-0 right-0 z-40 transition-all duration-300 ease-in-out ${
@@ -96,32 +97,29 @@ export default function Navbar({
                     className={`transition-all duration-300 ${
                         scrolled 
                             ? 'bg-[#1E1A18]/95 backdrop-blur-md shadow-2xl py-3 border-b border-[#B99A65]/20' 
-                            : 'bg-gradient-to-b from-[#1E1A18]/95 via-[#1E1A18]/80 to-transparent py-4'
+                            : 'bg-gradient-to-b from-[#1E1A18]/95 via-[#1E1A18]/80 to-transparent py-3.5 sm:py-4'
                     }`}
                 >
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="flex items-center justify-between">
-                            {/* Left Group: Button Side Panel (Chrome Style) + Logo NUSARA */}
-                            <div className="flex items-center gap-3">
-                                {/* Chrome-style Side Panel Toggle Button */}
+                            {/* Left Group: Button Side Panel (Icon Only, Warna Cerah Menyilaukan) + Logo NUSARA */}
+                            <div className="flex items-center gap-3 sm:gap-4">
+                                {/* Chrome-style Side Panel Toggle Button (ICON ONLY & WARNA CERAH) */}
                                 <button
                                     onClick={onToggleSidePanel}
-                                    className={`p-2 rounded-xl border transition-all flex items-center gap-1.5 shadow-sm ${
+                                    className={`p-2.5 sm:p-2.5 rounded-full border-2 transition-all flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 ${
                                         sidePanelOpen 
-                                            ? 'bg-[#B99A65] text-[#211D1B] border-[#B99A65]' 
-                                            : 'bg-[#2A221F] text-[#D4B886] border-[#B99A65]/40 hover:bg-[#32151F] hover:border-[#D4B886]'
+                                            ? 'bg-amber-400 text-[#1A1412] border-amber-200 ring-2 ring-amber-400/50 shadow-amber-500/40' 
+                                            : 'bg-gradient-to-br from-[#FFF0BA] via-[#F6D072] to-[#C99A36] text-[#1A1412] border-[#FFF8D6] shadow-amber-400/40 hover:shadow-amber-400/60'
                                     }`}
-                                    title={sidePanelOpen ? 'Tutup Side Panel' : 'Buka Side Panel (Kaya di Chrome)'}
+                                    title={sidePanelOpen ? 'Tutup Side Panel' : 'Buka Side Panel Menu (Kaya di Chrome)'}
                                     aria-label="Toggle Side Panel"
                                 >
                                     {sidePanelOpen ? (
-                                        <PanelLeftClose className="w-4 h-4" />
+                                        <PanelLeftClose className="w-5 h-5 text-[#1A1412]" />
                                     ) : (
-                                        <PanelLeft className="w-4 h-4" />
+                                        <PanelLeft className="w-5 h-5 text-[#1A1412]" />
                                     )}
-                                    <span className="hidden sm:inline text-xs font-semibold tracking-wider">
-                                        Side Panel
-                                    </span>
                                 </button>
 
                                 {/* Logo NUSARA */}
@@ -140,10 +138,10 @@ export default function Navbar({
                                 </Link>
                             </div>
 
-                            {/* Right Group: Sesuai permintaan: Hanya sisain:
+                            {/* Right Group: Sesuai instruksi: HANYA sisain:
                                 1. Pilih Menu
                                 2. Reservasi
-                                3. Log In (atau profil pelanggan)
+                                3. Log In (atau nama profil pelanggan)
                             */}
                             <div className="flex items-center gap-2 sm:gap-3">
                                 {/* 1. Tombol Pilih Menu */}
@@ -253,12 +251,172 @@ export default function Navbar({
                     </button>
                 </div>
 
-                {/* B. Scrollable Content Body */}
+                {/* B. Scrollable Content Body (Halaman Ditonjolkan Terdepan) */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-5">
-                    {/* 1. Pilihan Pemesanan: Dine In atau Takeaway */}
+                    {/* 1. DAFTAR HALAMAN & MENU (DITONJOLKAN SESUAI REQUEST USER) */}
                     <div className="space-y-2.5">
                         <div className="flex items-center justify-between">
-                            <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#D4B886]">
+                            <span className="text-[11px] uppercase font-bold tracking-[0.2em] text-[#D4B886] flex items-center gap-1.5">
+                                <Sparkles className="w-3.5 h-3.5 text-[#B99A65]" />
+                                <span>Eksplorasi Halaman NUSARA</span>
+                            </span>
+                            <span className="text-[9px] text-[#F4EFE6]/50">Navigasi Utama</span>
+                        </div>
+
+                        {/* Kartu-Kartu Halaman yang Menonjol */}
+                        <div className="space-y-2">
+                            {/* Halaman 1: Menu & Best Seller */}
+                            <a
+                                href="#menu"
+                                onClick={() => handleNavClick('#menu')}
+                                className="group block p-3 rounded-xl bg-gradient-to-r from-[#32151F]/90 to-[#211D1B] border border-[#B99A65]/40 hover:border-[#D4B886] transition-all shadow-md hover:translate-x-1"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-[#B99A65]/20 border border-[#B99A65]/40 flex items-center justify-center text-[#D4B886]">
+                                            <Utensils className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-heading text-xs font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
+                                                Menu Signature & Best Seller
+                                            </h4>
+                                            <p className="text-[10px] text-[#F4EFE6]/70">
+                                                Rendang 48 jam, Rawon Wagyu, Rijsttafel
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-[#D4B886] group-hover:translate-x-0.5 transition-transform" />
+                                </div>
+                            </a>
+
+                            {/* Halaman 2: Cerita & Filosofi */}
+                            <a
+                                href="#cerita"
+                                onClick={() => handleNavClick('#cerita')}
+                                className="group block p-3 rounded-xl bg-[#211D1B] border border-stone-800 hover:border-[#B99A65]/60 transition-all shadow-sm hover:translate-x-1"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-stone-800 border border-stone-700 flex items-center justify-center text-[#D4B886]">
+                                            <BookOpen className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-heading text-xs font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
+                                                Cerita & Filosofi Rempah
+                                            </h4>
+                                            <p className="text-[10px] text-stone-400">
+                                                Harmoni tradisi kuliner 17.000 pulau
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-stone-500 group-hover:text-[#D4B886] transition-colors" />
+                                </div>
+                            </a>
+
+                            {/* Halaman 3: Dining Experience */}
+                            <a
+                                href="#pengalaman"
+                                onClick={() => handleNavClick('#pengalaman')}
+                                className="group block p-3 rounded-xl bg-[#211D1B] border border-stone-800 hover:border-[#B99A65]/60 transition-all shadow-sm hover:translate-x-1"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-stone-800 border border-stone-700 flex items-center justify-center text-[#D4B886]">
+                                            <Sparkles className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-heading text-xs font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
+                                                Dining Experience
+                                            </h4>
+                                            <p className="text-[10px] text-stone-400">
+                                                Royal Rijsttafel, Private Room & Omakase
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-stone-500 group-hover:text-[#D4B886] transition-colors" />
+                                </div>
+                            </a>
+
+                            {/* Halaman 4: Cara Memesan Meja QR */}
+                            <a
+                                href="#alur-pesan"
+                                onClick={() => handleNavClick('#alur-pesan')}
+                                className="group block p-3 rounded-xl bg-[#211D1B] border border-stone-800 hover:border-[#B99A65]/60 transition-all shadow-sm hover:translate-x-1"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-stone-800 border border-stone-700 flex items-center justify-center text-[#D4B886]">
+                                            <QrCode className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-heading text-xs font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
+                                                Alur Pemesanan Meja QR
+                                            </h4>
+                                            <p className="text-[10px] text-stone-400">
+                                                Panduan pesan mandiri tanpa antre
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-stone-500 group-hover:text-[#D4B886] transition-colors" />
+                                </div>
+                            </a>
+
+                            {/* Halaman 5: Lokasi & Jam Operasional */}
+                            <a
+                                href="#kontak"
+                                onClick={() => handleNavClick('#kontak')}
+                                className="group block p-3 rounded-xl bg-[#211D1B] border border-stone-800 hover:border-[#B99A65]/60 transition-all shadow-sm hover:translate-x-1"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-stone-800 border border-stone-700 flex items-center justify-center text-[#D4B886]">
+                                            <MapPin className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-heading text-xs font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
+                                                Lokasi & Jam Restoran
+                                            </h4>
+                                            <p className="text-[10px] text-stone-400">
+                                                Senopati No. 88, Jaksel · 11:00 - 22:30 WIB
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-stone-500 group-hover:text-[#D4B886] transition-colors" />
+                                </div>
+                            </a>
+
+                            {/* Halaman 6: Tonton Logo Reveal Splashscreen */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (onReplaySplash) onReplaySplash();
+                                }}
+                                className="w-full text-left group block p-3 rounded-xl bg-[#1C1716] border border-[#B99A65]/30 hover:border-[#D4B886] transition-all shadow-sm hover:translate-x-1"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg bg-[#32151F] border border-[#B99A65]/40 flex items-center justify-center text-[#D4B886]">
+                                            <Sparkles className="w-4 h-4 text-[#B99A65]" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-heading text-xs font-bold text-[#D4B886] group-hover:text-[#F4EFE6] transition-colors">
+                                                Tonton Logo Reveal
+                                            </h4>
+                                            <p className="text-[10px] text-stone-400">
+                                                Putar kembali animasi mahakarya NUSARA
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-[#D4B886]" />
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* 2. PILIHAN PEMESANAN: DINE IN ATAU TAKEAWAY (SESUAI REQUEST USER) */}
+                    <div className="space-y-2.5 pt-2 border-t border-[#32151F]/70">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] uppercase font-bold tracking-[0.2em] text-[#D4B886]">
                                 Pilihan Pemesanan
                             </span>
                             <span className="text-[9px] text-[#F4EFE6]/50">Dine In / Takeaway</span>
@@ -319,104 +477,21 @@ export default function Navbar({
                         {/* Direct Customer Order App Link (ala Kopi Kenangan) */}
                         <Link
                             href="/order"
-                            className="group block p-3 rounded-xl bg-[#211D1B] border border-[#B99A65]/30 hover:border-[#D4B886] transition-all"
+                            className="group block p-2.5 rounded-xl bg-[#211D1B] border border-[#B99A65]/30 hover:border-[#D4B886] transition-all"
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Sparkles className="w-3.5 h-3.5 text-[#B99A65]" />
                                     <span className="text-xs font-semibold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
-                                        Buka Menu Pemesanan Lengkap
+                                        Menu Pemesanan Digital
                                     </span>
                                 </div>
                                 <ArrowRight className="w-3.5 h-3.5 text-[#D4B886] group-hover:translate-x-1 transition-transform" />
                             </div>
-                            <p className="text-[10px] text-stone-400 mt-1">
-                                Favorit, catatan request koki, keranjang, live chat & rating bintang 5
+                            <p className="text-[10px] text-stone-400 mt-0.5">
+                                Favorit, catatan request koki, keranjang, live chat & rating
                             </p>
                         </Link>
-                    </div>
-
-                    {/* 2. Daftar Halaman & Menu */}
-                    <div className="space-y-2">
-                        <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#D4B886] block">
-                            Daftar Halaman & Menu
-                        </span>
-
-                        <div className="divide-y divide-[#32151F]/60 rounded-xl bg-[#211D1B]/70 border border-stone-800 overflow-hidden">
-                            <a
-                                href="#menu"
-                                onClick={() => handleNavClick('#menu')}
-                                className="flex items-center justify-between p-2.5 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Utensils className="w-3.5 h-3.5 text-[#D4B886]" />
-                                    <span>Menu Signature & Best Seller</span>
-                                </div>
-                                <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
-                            </a>
-
-                            <a
-                                href="#cerita"
-                                onClick={() => handleNavClick('#cerita')}
-                                className="flex items-center justify-between p-2.5 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <BookOpen className="w-3.5 h-3.5 text-[#D4B886]" />
-                                    <span>Cerita & Filosofi 17.000 Rempah</span>
-                                </div>
-                                <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
-                            </a>
-
-                            <a
-                                href="#pengalaman"
-                                onClick={() => handleNavClick('#pengalaman')}
-                                className="flex items-center justify-between p-2.5 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Sparkles className="w-3.5 h-3.5 text-[#D4B886]" />
-                                    <span>Dining Experience (Rijsttafel & VIP)</span>
-                                </div>
-                                <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
-                            </a>
-
-                            <a
-                                href="#alur-pesan"
-                                onClick={() => handleNavClick('#alur-pesan')}
-                                className="flex items-center justify-between p-2.5 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <QrCode className="w-3.5 h-3.5 text-[#D4B886]" />
-                                    <span>Alur Pemesanan Meja QR</span>
-                                </div>
-                                <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
-                            </a>
-
-                            <a
-                                href="#kontak"
-                                onClick={() => handleNavClick('#kontak')}
-                                className="flex items-center justify-between p-2.5 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <MapPin className="w-3.5 h-3.5 text-[#D4B886]" />
-                                    <span>Lokasi Restoran & Jam Buka</span>
-                                </div>
-                                <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
-                            </a>
-
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (onReplaySplash) onReplaySplash();
-                                }}
-                                className="w-full flex items-center justify-between p-2.5 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#D4B886]"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Sparkles className="w-3.5 h-3.5 text-[#B99A65]" />
-                                    <span>Tonton Logo Reveal Splashscreen</span>
-                                </div>
-                                <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
-                            </button>
-                        </div>
                     </div>
 
                     {/* 3. Tombol Reservasi Meja Tamu */}
