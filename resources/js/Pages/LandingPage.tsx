@@ -132,6 +132,7 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                     setReservationModalOpen(true);
                 }}
                 onOpenOrderType={() => setOrderTypeModalOpen(true)}
+                onReplaySplash={() => setShowSplash(true)}
             />
 
             {/* Splashscreen Animation Overlay (Plays first on visit or manual trigger) */}
@@ -147,44 +148,6 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                     />
                 </div>
             )}
-
-            {/* Quick Access Strip / Guided Banner to Dashboards */}
-            <div className="bg-[#1A1215] text-[#D4B886] border-b border-[#B99A65]/30 pt-20 pb-2.5 px-4 text-xs">
-                <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                        <Sparkles className="w-3.5 h-3.5 text-[#B99A65] animate-pulse" />
-                        <span className="font-semibold tracking-wide text-[#F4EFE6]">
-                            Pilih Akses Cepat Dashboard NUSARA:
-                        </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <Link
-                            href="/order"
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-[11px] hover:scale-105 active:scale-95 transition-all shadow"
-                        >
-                            <ShoppingBag className="w-3.5 h-3.5" />
-                            <span>Dashboard Pemesanan (Pelanggan)</span>
-                        </Link>
-
-                        <Link
-                            href="/admin"
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-stone-800 border border-stone-600 text-[#F4EFE6] font-semibold text-[11px] hover:border-[#B99A65] transition-all"
-                        >
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>Dashboard Operasional (Admin)</span>
-                        </Link>
-
-                        <button
-                            type="button"
-                            onClick={() => setShowDashboardGateway(true)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886] font-medium text-[11px] hover:bg-[#32151F]/80 transition-all"
-                        >
-                            <span>Panduan Alur</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
 
             {/* Flash Success Notification */}
             {flash?.success && (
