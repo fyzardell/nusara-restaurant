@@ -118,6 +118,10 @@ class AuthController extends Controller
 
         session()->flash('success', "Selamat datang kembali, {$user->name} (" . ucfirst($roleName) . ")!");
 
+        if ($roleName === 'customer') {
+            return redirect()->intended(route('order.app'));
+        }
+
         return redirect()->intended(route('home'));
     }
 
