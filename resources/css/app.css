@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+
+@theme {
+    --color-burgundy: #32151F;
+    --color-burgundy-light: #481F2D;
+    --color-burgundy-dark: #200D13;
+    --color-ivory: #F4EFE6;
+    --color-ivory-light: #FBF8F3;
+    --color-ivory-dark: #E4DAC9;
+    --color-gold: #B99A65;
+    --color-gold-light: #D4B886;
+    --color-gold-dark: #987B49;
+    --color-espresso: #211D1B;
+    --color-espresso-light: #352E2B;
+    --color-espresso-dark: #12100F;
+
+    --font-heading: 'Cormorant Garamond', Georgia, serif;
+    --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-dashboard: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Custom scrollbar and luxury utility classes */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #211D1B;
+}
+::-webkit-scrollbar-thumb {
+    background: #481F2D;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #B99A65;
+}
+
+.gold-gradient-text {
+    background: linear-gradient(135deg, #D4B886 0%, #B99A65 50%, #987B49 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.gold-border-gradient {
+    border-image: linear-gradient(to right, #B99A65, #481F2D, #B99A65) 1;
+}
