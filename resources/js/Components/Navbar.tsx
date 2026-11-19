@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import { User } from '../types';
 import { 
-    PanelRight, 
-    PanelRightClose, 
+    PanelLeft, 
+    PanelLeftClose, 
     X, 
     User as UserIcon, 
     LogOut, 
@@ -11,30 +11,39 @@ import {
     QrCode, 
     ShoppingBag, 
     Sparkles, 
-    PhoneCall,
-    ShieldCheck,
-    Utensils,
-    BookOpen,
-    MapPin,
-    Clock,
-    ArrowRight,
-    Star,
-    MessageSquare,
-    Heart,
+    Utensils, 
+    BookOpen, 
+    MapPin, 
+    Clock, 
+    ArrowRight, 
     ChevronRight,
-    Compass
+    UtensilsCrossed,
+    CheckCircle2
 } from 'lucide-react';
 
 interface Props {
+    sidePanelOpen: boolean;
+    onToggleSidePanel: () => void;
+    onCloseSidePanel: () => void;
     onOpenReservation?: () => void;
     onOpenOrderType?: () => void;
+    onSelectDineIn?: () => void;
+    onSelectTakeaway?: () => void;
     onReplaySplash?: () => void;
 }
 
-export default function Navbar({ onOpenReservation, onOpenOrderType, onReplaySplash }: Props) {
+export default function Navbar({ 
+    sidePanelOpen, 
+    onToggleSidePanel, 
+    onCloseSidePanel,
+    onOpenReservation, 
+    onOpenOrderType, 
+    onSelectDineIn,
+    onSelectTakeaway,
+    onReplaySplash 
+}: Props) {
     const { auth } = usePage<{ auth: { user: User | null } }>().props;
     const [scrolled, setScrolled] = useState(false);
-    const [sidePanelOpen, setSidePanelOpen] = useState(false);
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
     useEffect(() => {
@@ -53,12 +62,12 @@ export default function Navbar({ onOpenReservation, onOpenOrderType, onReplaySpl
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && sidePanelOpen) {
-                setSidePanelOpen(false);
+                onCloseSidePanel();
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [sidePanelOpen]);
+    }, [sidePanelOpen, onCloseSidePanel]);
 
     const handleLogout = (e: React.FormEvent) => {
         e.preventDefault();
@@ -66,7 +75,6 @@ export default function Navbar({ onOpenReservation, onOpenOrderType, onReplaySpl
     };
 
     const handleNavClick = (href: string) => {
-        setSidePanelOpen(false);
         const element = document.querySelector(href);
         if (element) {
             element.scrollIntoView({ behavior: 'smooth' });
@@ -76,9 +84,14 @@ export default function Navbar({ onOpenReservation, onOpenOrderType, onReplaySpl
     return (
         <>
             {/* ========================================================
-                MAIN HEADER (Ultra-clean: Logo, Pilih Menu, Reservasi, Log In, Side Panel)
+                1. MAIN HEADER (Ultra-clean, shifts alongside page content)
+                HANYA ADA: Tombol Side Panel, Logo, Pilih Menu, Reservasi, Log In
             ======================================================== */}
-            <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+            <header 
+                className={`fixed top-0 right-0 z-40 transition-all duration-300 ease-in-out ${
+                    sidePanelOpen ? 'md:left-[350px] left-0' : 'left-0'
+                }`}
+            >
                 <nav 
                     className={`transition-all duration-300 ${
                         scrolled 
@@ -88,32 +101,55 @@ export default function Navbar({ onOpenReservation, onOpenOrderType, onReplaySpl
                 >
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="flex items-center justify-between">
-                            {/* Logo NUSARA */}
-                            <Link href="/" className="group flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full border border-[#B99A65]/60 bg-[#171312] flex items-center justify-center text-[#D4B886] shadow-inner group-hover:border-[#B99A65] transition-colors">
-                                    <span className="font-heading text-2xl font-bold tracking-tighter">N</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="font-heading text-2xl md:text-3xl font-bold tracking-widest text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors leading-none">
-                                        NUSARA
+                            {/* Left Group: Button Side Panel (Chrome Style) + Logo NUSARA */}
+                            <div className="flex items-center gap-3">
+                                {/* Chrome-style Side Panel Toggle Button */}
+                                <button
+                                    onClick={onToggleSidePanel}
+                                    className={`p-2 rounded-xl border transition-all flex items-center gap-1.5 shadow-sm ${
+                                        sidePanelOpen 
+                                            ? 'bg-[#B99A65] text-[#211D1B] border-[#B99A65]' 
+                                            : 'bg-[#2A221F] text-[#D4B886] border-[#B99A65]/40 hover:bg-[#32151F] hover:border-[#D4B886]'
+                                    }`}
+                                    title={sidePanelOpen ? 'Tutup Side Panel' : 'Buka Side Panel (Kaya di Chrome)'}
+                                    aria-label="Toggle Side Panel"
+                                >
+                                    {sidePanelOpen ? (
+                                        <PanelLeftClose className="w-4 h-4" />
+                                    ) : (
+                                        <PanelLeft className="w-4 h-4" />
+                                    )}
+                                    <span className="hidden sm:inline text-xs font-semibold tracking-wider">
+                                        Side Panel
                                     </span>
-                                    <span className="text-[10px] uppercase tracking-[0.25em] text-[#B99A65] mt-1 font-medium">
-                                        Indonesian Dining
-                                    </span>
-                                </div>
-                            </Link>
+                                </button>
 
-                            {/* Header Buttons: Hanya 4 tombol rapi sesuai instruksi:
+                                {/* Logo NUSARA */}
+                                <Link href="/" className="group flex items-center gap-2.5">
+                                    <div className="w-9 h-9 rounded-full border border-[#B99A65]/60 bg-[#171312] flex items-center justify-center text-[#D4B886] shadow-inner group-hover:border-[#B99A65] transition-colors">
+                                        <span className="font-heading text-xl font-bold tracking-tighter">N</span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-heading text-xl sm:text-2xl font-bold tracking-widest text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors leading-none">
+                                            NUSARA
+                                        </span>
+                                        <span className="text-[9px] uppercase tracking-[0.22em] text-[#B99A65] mt-0.5 font-medium">
+                                            Indonesian Dining
+                                        </span>
+                                    </div>
+                                </Link>
+                            </div>
+
+                            {/* Right Group: Sesuai permintaan: Hanya sisain:
                                 1. Pilih Menu
                                 2. Reservasi
-                                3. Log In (atau nama user)
-                                4. Button Side Panel (ala Chrome)
+                                3. Log In (atau profil pelanggan)
                             */}
                             <div className="flex items-center gap-2 sm:gap-3">
                                 {/* 1. Tombol Pilih Menu */}
                                 <a
                                     href="#menu"
-                                    className="px-3 sm:px-4 py-2 text-xs font-semibold tracking-wider text-[#F4EFE6] border border-[#B99A65]/40 rounded-full hover:bg-[#B99A65]/15 hover:border-[#D4B886] transition-all flex items-center gap-1.5"
+                                    className="px-3.5 sm:px-4 py-2 text-xs font-semibold tracking-wider text-[#F4EFE6] border border-[#B99A65]/40 rounded-full hover:bg-[#B99A65]/15 hover:border-[#D4B886] transition-all flex items-center gap-1.5"
                                 >
                                     <Utensils className="w-3.5 h-3.5 text-[#D4B886]" />
                                     <span>Pilih Menu</span>
@@ -139,37 +175,21 @@ export default function Navbar({ onOpenReservation, onOpenOrderType, onReplaySpl
                                                 {auth.user.name.charAt(0)}
                                             </div>
                                             <span className="hidden md:inline max-w-[90px] truncate">{auth.user.name}</span>
-                                            <span className="px-1.5 py-0.5 text-[9px] uppercase font-bold rounded bg-[#B99A65]/20 text-[#D4B886]">
-                                                {auth.user.role}
-                                            </span>
                                         </button>
 
                                         {userDropdownOpen && (
-                                            <div className="absolute right-0 mt-2 w-56 bg-[#211D1B] border border-[#B99A65]/40 rounded-xl shadow-2xl py-2 z-50 text-xs">
+                                            <div className="absolute right-0 mt-2 w-52 bg-[#211D1B] border border-[#B99A65]/40 rounded-xl shadow-2xl py-2 z-50 text-xs">
                                                 <div className="px-4 py-2 border-b border-[#32151F]">
                                                     <p className="font-bold text-[#F4EFE6] truncate">{auth.user.name}</p>
                                                     <p className="text-[11px] text-[#B99A65] truncate">{auth.user.email}</p>
-                                                    <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-400">
-                                                        <ShieldCheck className="w-3 h-3" />
-                                                        <span className="uppercase tracking-wider">Role: {auth.user.role}</span>
-                                                    </div>
                                                 </div>
                                                 <Link
                                                     href="/order"
                                                     onClick={() => setUserDropdownOpen(false)}
                                                     className="block px-4 py-2 text-[#F4EFE6] hover:bg-[#32151F] transition-colors"
                                                 >
-                                                    Dashboard Pemesanan
+                                                    Menu Pemesanan Saya
                                                 </Link>
-                                                {auth.user.role === 'admin' && (
-                                                    <Link
-                                                        href="/admin"
-                                                        onClick={() => setUserDropdownOpen(false)}
-                                                        className="block px-4 py-2 text-[#D4B886] hover:bg-[#32151F] transition-colors font-semibold"
-                                                    >
-                                                        Dashboard Admin
-                                                    </Link>
-                                                )}
                                                 <button
                                                     onClick={handleLogout}
                                                     className="w-full text-left px-4 py-2 text-rose-300 hover:bg-rose-950/40 flex items-center gap-2 transition-colors border-t border-[#32151F] mt-1"
@@ -189,21 +209,6 @@ export default function Navbar({ onOpenReservation, onOpenOrderType, onReplaySpl
                                         <span>Log In</span>
                                     </Link>
                                 )}
-
-                                {/* 4. Button Side Panel (Kaya di Chrome) */}
-                                <button
-                                    onClick={() => setSidePanelOpen(true)}
-                                    className={`px-3 py-2 rounded-full border transition-all flex items-center gap-1.5 shadow-md ${
-                                        sidePanelOpen 
-                                            ? 'bg-[#B99A65] text-[#211D1B] border-[#B99A65]' 
-                                            : 'bg-[#32151F] text-[#D4B886] border-[#B99A65]/50 hover:bg-[#B99A65]/20 hover:border-[#D4B886]'
-                                    }`}
-                                    title="Buka Side Panel Menu"
-                                    aria-label="Buka Side Panel"
-                                >
-                                    <PanelRight className="w-4 h-4" />
-                                    <span className="hidden sm:inline text-xs font-semibold tracking-wider">Side Panel</span>
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -211,261 +216,250 @@ export default function Navbar({ onOpenReservation, onOpenOrderType, onReplaySpl
             </header>
 
             {/* ========================================================
-                SIDE PANEL (Chrome-style sliding drawer from right)
+                2. LEFT DOCKED SIDE PANEL (Kaya di Chrome Desktop)
+                Bukan pop-up, halaman bergeser ke kanan dan tetap interaktif!
             ======================================================== */}
-            {/* Backdrop Blur Overlay */}
+            {/* Mobile backdrop overlay only (hidden on desktop so page stays 100% interactive) */}
             {sidePanelOpen && (
                 <div 
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9990] transition-opacity duration-300 animate-in fade-in"
-                    onClick={() => setSidePanelOpen(false)}
+                    className="fixed inset-0 bg-black/50 backdrop-blur-xs z-40 md:hidden"
+                    onClick={onCloseSidePanel}
                 />
             )}
 
-            {/* Side Panel Drawer */}
+            {/* Pinned Left Side Panel */}
             <aside 
-                className={`fixed top-0 right-0 bottom-0 w-full sm:w-[420px] bg-[#1A1615] border-l border-[#B99A65]/30 z-[9995] shadow-2xl flex flex-col justify-between transition-transform duration-300 ease-out ${
-                    sidePanelOpen ? 'translate-x-0' : 'translate-x-full'
+                className={`fixed top-0 left-0 bottom-0 w-[320px] sm:w-[350px] bg-[#171312] border-r border-[#B99A65]/30 z-50 shadow-2xl flex flex-col justify-between transition-transform duration-300 ease-in-out select-none ${
+                    sidePanelOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
-                aria-label="Side Panel Menu"
+                aria-label="Chrome-style Left Side Panel"
             >
-                {/* 1. Side Panel Header (Kaya di Chrome) */}
-                <div className="p-4 sm:p-5 border-b border-[#32151F] flex items-center justify-between bg-[#151211]">
+                {/* A. Top Panel Header (Chrome desktop side panel toolbar style) */}
+                <div className="p-3.5 sm:p-4 border-b border-[#32151F] flex items-center justify-between bg-[#130F0E]">
                     <div className="flex items-center gap-2 text-[#D4B886]">
-                        <PanelRightClose className="w-5 h-5 text-[#B99A65]" />
-                        <span className="font-heading text-lg font-bold tracking-wider text-[#F4EFE6]">
-                            NUSARA <span className="text-[#D4B886] font-normal text-sm">Side Panel</span>
+                        <PanelLeftClose className="w-4 h-4 text-[#B99A65]" />
+                        <span className="font-heading text-sm font-bold tracking-wider text-[#F4EFE6]">
+                            NUSARA <span className="text-[#D4B886] font-normal text-xs">Side Panel</span>
                         </span>
                     </div>
 
                     <button
-                        onClick={() => setSidePanelOpen(false)}
-                        className="p-1.5 rounded-full bg-[#211D1B] text-[#F4EFE6]/70 hover:text-[#D4B886] hover:bg-[#32151F] transition-colors border border-stone-800"
+                        onClick={onCloseSidePanel}
+                        className="p-1.5 rounded-lg bg-[#211D1B] text-[#F4EFE6]/70 hover:text-[#D4B886] hover:bg-[#32151F] transition-colors border border-stone-800"
                         title="Tutup Side Panel (Esc)"
                         aria-label="Tutup"
                     >
-                        <X className="w-5 h-5" />
+                        <X className="w-4 h-4" />
                     </button>
                 </div>
 
-                {/* 2. Side Panel Scrollable Body */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6">
-                    {/* A. Pusat Dashboard (Jalur Utama) */}
+                {/* B. Scrollable Content Body */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-5">
+                    {/* 1. Pilihan Pemesanan: Dine In atau Takeaway */}
                     <div className="space-y-2.5">
                         <div className="flex items-center justify-between">
                             <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#D4B886]">
-                                Pusat Dashboard
+                                Pilihan Pemesanan
                             </span>
-                            <span className="text-[10px] text-[#F4EFE6]/50">Akses Cepat</span>
+                            <span className="text-[9px] text-[#F4EFE6]/50">Dine In / Takeaway</span>
                         </div>
 
-                        {/* Customer Dashboard Card */}
+                        <div className="grid grid-cols-2 gap-2">
+                            {/* Card Dine In */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (onSelectDineIn) {
+                                        onSelectDineIn();
+                                    } else if (onOpenOrderType) {
+                                        onOpenOrderType();
+                                    }
+                                }}
+                                className="group p-3 rounded-xl bg-gradient-to-b from-[#32151F]/90 to-[#211D1B] border border-[#B99A65]/40 hover:border-[#D4B886] text-left space-y-1.5 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                <div className="w-7 h-7 rounded-lg bg-[#B99A65]/20 flex items-center justify-center text-[#D4B886]">
+                                    <UtensilsCrossed className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
+                                        Dine In
+                                    </p>
+                                    <p className="text-[10px] text-stone-300">
+                                        Makan di Tempat (QR Meja)
+                                    </p>
+                                </div>
+                            </button>
+
+                            {/* Card Takeaway */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (onSelectTakeaway) {
+                                        onSelectTakeaway();
+                                    } else if (onOpenOrderType) {
+                                        onOpenOrderType();
+                                    }
+                                }}
+                                className="group p-3 rounded-xl bg-gradient-to-b from-[#211D1B] to-[#181413] border border-stone-700 hover:border-[#B99A65]/60 text-left space-y-1.5 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                <div className="w-7 h-7 rounded-lg bg-stone-800 flex items-center justify-center text-[#D4B886]">
+                                    <ShoppingBag className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
+                                        Takeaway
+                                    </p>
+                                    <p className="text-[10px] text-stone-300">
+                                        Bawa Pulang (Siap Ambil)
+                                    </p>
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* Direct Customer Order App Link (ala Kopi Kenangan) */}
                         <Link
                             href="/order"
-                            onClick={() => setSidePanelOpen(false)}
-                            className="group block p-3.5 rounded-2xl bg-gradient-to-r from-[#32151F]/80 to-[#211D1B] border border-[#B99A65]/40 hover:border-[#D4B886] transition-all shadow-md"
+                            className="group block p-3 rounded-xl bg-[#211D1B] border border-[#B99A65]/30 hover:border-[#D4B886] transition-all"
                         >
-                            <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="w-9 h-9 rounded-xl bg-[#B99A65]/20 border border-[#B99A65]/40 flex items-center justify-center text-[#D4B886]">
-                                        <ShoppingBag className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-heading text-sm font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
-                                            Dashboard Pemesanan
-                                        </h4>
-                                        <p className="text-[11px] text-[#F4EFE6]/70">
-                                            Menu, Favorit, Request Koki, Chat & Rating
-                                        </p>
-                                    </div>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Sparkles className="w-3.5 h-3.5 text-[#B99A65]" />
+                                    <span className="text-xs font-semibold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
+                                        Buka Menu Pemesanan Lengkap
+                                    </span>
                                 </div>
-                                <ArrowRight className="w-4 h-4 text-[#D4B886] group-hover:translate-x-1 transition-transform" />
+                                <ArrowRight className="w-3.5 h-3.5 text-[#D4B886] group-hover:translate-x-1 transition-transform" />
                             </div>
-
-                            <div className="mt-2.5 pt-2 border-t border-[#32151F] flex items-center gap-2 text-[10px] text-[#D4B886]">
-                                <span className="flex items-center gap-1"><Heart className="w-3 h-3 text-rose-400 fill-rose-400" /> Favorit</span>
-                                <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3 text-amber-400" /> Live Chat</span>
-                                <span className="flex items-center gap-1"><Star className="w-3 h-3 text-amber-300 fill-amber-300" /> Ulasan Bintang 5</span>
-                            </div>
-                        </Link>
-
-                        {/* Admin Dashboard Card */}
-                        <Link
-                            href="/admin"
-                            onClick={() => setSidePanelOpen(false)}
-                            className="group block p-3.5 rounded-2xl bg-[#171312] border border-stone-700 hover:border-[#B99A65]/60 transition-all shadow-md"
-                        >
-                            <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="w-9 h-9 rounded-xl bg-stone-800 border border-stone-600 flex items-center justify-center text-[#D4B886]">
-                                        <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-heading text-sm font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
-                                            Dashboard Operasional Admin
-                                        </h4>
-                                        <p className="text-[11px] text-[#F4EFE6]/70">
-                                            Live Order Tracking Dapur, Meja QR, Stok
-                                        </p>
-                                    </div>
-                                </div>
-                                <ArrowRight className="w-4 h-4 text-[#D4B886] group-hover:translate-x-1 transition-transform" />
-                            </div>
+                            <p className="text-[10px] text-stone-400 mt-1">
+                                Favorit, catatan request koki, keranjang, live chat & rating bintang 5
+                            </p>
                         </Link>
                     </div>
 
-                    {/* B. Navigasi Halaman Restoran */}
+                    {/* 2. Daftar Halaman & Menu */}
                     <div className="space-y-2">
                         <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#D4B886] block">
-                            Daftar Menu & Halaman
+                            Daftar Halaman & Menu
                         </span>
 
-                        <div className="divide-y divide-[#32151F]/60 rounded-2xl bg-[#211D1B]/60 border border-stone-800 overflow-hidden">
+                        <div className="divide-y divide-[#32151F]/60 rounded-xl bg-[#211D1B]/70 border border-stone-800 overflow-hidden">
                             <a
                                 href="#menu"
                                 onClick={() => handleNavClick('#menu')}
-                                className="flex items-center justify-between p-3 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
+                                className="flex items-center justify-between p-2.5 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
                             >
-                                <div className="flex items-center gap-2.5">
-                                    <Utensils className="w-4 h-4 text-[#D4B886]" />
+                                <div className="flex items-center gap-2">
+                                    <Utensils className="w-3.5 h-3.5 text-[#D4B886]" />
                                     <span>Menu Signature & Best Seller</span>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-stone-500" />
+                                <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
                             </a>
 
                             <a
                                 href="#cerita"
                                 onClick={() => handleNavClick('#cerita')}
-                                className="flex items-center justify-between p-3 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
+                                className="flex items-center justify-between p-2.5 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
                             >
-                                <div className="flex items-center gap-2.5">
-                                    <BookOpen className="w-4 h-4 text-[#D4B886]" />
+                                <div className="flex items-center gap-2">
+                                    <BookOpen className="w-3.5 h-3.5 text-[#D4B886]" />
                                     <span>Cerita & Filosofi 17.000 Rempah</span>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-stone-500" />
+                                <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
                             </a>
 
                             <a
                                 href="#pengalaman"
                                 onClick={() => handleNavClick('#pengalaman')}
-                                className="flex items-center justify-between p-3 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
+                                className="flex items-center justify-between p-2.5 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
                             >
-                                <div className="flex items-center gap-2.5">
-                                    <Sparkles className="w-4 h-4 text-[#D4B886]" />
+                                <div className="flex items-center gap-2">
+                                    <Sparkles className="w-3.5 h-3.5 text-[#D4B886]" />
                                     <span>Dining Experience (Rijsttafel & VIP)</span>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-stone-500" />
+                                <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
                             </a>
 
                             <a
                                 href="#alur-pesan"
                                 onClick={() => handleNavClick('#alur-pesan')}
-                                className="flex items-center justify-between p-3 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
+                                className="flex items-center justify-between p-2.5 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
                             >
-                                <div className="flex items-center gap-2.5">
-                                    <QrCode className="w-4 h-4 text-[#D4B886]" />
-                                    <span>Cara Memesan (Dine-in QR / Takeaway)</span>
+                                <div className="flex items-center gap-2">
+                                    <QrCode className="w-3.5 h-3.5 text-[#D4B886]" />
+                                    <span>Alur Pemesanan Meja QR</span>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-stone-500" />
+                                <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
                             </a>
 
                             <a
                                 href="#kontak"
                                 onClick={() => handleNavClick('#kontak')}
-                                className="flex items-center justify-between p-3 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
+                                className="flex items-center justify-between p-2.5 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#F4EFE6]"
                             >
-                                <div className="flex items-center gap-2.5">
-                                    <MapPin className="w-4 h-4 text-[#D4B886]" />
-                                    <span>Lokasi Flagship Senopati & Jam Buka</span>
+                                <div className="flex items-center gap-2">
+                                    <MapPin className="w-3.5 h-3.5 text-[#D4B886]" />
+                                    <span>Lokasi Restoran & Jam Buka</span>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-stone-500" />
+                                <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
                             </a>
 
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setSidePanelOpen(false);
                                     if (onReplaySplash) onReplaySplash();
                                 }}
-                                className="w-full flex items-center justify-between p-3 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#D4B886]"
+                                className="w-full flex items-center justify-between p-2.5 hover:bg-[#32151F]/40 transition-colors text-xs font-medium text-[#D4B886]"
                             >
-                                <div className="flex items-center gap-2.5">
-                                    <Sparkles className="w-4 h-4 text-[#B99A65]" />
+                                <div className="flex items-center gap-2">
+                                    <Sparkles className="w-3.5 h-3.5 text-[#B99A65]" />
                                     <span>Tonton Logo Reveal Splashscreen</span>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-stone-500" />
+                                <ChevronRight className="w-3.5 h-3.5 text-stone-500" />
                             </button>
                         </div>
                     </div>
 
-                    {/* C. Aksi Cepat Restoran */}
-                    <div className="space-y-2 pt-1">
-                        <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#D4B886] block">
-                            Aksi Restoran
-                        </span>
-
-                        <div className="grid grid-cols-2 gap-2">
-                            <button
-                                onClick={() => {
-                                    setSidePanelOpen(false);
-                                    onOpenOrderType?.();
-                                }}
-                                className="p-3 rounded-xl bg-stone-900 border border-stone-700 hover:border-[#B99A65] text-left space-y-1 transition-all"
-                            >
-                                <QrCode className="w-4 h-4 text-[#D4B886]" />
-                                <p className="text-xs font-bold text-[#F4EFE6]">Scan Meja</p>
-                                <p className="text-[10px] text-stone-400">Dine-in / Takeaway</p>
-                            </button>
-
-                            <button
-                                onClick={() => {
-                                    setSidePanelOpen(false);
-                                    onOpenReservation?.();
-                                }}
-                                className="p-3 rounded-xl bg-[#32151F] border border-[#B99A65]/40 hover:border-[#D4B886] text-left space-y-1 transition-all"
-                            >
-                                <Calendar className="w-4 h-4 text-[#D4B886]" />
-                                <p className="text-xs font-bold text-[#F4EFE6]">Reservasi</p>
-                                <p className="text-[10px] text-[#D4B886]">Meja Tamu VIP</p>
-                            </button>
-                        </div>
+                    {/* 3. Tombol Reservasi Meja Tamu */}
+                    <div className="pt-1">
+                        <button
+                            type="button"
+                            onClick={onOpenReservation}
+                            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all"
+                        >
+                            <Calendar className="w-4 h-4" />
+                            <span>Reservasi Meja Anda</span>
+                        </button>
                     </div>
 
-                    {/* D. Akun Pengguna */}
-                    <div className="p-3.5 rounded-2xl bg-[#171312] border border-stone-800 space-y-3">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[10px] uppercase font-bold tracking-wider text-stone-400">
-                                Status Akun
-                            </span>
-                            {auth?.user ? (
-                                <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800 text-[10px] text-emerald-400 font-semibold uppercase">
-                                    {auth.user.role}
-                                </span>
-                            ) : (
-                                <span className="text-[10px] text-stone-500">Tamu</span>
+                    {/* 4. Status Akun Tamu / Pelanggan (Tanpa Admin) */}
+                    <div className="p-3 rounded-xl bg-[#211D1B] border border-stone-800 space-y-2">
+                        <div className="flex items-center justify-between text-[10px] text-stone-400 uppercase font-semibold">
+                            <span>Akun Pelanggan</span>
+                            {auth?.user && (
+                                <span className="text-emerald-400">Terdaftar</span>
                             )}
                         </div>
 
                         {auth?.user ? (
-                            <div className="flex items-center justify-between pt-1">
+                            <div className="flex items-center justify-between">
                                 <div className="text-xs">
-                                    <p className="font-bold text-[#F4EFE6]">{auth.user.name}</p>
-                                    <p className="text-[11px] text-[#B99A65] truncate max-w-[200px]">{auth.user.email}</p>
+                                    <p className="font-bold text-[#F4EFE6] truncate max-w-[170px]">{auth.user.name}</p>
+                                    <p className="text-[10px] text-[#B99A65] truncate max-w-[170px]">{auth.user.email}</p>
                                 </div>
                                 <button
                                     onClick={handleLogout}
-                                    className="px-3 py-1.5 rounded-lg bg-rose-950/40 border border-rose-900 text-rose-300 hover:bg-rose-900/40 text-xs font-medium flex items-center gap-1.5 transition-colors"
+                                    className="px-2.5 py-1 rounded bg-rose-950/40 border border-rose-900 text-rose-300 hover:bg-rose-900/40 text-[11px] font-medium flex items-center gap-1 transition-colors"
                                 >
-                                    <LogOut className="w-3.5 h-3.5" />
+                                    <LogOut className="w-3 h-3" />
                                     <span>Keluar</span>
                                 </button>
                             </div>
                         ) : (
-                            <div className="flex items-center justify-between pt-1">
-                                <p className="text-xs text-[#F4EFE6]/70">Masuk untuk simpan riwayat & favorit</p>
+                            <div className="flex items-center justify-between">
+                                <p className="text-[11px] text-[#F4EFE6]/70">Masuk untuk simpan riwayat</p>
                                 <Link
                                     href="/login"
-                                    onClick={() => setSidePanelOpen(false)}
-                                    className="px-4 py-1.5 rounded-lg bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886] hover:bg-[#B99A65] hover:text-[#211D1B] text-xs font-semibold transition-all"
+                                    className="px-3 py-1 rounded bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886] hover:bg-[#B99A65] hover:text-[#211D1B] text-xs font-semibold transition-all"
                                 >
                                     Log In
                                 </Link>
@@ -474,14 +468,14 @@ export default function Navbar({ onOpenReservation, onOpenOrderType, onReplaySpl
                     </div>
                 </div>
 
-                {/* 3. Side Panel Footer */}
-                <div className="p-4 border-t border-[#32151F] bg-[#151211] space-y-2 text-[11px] text-[#F4EFE6]/60">
+                {/* C. Side Panel Footer */}
+                <div className="p-3.5 border-t border-[#32151F] bg-[#130F0E] space-y-1 text-[10px] text-[#F4EFE6]/60">
                     <div className="flex items-center justify-between text-[#D4B886]">
-                        <span className="font-semibold">Flagship Senopati</span>
+                        <span className="font-semibold">Flagship Senopati No. 88, Jaksel</span>
                         <span>11:00 – 22:30 WIB</span>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span>Jl. Senopati No. 88, Jaksel</span>
+                        <span>Layanan Meja & Reservasi</span>
                         <a href="tel:+622155678900" className="hover:text-[#D4B886] transition-colors">
                             +62 21 5567 8900
                         </a>

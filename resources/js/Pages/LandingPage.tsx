@@ -54,6 +54,7 @@ export default function LandingPage({ settings, categories, menus, experiences, 
     const [favoritePromptMenu, setFavoritePromptMenu] = useState<Menu | null>(null);
     const [selectedExperience, setSelectedExperience] = useState<DiningExperience | null>(null);
     const [showDashboardGateway, setShowDashboardGateway] = useState<boolean>(false);
+    const [sidePanelOpen, setSidePanelOpen] = useState<boolean>(false);
     const [splashFading, setSplashFading] = useState<boolean>(false);
     const [showSplash, setShowSplash] = useState<boolean>(() => {
         if (typeof window !== 'undefined') {
@@ -127,11 +128,16 @@ export default function LandingPage({ settings, categories, menus, experiences, 
             <Head title="NUSARA — Harmoni Gastronomi Nusantara Berbalut Kemewahan" />
 
             <Navbar 
+                sidePanelOpen={sidePanelOpen}
+                onToggleSidePanel={() => setSidePanelOpen(prev => !prev)}
+                onCloseSidePanel={() => setSidePanelOpen(false)}
                 onOpenReservation={() => {
                     setSelectedExperience(null);
                     setReservationModalOpen(true);
                 }}
                 onOpenOrderType={() => setOrderTypeModalOpen(true)}
+                onSelectDineIn={() => setOrderTypeModalOpen(true)}
+                onSelectTakeaway={() => setOrderTypeModalOpen(true)}
                 onReplaySplash={() => setShowSplash(true)}
             />
 
@@ -157,9 +163,11 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                 </div>
             )}
 
-            {/* ========================================================
-                1. HERO SECTION
-            ======================================================== */}
+            {/* Main Page Body (Shifts smoothly to right when side panel opens, 100% interactive) */}
+            <div className={`transition-all duration-300 ease-in-out ${sidePanelOpen ? 'md:ml-[350px]' : 'ml-0'}`}>
+                {/* ========================================================
+                    1. HERO SECTION
+                ======================================================== */}
             <section className="relative min-h-screen flex items-center justify-center pt-24 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden bg-[#211D1B]">
                 {/* Background Atmosphere Image */}
                 <div className="absolute inset-0 z-0">
@@ -674,6 +682,7 @@ export default function LandingPage({ settings, categories, menus, experiences, 
 
             {/* Footer */}
             <Footer settings={settings} operatingHours={operatingHours} />
+            </div>
 
             {/* Interactive Modals */}
             <ReservationModal
