@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Head, Link, usePage, router } from '@inertiajs/react';
 import Navbar from '../Components/Navbar';
 import Footer from '../Components/Footer';
@@ -61,7 +61,26 @@ export default function LandingPage({
     const [selectedExperience, setSelectedExperience] = useState<DiningExperience | null>(null);
     const [sidePanelOpen, setSidePanelOpen] = useState<boolean>(false);
     const [splashFading, setSplashFading] = useState<boolean>(false);
-    const [showSplash, setShowSplash] = useState<boolean>(false);
+    const [showSplash, setShowSplash] = useState<boolean>(true);
+    const [isPageReady, setIsPageReady] = useState<boolean>(false);
+
+    // Deteksi kesiapan render landing page:
+    // Menunggu seluruh komponen, DOM, dan resource landing page siap
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            if (document.readyState === 'complete') {
+                setIsPageReady(true);
+            } else {
+                const onReady = () => setIsPageReady(true);
+                window.addEventListener('load', onReady);
+                const timer = setTimeout(() => setIsPageReady(true), 1200);
+                return () => {
+                    window.removeEventListener('load', onReady);
+                    clearTimeout(timer);
+                };
+            }
+        }
+    }, []);
 
     const handleSplashFinish = () => {
         setSplashFading(true);
@@ -155,8 +174,9 @@ export default function LandingPage({
                     splashFading ? 'opacity-0 pointer-events-none' : 'opacity-100'
                 }`}>
                     <NusaraSplashScreen 
+                        isReady={isPageReady}
                         autoTransition={true}
-                        autoTransitionDelayMs={8200}
+                        autoTransitionDelayMs={8000}
                         showControls={true}
                         onFinish={handleSplashFinish}
                     />

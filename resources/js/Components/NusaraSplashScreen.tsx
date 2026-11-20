@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from '@inertiajs/react';
 
 interface Props {
+    isReady?: boolean;
     onFinish?: () => void;
     autoTransition?: boolean;
     autoTransitionDelayMs?: number;
@@ -45,65 +45,54 @@ const DATA = {
 };
 
 export default function NusaraSplashScreen({ 
+    isReady = true,
     onFinish, 
-    autoTransition,
+    autoTransition = true,
     autoTransitionDelayMs,
     autoDismiss,
     dismissDelayMs,
     showControls = true
 }: Props) {
     const effectiveAutoTransition = autoTransition ?? autoDismiss ?? true;
-    const effectiveDelay = autoTransitionDelayMs ?? dismissDelayMs ?? 8200;
+    const effectiveDelay = autoTransitionDelayMs ?? dismissDelayMs ?? 8000;
 
     const [renderKey, setRenderKey] = useState<number>(0);
     const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-    const [progressPercent, setProgressPercent] = useState<number>(0);
     const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const isReadyRef = useRef<boolean>(isReady);
 
-    // Replay handler
-    const handleReplay = () => {
-        setIsFadingOut(false);
-        setProgressPercent(0);
-        setRenderKey(prev => prev + 1);
-    };
+    useEffect(() => {
+        isReadyRef.current = isReady;
+    }, [isReady]);
 
     // Theme toggle
     const handleToggleTheme = () => {
         setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
     };
 
-    const handleFinishAction = () => {
-        setIsFadingOut(true);
-        setTimeout(() => {
-            if (onFinish) onFinish();
-        }, 500);
-    };
-
-    // Auto transition timer when animation finishes (~8.2 seconds)
+    // Auto transition timer:
+    // Tunggu animasi logo reveal selesai 1 siklus (~8 detik).
+    // Jika halaman landing page sudah sepenuhnya selesai di-render (isReady === true), fade out dan lanjut ke halaman.
+    // Jika rendering landing page belum selesai, animasinya loop ulang (setRenderKey) sampai benar-benar siap.
     useEffect(() => {
-        const startTime = Date.now();
-        const duration = effectiveDelay;
+        if (!effectiveAutoTransition) return;
 
-        const interval = setInterval(() => {
-            const elapsed = Date.now() - startTime;
-            const pct = Math.min(100, Math.round((elapsed / duration) * 100));
-            setProgressPercent(pct);
-
-            if (elapsed >= duration) {
-                clearInterval(interval);
-                if (effectiveAutoTransition) {
-                    setIsFadingOut(true);
-                    setTimeout(() => {
-                        if (onFinish) {
-                            onFinish();
-                        }
-                    }, 500);
-                }
+        const cycleTimer = setTimeout(() => {
+            if (isReadyRef.current) {
+                setIsFadingOut(true);
+                setTimeout(() => {
+                    if (onFinish) {
+                        onFinish();
+                    }
+                }, 600);
+            } else {
+                // Halaman belum siap -> loop animasi dari awal
+                setRenderKey(prev => prev + 1);
             }
-        }, 80);
+        }, effectiveDelay);
 
-        return () => clearInterval(interval);
+        return () => clearTimeout(cycleTimer);
     }, [renderKey, effectiveAutoTransition, effectiveDelay, onFinish]);
 
     return (
@@ -234,31 +223,6 @@ export default function NusaraSplashScreen({
                     box-shadow: 0 4px 20px rgba(201, 164, 92, 0.35);
                 }
             `}</style>
-
-            {/* Top Bar Status with Progress bar */}
-            <div className="w-full max-w-4xl flex flex-col gap-2 px-4 z-10">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[#c9a45c] animate-pulse" />
-                        <span className="text-[11px] uppercase tracking-[0.2em] text-[#8f887b] font-medium">
-                            Harmoni Rasa Nusantara
-                        </span>
-                    </div>
-                    {/* Countdown progress indicator */}
-                    <div className="text-[11px] tracking-widest text-[#8f887b] font-mono">
-                        {progressPercent < 100 
-                            ? `${Math.max(1, Math.round(((effectiveDelay - (progressPercent / 100) * effectiveDelay)) / 1000))}s menuju landing page` 
-                            : 'Membuka Landing Page...'}
-                    </div>
-                </div>
-                {/* Thin golden progress bar */}
-                <div className="w-full h-0.5 bg-[#2a2723] rounded-full overflow-hidden">
-                    <div 
-                        className="h-full bg-gradient-to-r from-[#c9a45c] via-[#f3d89a] to-[#c9a45c] transition-all duration-100 ease-out" 
-                        style={{ width: `${progressPercent}%` }}
-                    />
-                </div>
-            </div>
 
             {/* Stage: SVG Logo Reveal */}
             <div className="flex-1 w-full flex items-center justify-center min-h-0 py-4">
@@ -404,17 +368,9 @@ export default function NusaraSplashScreen({
                 </svg>
             </div>
 
-            {/* Controls Bar persis seperti HTML + Tombol Lanjut ke Landing Page & Tombol Dashboard */}
+            {/* Controls Bar: Hanya Button Terang / Gelap (Light / Dark Mode) sesuai request */}
             {showControls && (
-                <div className="flex gap-2 flex-wrap justify-center items-center z-20 max-w-3xl px-4 pb-2">
-                    <button id="replay" type="button" onClick={handleReplay} className="nusara-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 14, height: 14 }}>
-                            <path d="M3 12a9 9 0 1 0 3-6.7" />
-                            <path d="M3 4v5h5" />
-                        </svg>
-                        <span>Putar ulang</span>
-                    </button>
-
+                <div className="controls flex gap-2 flex-wrap justify-center items-center z-20 max-w-3xl px-4 pb-2">
                     <button id="theme" type="button" onClick={handleToggleTheme} className="nusara-btn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 14, height: 14 }}>
                             <circle cx={12} cy={12} r={9} />
@@ -423,34 +379,6 @@ export default function NusaraSplashScreen({
                         </svg>
                         <span>Terang / Gelap</span>
                     </button>
-
-                    <button
-                        type="button"
-                        onClick={handleFinishAction}
-                        className="nusara-btn nusara-btn-gold"
-                    >
-                        <span>Ke Landing Page</span>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
-                            <path d="M5 12h14" />
-                            <path d="m12 5 7 7-7 7" />
-                        </svg>
-                    </button>
-
-                    <Link
-                        href="/order"
-                        className="nusara-btn"
-                        style={{ borderColor: 'rgba(201, 164, 92, 0.4)', color: 'var(--ink)' }}
-                    >
-                        <span>📱 Dashboard Pemesanan</span>
-                    </Link>
-
-                    <Link
-                        href="/admin"
-                        className="nusara-btn"
-                        style={{ borderColor: 'rgba(201, 164, 92, 0.4)', color: 'var(--ink)' }}
-                    >
-                        <span>🛡️ Dashboard Admin</span>
-                    </Link>
                 </div>
             )}
         </div>
