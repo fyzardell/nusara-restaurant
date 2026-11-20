@@ -42,10 +42,9 @@ export default function MenuCard({ menu, isFavorite, onToggleFavorite, onAddToCa
                 {/* Gradient Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#211D1B] via-transparent to-black/30" />
 
-                {/* Best Seller Badge */}
+                {/* Best Seller Badge (Tanpa Icon Bintang) */}
                 {menu.is_best_seller && (
-                    <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] text-[11px] font-bold uppercase tracking-wider shadow-md">
-                        <Sparkles className="w-3 h-3 fill-current" />
+                    <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] text-[11px] font-bold uppercase tracking-wider shadow-md">
                         <span>Best Seller</span>
                     </div>
                 )}

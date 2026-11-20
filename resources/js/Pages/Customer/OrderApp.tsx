@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Head, Link, usePage, router } from '@inertiajs/react';
+import FlashToast from '../../Components/FlashToast';
 import { 
     Category, 
     Menu, 
@@ -292,19 +293,8 @@ export default function OrderApp({
         <div className="min-h-screen bg-[#F4EFE6] text-[#211D1B] font-body selection:bg-[#B99A65] selection:text-[#32151F] pb-24 md:pb-12">
             <Head title="Pemesanan Online — NUSARA Dining" />
 
-            {/* Flash Alerts */}
-            {flash?.success && (
-                <div className="fixed top-4 right-4 z-50 p-4 rounded-2xl bg-[#32151F] border border-[#B99A65] text-[#D4B886] shadow-2xl flex items-center gap-3 animate-fade-in">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                    <span className="text-xs font-semibold">{flash.success}</span>
-                </div>
-            )}
-            {flash?.error && (
-                <div className="fixed top-4 right-4 z-50 p-4 rounded-2xl bg-rose-950 border border-rose-500 text-rose-200 shadow-2xl flex items-center gap-3 animate-fade-in">
-                    <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0" />
-                    <span className="text-xs font-semibold">{flash.error}</span>
-                </div>
-            )}
+            {/* Flash Alerts (3 Detik Auto Dismiss) */}
+            <FlashToast flash={flash} durationMs={3000} />
 
             {/* ========================================================
                 APP HEADER (KOPKEN STYLE)

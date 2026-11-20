@@ -116,7 +116,8 @@ class AuthController extends Controller
         $role = DB::table('roles')->where('id', $user->role_id)->first();
         $roleName = $role ? $role->name : 'customer';
 
-        session()->flash('success', "Selamat datang kembali, {$user->name} (" . ucfirst($roleName) . ")!");
+        $cleanName = preg_replace('/\s*\(' . preg_quote($roleName, '/') . '\)/i', '', $user->name);
+        session()->flash('success', "Selamat datang kembali, {$cleanName} (" . ucfirst($roleName) . ")!");
 
         if ($roleName === 'admin') {
             return redirect()->intended(route('admin.dashboard'));

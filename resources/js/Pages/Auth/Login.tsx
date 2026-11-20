@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import FlashToast from '../../Components/FlashToast';
 import { DemoAccount } from '../../types';
 import { 
     Lock, 
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export default function Login({ demoAccounts, status }: Props) {
+    const { flash } = usePage<{ flash: { success?: string; error?: string } }>().props;
     const [showPassword, setShowPassword] = useState(false);
     const [showDemoDrawer, setShowDemoDrawer] = useState(false);
 
@@ -95,13 +97,8 @@ export default function Login({ demoAccounts, status }: Props) {
                         </p>
                     </div>
 
-                    {/* Status Feedback */}
-                    {status && (
-                        <div className="mb-4 p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 text-xs flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span>{status}</span>
-                        </div>
-                    )}
+                    {/* Status Feedback (3 Detik Auto Dismiss) */}
+                    <FlashToast flash={flash?.success || flash?.error ? flash : (status ? { success: status } : undefined)} durationMs={3000} />
 
                     {/* Single Unified Login Form */}
                     <form onSubmit={handleSubmit} className="space-y-4">

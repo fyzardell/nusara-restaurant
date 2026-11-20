@@ -8,6 +8,7 @@ import ReservationModal from '../Components/ReservationModal';
 import OrderTypeModal from '../Components/OrderTypeModal';
 import FavoriteLoginPromptModal from '../Components/FavoriteLoginPromptModal';
 import NusaraSplashScreen from '../Components/NusaraSplashScreen';
+import FlashToast from '../Components/FlashToast';
 import { 
     RestaurantSettings, 
     Category, 
@@ -152,13 +153,8 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                 </div>
             )}
 
-            {/* Flash Success Notification */}
-            {flash?.success && (
-                <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-[#32151F] border border-[#B99A65] text-[#D4B886] shadow-2xl flex items-center gap-3 animate-bounce">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                    <span className="text-xs font-semibold">{flash.success}</span>
-                </div>
-            )}
+            {/* Flash Success Notification (3 Detik Auto Dismiss) */}
+            <FlashToast flash={flash} durationMs={3000} />
 
             {/* Main Page Body */}
             <div className="transition-all duration-300 ease-in-out">
@@ -178,15 +174,6 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                 </div>
 
                 <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 mt-12 md:mt-6">
-                    {/* Brand Emblem / Official Logo Pill */}
-                    <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-[#32151F]/80 border border-[#B99A65]/40 backdrop-blur-md shadow-2xl hover:border-[#D4B886] transition-all">
-                        <img 
-                            src="/images/nusara-logo.png" 
-                            alt="NUSARA — Nusantara & Rasa" 
-                            className="h-8 sm:h-9 w-auto object-contain drop-shadow" 
-                        />
-                    </div>
-
                     {/* Majestic Headline */}
                     <h1 className="font-heading text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-[#F4EFE6] leading-[1.08] drop-shadow-2xl">
                         Harmoni Rasa Nusantara <br className="hidden sm:inline" />
@@ -338,7 +325,7 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                                 />
                             </div>
 
-                            {/* Best Seller Toggle Button */}
+                            {/* Best Seller Toggle Button (Tanpa Icon Bintang) */}
                             <button
                                 onClick={() => setOnlyBestSeller(!onlyBestSeller)}
                                 className={`px-4 py-2.5 rounded-full text-xs font-semibold tracking-wider flex items-center gap-2 transition-all ${
@@ -347,7 +334,6 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                                         : 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40 hover:border-[#D4B886]'
                                 }`}
                             >
-                                <Sparkles className="w-3.5 h-3.5" />
                                 <span>{onlyBestSeller ? 'Menampilkan: Khusus Best Seller' : 'Filter: Tampilkan Best Seller Saja'}</span>
                             </button>
                         </div>
@@ -422,10 +408,6 @@ export default function LandingPage({ settings, categories, menus, experiences, 
             ======================================================== */}
             <section id="pengalaman" className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
                 <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#32151F] text-[#D4B886] text-xs font-semibold uppercase tracking-widest">
-                        <Award className="w-3.5 h-3.5" />
-                        <span>Eksklusif & Berseni Tinggi</span>
-                    </div>
                     <h2 className="font-heading text-3xl sm:text-5xl font-bold text-[#211D1B]">
                         Dining Experience Nusantara
                     </h2>

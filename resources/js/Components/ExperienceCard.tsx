@@ -38,11 +38,6 @@ export default function ExperienceCard({ experience, onSelectExperience }: Props
             {/* Content Details */}
             <div className="p-7 -mt-12 relative z-10 flex flex-col flex-grow justify-between">
                 <div>
-                    <div className="flex items-center gap-2 text-[#B99A65] text-xs uppercase tracking-widest font-semibold mb-2">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Curated Indonesian Journey</span>
-                    </div>
-
                     <h3 className="font-heading text-2xl lg:text-3xl font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors leading-tight">
                         {experience.name}
                     </h3>
