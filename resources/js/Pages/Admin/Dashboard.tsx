@@ -1414,9 +1414,15 @@ export default function AdminDashboard({
                                                 </span>
                                             </div>
 
-                                            <div className="text-[11px] text-[#9E938B] space-y-0.5">
-                                                <p>👥 5 Kursi Tamu</p>
-                                                <p className="truncate">📍 {tbl.location}</p>
+                                            <div className="text-[11px] text-[#9E938B] space-y-1">
+                                                <p className="flex items-center gap-1.5">
+                                                    <Users className="w-3.5 h-3.5 text-[#B99A65] shrink-0" />
+                                                    <span>5 Kursi Tamu</span>
+                                                </p>
+                                                <p className="flex items-center gap-1.5 truncate">
+                                                    <MapPin className="w-3.5 h-3.5 text-[#B99A65] shrink-0" />
+                                                    <span className="truncate">{tbl.location}</span>
+                                                </p>
                                                 {tbl.active_session && (
                                                     <p className="text-[#D4B886] font-mono text-[10px] truncate">
                                                         QR: {tbl.active_session.session_code}
