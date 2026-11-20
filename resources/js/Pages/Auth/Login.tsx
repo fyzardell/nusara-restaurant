@@ -159,29 +159,11 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                 <div className="absolute -bottom-40 left-1/3 w-[500px] h-[500px] rounded-full bg-[#211D1B] blur-[120px]" />
             </div>
 
-            {/* Top Navigation Minimalist */}
-            <header className="relative z-20 px-6 sm:px-10 py-4 w-full flex items-center justify-between">
-                <Link href="/" className="inline-flex items-center gap-2 group">
-                    <img 
-                        src="/images/nusara-logo.png" 
-                        alt="NUSARA" 
-                        className="h-9 w-auto object-contain drop-shadow group-hover:scale-105 transition-transform" 
-                    />
-                </Link>
-
-                <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#B99A65] animate-ping" />
-                    <span className="text-[11px] uppercase tracking-widest font-semibold text-[#D4B886] hidden sm:inline">
-                        Layanan Resto Aktif
-                    </span>
-                </div>
-            </header>
-
             {/* Flash Toast Feedback */}
             <FlashToast flash={flash?.success || flash?.error ? flash : (status ? { success: status } : undefined)} durationMs={3000} />
 
             {/* Main Interactive Dual Sliding Page Layout (Halaman Penuh, Bukan Card) */}
-            <main className="relative z-10 w-full flex-1 flex flex-col justify-center min-h-[calc(100vh-140px)]">
+            <main className="relative z-10 w-full flex-1 flex flex-col justify-center min-h-[calc(100vh-60px)] py-4 sm:py-6">
                 <div className="relative w-full h-full flex-1 grid grid-cols-1 lg:grid-cols-2">
                     
                     {/* ========================================================

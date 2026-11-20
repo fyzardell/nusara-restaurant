@@ -29,6 +29,7 @@ import {
     AlertCircle, 
     MapPin, 
     Utensils, 
+    UtensilsCrossed,
     Check, 
     Info, 
     ShieldCheck,
@@ -37,6 +38,37 @@ import {
     User as UserIcon,
     RefreshCw
 } from 'lucide-react';
+
+function TypingGreeting({ name }: { name: string }) {
+    const greetingText = name ? `Selamat datang, ${name}` : 'Selamat datang di NUSARA';
+    const [displayed, setDisplayed] = useState('');
+    const [isDone, setIsDone] = useState(false);
+
+    React.useEffect(() => {
+        let idx = 0;
+        setDisplayed('');
+        setIsDone(false);
+        const timer = setInterval(() => {
+            if (idx <= greetingText.length) {
+                setDisplayed(greetingText.slice(0, idx));
+                idx++;
+            } else {
+                setIsDone(true);
+                clearInterval(timer);
+            }
+        }, 65);
+        return () => clearInterval(timer);
+    }, [greetingText]);
+
+    return (
+        <span className="inline-flex items-center">
+            <span>{displayed}</span>
+            {!isDone && (
+                <span className="inline-block w-1.5 h-6 ml-1.5 bg-[#D4B886] animate-pulse rounded-full" />
+            )}
+        </span>
+    );
+}
 
 interface Props {
     categories: Category[];
@@ -92,12 +124,36 @@ export default function OrderApp({
     // Favorites local state
     const [favorites, setFavorites] = useState<number[]>(initialFavorites);
 
-    // Cart State
-    const [cart, setCart] = useState<CartItem[]>([]);
+    // Sidebar, Logout & Exit Confirmation Modal State
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const [isExitHomeModalOpen, setIsExitHomeModalOpen] = useState(false);
+
+    // Cart State with localStorage Persistence (Tersimpan aman walau logout / reload)
+    const [cart, setCart] = useState<CartItem[]>(() => {
+        if (typeof window === 'undefined') return [];
+        try {
+            const saved = localStorage.getItem('nusara_customer_cart');
+            if (saved) return JSON.parse(saved);
+        } catch (e) {
+            console.error('Gagal membaca data keranjang dari storage', e);
+        }
+        return [];
+    });
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [generalNotes, setGeneralNotes] = useState('');
     const [paymentMethod, setPaymentMethod] = useState<'qris' | 'bank_transfer' | 'cash'>('qris');
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+
+    // Otomatis simpan setiap perubahan keranjang ke localStorage
+    React.useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            localStorage.setItem('nusara_customer_cart', JSON.stringify(cart));
+        } catch (e) {
+            console.error('Gagal menyimpan keranjang ke storage', e);
+        }
+    }, [cart]);
 
     // Menu Item Modal for Customizing / Adding Notes
     const [customizingMenu, setCustomizingMenu] = useState<Menu | null>(null);
@@ -295,6 +351,9 @@ export default function OrderApp({
         }, {
             onSuccess: () => {
                 setCart([]);
+                try {
+                    localStorage.removeItem('nusara_customer_cart');
+                } catch {}
                 setIsCartOpen(false);
                 setIsCheckingOut(false);
                 setActiveTab('history');
@@ -356,165 +415,165 @@ export default function OrderApp({
             <FlashToast flash={flash} durationMs={3000} />
 
             {/* ========================================================
-                APP HEADER (KOPKEN STYLE)
+                APP HEADER (LOGO + DINE IN / TAKE AWAY + SIDEBAR TRIGGER + LOGOUT)
             ======================================================== */}
             <header className="sticky top-0 z-40 bg-[#32151F] text-[#F4EFE6] shadow-xl border-b border-[#B99A65]/30">
-                <div className="max-w-5xl mx-auto px-4 py-3 sm:py-4">
-                    <div className="flex items-center justify-between gap-4">
-                        {/* Left: Brand & Return */}
-                        <div className="flex items-center gap-3">
-                            <Link 
-                                href="/" 
-                                title="Kembali ke Beranda Publik"
-                                className="group flex items-center"
-                            >
-                                <img 
-                                    src="/images/nusara-logo.png" 
-                                    alt="NUSARA" 
-                                    className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105" 
-                                />
-                                <span className="text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded bg-[#B99A65] text-[#211D1B] ml-2">
-                                    APP
-                                </span>
-                            </Link>
-                        </div>
-
-                        {/* Right: User Profile & Mode Switcher */}
-                        <div className="flex items-center gap-2 sm:gap-3">
-                            {/* Order Type Pill (Dine-in vs Takeaway) */}
-                            <div className="flex items-center rounded-full bg-[#211D1B] p-1 border border-[#B99A65]/40 text-xs">
-                                <button
-                                    onClick={() => {
-                                        setOrderType('dine_in');
-                                        setIsTableModalOpen(true);
-                                    }}
-                                    className={`px-3 py-1.5 rounded-full font-semibold transition-all flex items-center gap-1.5 ${
-                                        orderType === 'dine_in'
-                                            ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-md'
-                                            : 'text-[#F4EFE6]/70 hover:text-white'
-                                    }`}
-                                >
-                                    <QrCode className="w-3.5 h-3.5" />
-                                    <span className="text-[11px]">{selectedTable}</span>
-                                </button>
-                                <button
-                                    onClick={() => setOrderType('takeaway')}
-                                    className={`px-3 py-1.5 rounded-full font-semibold transition-all flex items-center gap-1.5 ${
-                                        orderType === 'takeaway'
-                                            ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-md'
-                                            : 'text-[#F4EFE6]/70 hover:text-white'
-                                    }`}
-                                >
-                                    <ShoppingBag className="w-3.5 h-3.5" />
-                                    <span className="text-[11px]">Bawa Pulang</span>
-                                </button>
-                            </div>
-
-                            {/* User Profile / Login Button */}
-                            {auth?.user ? (
-                                <button
-                                    onClick={() => router.post('/logout')}
-                                    title="Keluar / Logout"
-                                    className="w-8 h-8 rounded-full bg-[#211D1B] border border-rose-500/40 text-rose-300 flex items-center justify-center hover:bg-rose-950 transition-colors"
-                                >
-                                    <LogOut className="w-3.5 h-3.5" />
-                                </button>
-                            ) : (
-                                <Link
-                                    href="/login"
-                                    className="px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FFF0BA] via-[#F6D072] to-[#C99A36] text-[#1A1412] font-bold text-xs flex items-center gap-1.5 shadow-md hover:scale-105 active:scale-95 transition-all"
-                                >
-                                    <UserIcon className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">Masuk</span> Akun
-                                </Link>
-                            )}
-                        </div>
+                <div className="max-w-5xl mx-auto px-4 py-3 sm:py-3.5 flex items-center justify-between gap-3">
+                    {/* Left: Brand Logo */}
+                    <div className="flex items-center gap-2">
+                        <button 
+                            type="button"
+                            onClick={() => {
+                                if (cartCount > 0) {
+                                    setIsExitHomeModalOpen(true);
+                                } else {
+                                    router.visit('/');
+                                }
+                            }}
+                            title="Kembali ke Beranda Publik"
+                            className="group flex items-center gap-2 text-left"
+                        >
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA" 
+                                className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105" 
+                            />
+                        </button>
                     </div>
 
-                    {/* Member Greeting / Guest Table Sub-bar */}
-                    <div className="mt-3 pt-2.5 border-t border-[#B99A65]/20 flex items-center justify-between text-xs">
-                        {auth?.user ? (
-                            <div className="flex items-center gap-2">
-                                <span className="text-[#F4EFE6]/70">Selamat datang,</span>
-                                <span className="font-bold text-[#D4B886]">{auth.user.name}</span>
-                                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-[#B99A65]/20 text-[#D4B886] text-[10px] font-semibold border border-[#B99A65]/30">
-                                    Akun Customer (Member)
-                                </span>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-2">
-                                <span className="px-2 py-0.5 rounded-md bg-[#211D1B] border border-[#B99A65]/40 text-[#D4B886] text-[10px] font-bold uppercase tracking-wider">
-                                    Akun Tamu Meja
-                                </span>
-                                <span className="text-[11px] text-[#F4EFE6]/70 hidden sm:inline">
-                                    Bisa pesan langsung tanpa login. <Link href="/login" className="text-[#D4B886] underline font-semibold ml-1">Masuk Customer</Link> untuk simpan riwayat & favorit.
-                                </span>
-                            </div>
-                        )}
-                        <div className="text-[11px] text-[#D4B886] font-semibold flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                            <span>{orderType === 'dine_in' ? `Makan di ${selectedTable}` : 'Takeaway (Self-Pickup)'}</span>
+                    {/* Right: Dine in / Takeaway Selector + Sidebar Menu Button + Logout */}
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        {/* Order Type Pill (Dine-in vs Takeaway) */}
+                        <div className="flex items-center rounded-full bg-[#211D1B] p-1 border border-[#B99A65]/40 text-xs">
+                            <button
+                                onClick={() => {
+                                    setOrderType('dine_in');
+                                    setIsTableModalOpen(true);
+                                }}
+                                className={`px-3 py-1.5 rounded-full font-semibold transition-all flex items-center gap-1.5 ${
+                                    orderType === 'dine_in'
+                                        ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-md'
+                                        : 'text-[#F4EFE6]/70 hover:text-white'
+                                }`}
+                                title="Ganti Meja Makan di Restoran"
+                            >
+                                <QrCode className="w-3.5 h-3.5" />
+                                <span className="text-[11px] font-semibold">{selectedTable}</span>
+                            </button>
+                            <button
+                                onClick={() => setOrderType('takeaway')}
+                                className={`px-3 py-1.5 rounded-full font-semibold transition-all flex items-center gap-1.5 ${
+                                    orderType === 'takeaway'
+                                        ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-md'
+                                        : 'text-[#F4EFE6]/70 hover:text-white'
+                                }`}
+                                title="Bawa Pulang (Takeaway)"
+                            >
+                                <ShoppingBag className="w-3.5 h-3.5" />
+                                <span className="text-[11px] font-semibold">Takeaway</span>
+                            </button>
                         </div>
+
+                        {/* Poin Pembeli: Tombol Sidebar Vertikal (Chrome-Style Side Panel Trigger) */}
+                        <button
+                            type="button"
+                            onClick={() => setIsSidebarOpen(true)}
+                            className="px-3 sm:px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#B99A65]/25 via-[#D4B886]/35 to-[#B99A65]/25 hover:from-[#B99A65] hover:to-[#D4B886] hover:text-[#211D1B] text-[#D4B886] font-bold text-xs border border-[#B99A65]/60 flex items-center gap-2 shadow-lg shadow-[#B99A65]/10 active:scale-95 transition-all group"
+                            title="Buka Sidebar Navigasi & Keranjang"
+                        >
+                            <UtensilsCrossed className="w-4 h-4 text-[#D4B886] group-hover:text-[#211D1B] transition-colors" />
+                            <span className="hidden sm:inline font-semibold">Sidebar Menu</span>
+                            {cartCount > 0 && (
+                                <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-bold shadow animate-pulse">
+                                    {cartCount}
+                                </span>
+                            )}
+                        </button>
+
+                        {/* Tombol Logout dengan Alert Konfirmasi */}
+                        {auth?.user ? (
+                            <button
+                                onClick={() => setIsLogoutModalOpen(true)}
+                                title="Keluar / Logout Akun"
+                                className="w-9 h-9 rounded-full bg-[#211D1B] border border-rose-500/40 text-rose-300 flex items-center justify-center hover:bg-rose-950/80 active:scale-90 transition-all shadow"
+                            >
+                                <LogOut className="w-4 h-4" />
+                            </button>
+                        ) : (
+                            <Link
+                                href="/login"
+                                className="px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FFF0BA] via-[#F6D072] to-[#C99A36] text-[#1A1412] font-bold text-xs flex items-center gap-1.5 shadow-md hover:scale-105 active:scale-95 transition-all"
+                            >
+                                <UserIcon className="w-3.5 h-3.5" />
+                                <span>Masuk</span>
+                            </Link>
+                        )}
                     </div>
                 </div>
             </header>
 
             {/* ========================================================
-                MAIN CONTENT TABS (MENU, FAVORITES, HISTORY, CHAT)
+                HALAMAN UTAMA (ORDER)
             ======================================================== */}
             <main className="max-w-5xl mx-auto px-4 py-6">
-                {/* Desktop Tabs Header */}
-                <div className="hidden sm:flex items-center gap-2 mb-6 border-b border-[#B99A65]/30 pb-3">
-                    <button
-                        onClick={() => setActiveTab('menu')}
-                        className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
-                            activeTab === 'menu'
-                                ? 'bg-[#32151F] text-[#D4B886] shadow-md border border-[#B99A65]/50'
-                                : 'text-[#211D1B]/70 hover:text-[#32151F] hover:bg-[#E8DFCF]'
-                        }`}
-                    >
-                        <Utensils className="w-4 h-4" />
-                        <span>Katalog Menu</span>
-                    </button>
+                {/* Desain Elegan: Selamat Datang dengan Animasi Typing di Halaman Utama */}
+                <div className="mb-6 p-5 sm:p-7 rounded-3xl bg-gradient-to-r from-[#211D1B] via-[#32151F] to-[#211D1B] border border-[#B99A65]/35 text-[#F4EFE6] shadow-xl relative overflow-hidden">
+                    <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[#B99A65]/15 blur-3xl pointer-events-none" />
+                    <div className="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-[#32151F] blur-2xl pointer-events-none" />
 
-                    {!isGuest && (
-                        <button
-                            onClick={() => setActiveTab('favorites')}
-                            className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
-                                activeTab === 'favorites'
-                                    ? 'bg-[#32151F] text-[#D4B886] shadow-md border border-[#B99A65]/50'
-                                    : 'text-[#211D1B]/70 hover:text-[#32151F] hover:bg-[#E8DFCF]'
-                            }`}
-                        >
-                            <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
-                            <span>Favorit Saya ({favorites.length})</span>
-                        </button>
-                    )}
+                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="space-y-1.5">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#141110]/80 border border-[#B99A65]/30 text-[#D4B886] text-[10px] font-mono tracking-widest uppercase">
+                                <Sparkles className="w-3 h-3 text-[#D4B886]" />
+                                <span>Pusaka Gastronomi Nusantara</span>
+                            </div>
+                            <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#F4EFE6]">
+                                <TypingGreeting name={auth?.user?.name || customerName} />
+                            </h1>
+                            <p className="text-xs sm:text-sm text-[#F4EFE6]/75 max-w-xl leading-relaxed">
+                                Nikmati kelezatan racikan bumbu autentik kepulauan Nusantara. Pilih sajian favorit Anda, atur pesanan, dan konfirmasi langsung ke kasir & dapur.
+                            </p>
+                        </div>
 
-                    <button
-                        onClick={() => setActiveTab('history')}
-                        className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
-                            activeTab === 'history'
-                                ? 'bg-[#32151F] text-[#D4B886] shadow-md border border-[#B99A65]/50'
-                                : 'text-[#211D1B]/70 hover:text-[#32151F] hover:bg-[#E8DFCF]'
-                        }`}
-                    >
-                        <Clock className="w-4 h-4" />
-                        <span>{isGuest ? `Pelacakan Pesanan (${initialOrders.length})` : `Riwayat Pembelian (${initialOrders.length})`}</span>
-                    </button>
-
-                    <button
-                        onClick={() => setActiveTab('chat')}
-                        className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
-                            activeTab === 'chat'
-                                ? 'bg-[#32151F] text-[#D4B886] shadow-md border border-[#B99A65]/50'
-                                : 'text-[#211D1B]/70 hover:text-[#32151F] hover:bg-[#E8DFCF]'
-                        }`}
-                    >
-                        <MessageSquare className="w-4 h-4" />
-                        <span>Konsierge / Chat Admin</span>
-                    </button>
+                        {/* Indikator Layanan Meja & Tombol Sidebar Cepat */}
+                        <div className="flex flex-row md:flex-col items-start md:items-end justify-between gap-2.5 pt-2 md:pt-0 border-t md:border-t-0 border-[#B99A65]/20">
+                            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-[#141110]/80 border border-[#B99A65]/30 text-xs">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                                <span className="font-semibold text-[#D4B886]">
+                                    {orderType === 'dine_in' ? `Makan di ${selectedTable}` : 'Bawa Pulang (Takeaway)'}
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => setIsSidebarOpen(true)}
+                                className="text-xs text-[#D4B886] hover:text-[#FFF] font-semibold underline flex items-center gap-1 transition-colors"
+                            >
+                                <span>Buka Sidebar Menu ({menus.length})</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    </div>
                 </div>
+
+                {/* Sub-Header Breadcrumb saat melihat tab selain menu (Favorit / Riwayat / Chat) */}
+                {activeTab !== 'menu' && (
+                    <div className="mb-5 flex items-center justify-between p-3.5 rounded-2xl bg-white border border-[#B99A65]/30 shadow-sm">
+                        <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#32151F]">
+                            {activeTab === 'favorites' && <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />}
+                            {activeTab === 'history' && <Clock className="w-4 h-4 text-[#B99A65]" />}
+                            {activeTab === 'chat' && <MessageSquare className="w-4 h-4 text-[#B99A65]" />}
+                            <span>
+                                {activeTab === 'favorites' ? `Favorit Saya (${favorites.length})` : activeTab === 'history' ? (isGuest ? `Pelacakan Pesanan (${initialOrders.length})` : `Riwayat Pembelian (${initialOrders.length})`) : 'Konsierge / Chat Admin'}
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => setActiveTab('menu')}
+                            className="px-3 py-1.5 rounded-xl bg-[#32151F] text-[#D4B886] hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                        >
+                            <ArrowLeft className="w-3.5 h-3.5" />
+                            <span>Kembali ke Katalog</span>
+                        </button>
+                    </div>
+                )}
 
                 {/* Banner Status Pesanan Aktif (Live Tracking di Tab Menu) */}
                 {activeOrder && activeTab === 'menu' && (
@@ -1671,6 +1730,342 @@ export default function OrderApp({
                                     <div className="text-[10px] opacity-75">{table.location} ({table.capacity || 5} Kursi)</div>
                                 </button>
                             ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================
+                SIDEBAR VERTIKAL ALA CHROME SIDE PANEL (SLIDE-OVER)
+            ======================================================== */}
+            {isSidebarOpen && (
+                <div className="fixed inset-0 z-50 overflow-hidden">
+                    {/* Backdrop */}
+                    <div 
+                        onClick={() => setIsSidebarOpen(false)}
+                        className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity duration-300"
+                    />
+
+                    {/* Vertical Side Panel (Slide from Right) */}
+                    <aside className="fixed inset-y-0 right-0 max-w-full flex pl-10 z-50">
+                        <div className="w-screen max-w-md bg-[#1C1816] text-[#F4EFE6] border-l border-[#B99A65]/35 shadow-2xl flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300">
+                            
+                            {/* Panel Header */}
+                            <div>
+                                <div className="p-5 border-b border-[#32151F] flex items-center justify-between bg-[#211D1B]">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-xl bg-[#32151F] border border-[#B99A65]/40 flex items-center justify-center text-[#D4B886]">
+                                            <UtensilsCrossed className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h2 className="font-heading text-lg font-bold text-[#F4EFE6]">
+                                                Panel Navigasi & Layanan
+                                            </h2>
+                                            <p className="text-[10px] text-[#D4B886] font-mono">
+                                                Sidebar Vertikal NUSARA
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsSidebarOpen(false)}
+                                        className="p-2 rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                {/* User & Table Summary Box */}
+                                <div className="p-4 mx-4 mt-4 rounded-2xl bg-[#32151F]/60 border border-[#B99A65]/30">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-[#F4EFE6]/70">Pelanggan:</span>
+                                        <span className="font-bold text-[#D4B886]">{auth?.user?.name || customerName || 'Tamu Restoran'}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs mt-1.5 pt-1.5 border-t border-[#B99A65]/20">
+                                        <span className="text-[#F4EFE6]/70">Layanan Meja:</span>
+                                        <button 
+                                            onClick={() => {
+                                                setIsSidebarOpen(false);
+                                                setIsTableModalOpen(true);
+                                            }}
+                                            className="font-bold text-amber-300 hover:underline flex items-center gap-1"
+                                        >
+                                            <span>{orderType === 'dine_in' ? `Dine-in (${selectedTable})` : 'Takeaway (Self-Pickup)'}</span>
+                                            <ChevronRight className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Navigation Menu List */}
+                                <nav className="p-4 space-y-2">
+                                    {/* 1. Katalog Menu */}
+                                    <button
+                                        onClick={() => {
+                                            setActiveTab('menu');
+                                            setIsSidebarOpen(false);
+                                        }}
+                                        className={`w-full p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all ${
+                                            activeTab === 'menu'
+                                                ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-lg'
+                                                : 'bg-[#211D1B] text-[#F4EFE6] border border-[#B99A65]/20 hover:border-[#D4B886] hover:bg-[#32151F]'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Utensils className="w-4 h-4" />
+                                            <span>Katalog Menu</span>
+                                        </div>
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                                            activeTab === 'menu' ? 'bg-[#211D1B] text-[#D4B886]' : 'bg-[#32151F] text-[#D4B886]'
+                                        }`}>
+                                            {menus.length}
+                                        </span>
+                                    </button>
+
+                                    {/* 2. Keranjang Belanja (Ditambahkan di Sidebar sesuai permintaan) */}
+                                    <button
+                                        onClick={() => {
+                                            setIsSidebarOpen(false);
+                                            setIsCartOpen(true);
+                                        }}
+                                        className="w-full p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold uppercase tracking-wider bg-[#211D1B] text-[#F4EFE6] border border-[#B99A65]/35 hover:border-[#D4B886] hover:bg-[#32151F] transition-all group"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <ShoppingBag className="w-4 h-4 text-[#D4B886]" />
+                                            <span>Keranjang Pesanan</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {cartCount > 0 && (
+                                                <span className="text-[11px] font-mono text-[#D4B886]">
+                                                    {formatRupiah(cartTotal)}
+                                                </span>
+                                            )}
+                                            <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-bold shadow">
+                                                {cartCount} item
+                                            </span>
+                                        </div>
+                                    </button>
+
+                                    {/* 3. Favorit Saya */}
+                                    {!isGuest ? (
+                                        <button
+                                            onClick={() => {
+                                                setActiveTab('favorites');
+                                                setIsSidebarOpen(false);
+                                            }}
+                                            className={`w-full p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all ${
+                                                activeTab === 'favorites'
+                                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-lg'
+                                                    : 'bg-[#211D1B] text-[#F4EFE6] border border-[#B99A65]/20 hover:border-[#D4B886] hover:bg-[#32151F]'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
+                                                <span>Favorit Saya</span>
+                                            </div>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                                                activeTab === 'favorites' ? 'bg-[#211D1B] text-[#D4B886]' : 'bg-[#32151F] text-[#D4B886]'
+                                            }`}>
+                                                {favorites.length}
+                                            </span>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => {
+                                                alert('Fitur favorit hidangan memerlukan Akun Customer. Silakan masuk untuk menyimpan menu favorit Anda.');
+                                                router.visit('/login');
+                                            }}
+                                            className="w-full p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold uppercase tracking-wider bg-[#211D1B]/50 text-[#F4EFE6]/50 border border-stone-800 hover:border-[#B99A65]/40 transition-all"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <Heart className="w-4 h-4 text-stone-500" />
+                                                <span>Favorit (Butuh Login)</span>
+                                            </div>
+                                            <span className="text-[10px] text-amber-400">Masuk Akun</span>
+                                        </button>
+                                    )}
+
+                                    {/* 4. Riwayat / Pelacakan Pesanan */}
+                                    <button
+                                        onClick={() => {
+                                            setActiveTab('history');
+                                            setIsSidebarOpen(false);
+                                        }}
+                                        className={`w-full p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all ${
+                                            activeTab === 'history'
+                                                ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-lg'
+                                                : 'bg-[#211D1B] text-[#F4EFE6] border border-[#B99A65]/20 hover:border-[#D4B886] hover:bg-[#32151F]'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Clock className="w-4 h-4" />
+                                            <span>{isGuest ? 'Pelacakan Pesanan' : 'Riwayat Pembelian'}</span>
+                                        </div>
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                                            activeTab === 'history' ? 'bg-[#211D1B] text-[#D4B886]' : 'bg-[#32151F] text-[#D4B886]'
+                                        }`}>
+                                            {initialOrders.length}
+                                        </span>
+                                    </button>
+
+                                    {/* 5. Konsierge / Chat Admin */}
+                                    <button
+                                        onClick={() => {
+                                            setActiveTab('chat');
+                                            setIsSidebarOpen(false);
+                                        }}
+                                        className={`w-full p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all ${
+                                            activeTab === 'chat'
+                                                ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-lg'
+                                                : 'bg-[#211D1B] text-[#F4EFE6] border border-[#B99A65]/20 hover:border-[#D4B886] hover:bg-[#32151F]'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <MessageSquare className="w-4 h-4" />
+                                            <span>Konsierge / Chat Admin</span>
+                                        </div>
+                                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                                    </button>
+                                </nav>
+                            </div>
+
+                            {/* Sidebar Footer: Keluar / Logout */}
+                            <div className="p-4 border-t border-[#32151F] bg-[#141110]">
+                                {auth?.user ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsSidebarOpen(false);
+                                            setIsLogoutModalOpen(true);
+                                        }}
+                                        className="w-full py-3 px-4 rounded-xl border border-rose-500/40 bg-rose-950/30 text-rose-300 hover:bg-rose-900/50 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                                    >
+                                        <LogOut className="w-4 h-4" />
+                                        <span>Keluar dari Akun</span>
+                                    </button>
+                                ) : (
+                                    <Link
+                                        href="/login"
+                                        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md"
+                                    >
+                                        <UserIcon className="w-4 h-4" />
+                                        <span>Masuk ke Akun Customer</span>
+                                    </Link>
+                                )}
+                            </div>
+
+                        </div>
+                    </aside>
+                </div>
+            )}
+
+            {/* ========================================================
+                POIN PEMBELI: FLOATING SIDEBAR TAB BUTTON (DESKTOP & MOBILE)
+            ======================================================== */}
+            {!isSidebarOpen && (
+                <button
+                    type="button"
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="fixed top-1/2 -translate-y-1/2 right-0 z-40 py-3.5 px-2 rounded-l-2xl bg-gradient-to-b from-[#32151F] to-[#211D1B] border-y border-l border-[#B99A65] text-[#D4B886] shadow-2xl flex flex-col items-center gap-1.5 hover:translate-x-[-4px] active:scale-95 transition-all cursor-pointer group"
+                    title="Buka Sidebar Navigasi, Menu & Keranjang"
+                >
+                    <span className="w-2 h-2 rounded-full bg-[#B99A65] animate-ping mb-0.5" />
+                    <UtensilsCrossed className="w-4 h-4 text-[#D4B886] group-hover:scale-110 transition-transform" />
+                    <span className="text-[9px] font-bold uppercase tracking-widest [writing-mode:vertical-lr] text-[#F4EFE6]/90 group-hover:text-[#D4B886]">
+                        Sidebar Menu
+                    </span>
+                    {cartCount > 0 && (
+                        <span className="w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center shadow mt-1 animate-pulse">
+                            {cartCount}
+                        </span>
+                    )}
+                </button>
+            )}
+
+            {/* ========================================================
+                MODAL 5: CONFIRMATION LOGOUT (CEGAH KEPENCET KELUAR)
+            ======================================================== */}
+            {isLogoutModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="relative w-full max-w-sm bg-[#211D1B] border border-[#B99A65]/40 rounded-3xl p-6 shadow-2xl text-[#F4EFE6] text-center">
+                        <div className="w-14 h-14 rounded-full bg-rose-500/10 border border-rose-500/40 text-rose-400 mx-auto flex items-center justify-center mb-3">
+                            <LogOut className="w-6 h-6" />
+                        </div>
+
+                        <h3 className="font-heading text-xl font-bold text-[#F4EFE6] mb-1">
+                            Konfirmasi Keluar Akun
+                        </h3>
+                        <p className="text-xs text-[#F4EFE6]/70 mb-4">
+                            Apakah Anda yakin ingin keluar dari akun Anda?
+                        </p>
+
+                        {cartCount > 0 ? (
+                            <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs text-left mb-4 flex items-start gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                                <span>
+                                    Tenang! <strong>{cartCount} pesanan</strong> di keranjang Anda telah disimpan dengan aman dan tidak akan hilang saat Anda kembali.
+                                </span>
+                            </div>
+                        ) : (
+                            <div className="p-3 rounded-2xl bg-[#32151F]/50 border border-[#B99A65]/20 text-[#F4EFE6]/70 text-xs text-left mb-4 flex items-start gap-2">
+                                <Info className="w-4 h-4 text-[#D4B886] flex-shrink-0 mt-0.5" />
+                                <span>
+                                    Sesi pesanan Anda saat ini akan ditutup. Anda dapat masuk kembali kapan saja.
+                                </span>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => setIsLogoutModalOpen(false)}
+                                className="py-2.5 px-4 rounded-xl border border-stone-700 bg-stone-900/60 hover:bg-stone-800 text-[#F4EFE6] text-xs font-semibold transition-colors"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => router.post('/logout')}
+                                className="py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shadow-md"
+                            >
+                                Ya, Keluar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================
+                MODAL 6: CONFIRMATION EXIT TO HOME (BERANDA)
+            ======================================================== */}
+            {isExitHomeModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="relative w-full max-w-sm bg-[#211D1B] border border-[#B99A65]/40 rounded-3xl p-6 shadow-2xl text-[#F4EFE6] text-center">
+                        <div className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/40 text-[#D4B886] mx-auto flex items-center justify-center mb-3">
+                            <ShoppingBag className="w-6 h-6" />
+                        </div>
+
+                        <h3 className="font-heading text-xl font-bold text-[#F4EFE6] mb-1">
+                            Kembali ke Beranda?
+                        </h3>
+                        <p className="text-xs text-[#F4EFE6]/70 mb-4">
+                            Anda memiliki <strong>{cartCount} item</strong> di keranjang belanja. Pesanan Anda tetap tersimpan dengan aman.
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => setIsExitHomeModalOpen(false)}
+                                className="py-2.5 px-4 rounded-xl border border-stone-700 bg-stone-900/60 hover:bg-stone-800 text-[#F4EFE6] text-xs font-semibold transition-colors"
+                            >
+                                Tetap di Pesanan
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => router.visit('/')}
+                                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] text-xs font-bold transition-all shadow-md"
+                            >
+                                Ke Beranda
+                            </button>
                         </div>
                     </div>
                 </div>
