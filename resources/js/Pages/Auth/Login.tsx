@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
+import NusaraAssembleLoading from '../../Components/NusaraAssembleLoading';
 import { DemoAccount } from '../../types';
 import { 
     Lock, 
@@ -91,6 +92,10 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
         }
     }, []);
 
+    // Assemble Loading Animation State (hanya saat login)
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const [loadingStatusText, setLoadingStatusText] = useState('Memverifikasi Sesi');
+
     // 1. Form Login
     const { 
         data: loginData, 
@@ -98,7 +103,9 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
         post: postLogin, 
         processing: loginProcessing, 
         errors: loginErrors, 
-        reset: resetLogin 
+        reset: resetLogin,
+        setError: setLoginError,
+        clearErrors: clearLoginErrors
     } = useForm({
         login_id: '',
         password: '',
@@ -124,11 +131,76 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
         redirect: redirectParam,
     });
 
+    const executeLogin = async (idToUse?: string, passToUse?: string) => {
+        clearLoginErrors();
+        setIsLoggingIn(true);
+        setLoadingStatusText('Memverifikasi Akun...');
+        const startTime = Date.now();
+
+        const id = idToUse ?? loginData.login_id;
+        const pass = passToUse ?? loginData.password;
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({
+                    login_id: id,
+                    password: pass,
+                    remember: loginData.remember,
+                    redirect: redirectParam,
+                }),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                setIsLoggingIn(false);
+                if (errData.errors) {
+                    if (errData.errors.login_id) {
+                        setLoginError('login_id', errData.errors.login_id[0]);
+                    }
+                    if (errData.errors.password) {
+                        setLoginError('password', errData.errors.password[0]);
+                    }
+                } else if (errData.message) {
+                    setLoginError('password', errData.message);
+                } else {
+                    setLoginError('password', 'Gagal memverifikasi akun. Silakan periksa kembali kredensial Anda.');
+                }
+                resetLogin('password');
+                return;
+            }
+
+            const data = await res.json();
+            setLoadingStatusText('Menyiapkan Meja & Sesi...');
+
+            // Biarkan animasi Nusara Assemble berjalan mulus sampai seluruh elemen dan kilau emas selesai (~3.8s)
+            const elapsed = Date.now() - startTime;
+            const remaining = Math.max(0, 3800 - elapsed);
+
+            setTimeout(() => {
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    window.location.href = redirectParam || '/';
+                }
+            }, remaining);
+        } catch {
+            setIsLoggingIn(false);
+            setLoginError('password', 'Terjadi kendala jaringan saat memproses login.');
+        }
+    };
+
     const handleLoginSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        postLogin('/login', {
-            onFinish: () => resetLogin('password'),
-        });
+        executeLogin();
     };
 
     const handleRegisterSubmit = (e: React.FormEvent) => {
@@ -138,7 +210,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
         });
     };
 
-    const handleSelectDemoAccount = (account: DemoAccount) => {
+    const handleSelectDemoAccount = (account: DemoAccount, autoSubmit: boolean = false) => {
         setMode('login');
         setLoginData({
             login_id: account.email,
@@ -146,11 +218,17 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
             remember: true,
             redirect: redirectParam,
         });
+        if (autoSubmit) {
+            executeLogin(account.email, account.password);
+        }
     };
 
     return (
         <div className="min-h-screen bg-[#141110] text-[#F4EFE6] font-body flex flex-col justify-between selection:bg-[#B99A65] selection:text-[#32151F] relative overflow-x-hidden">
             <Head title={mode === 'login' ? 'Masuk ke Akun — NUSARA' : 'Daftar Anggota — NUSARA'} />
+
+            {/* Assemble Loading Animation Khusus Saat Login */}
+            <NusaraAssembleLoading isOpen={isLoggingIn} statusText={loadingStatusText} />
 
             {/* Ambient Background Glows */}
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
@@ -357,10 +435,16 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                                         <button
                                             key={acc.email}
                                             type="button"
-                                            onClick={() => handleSelectDemoAccount(acc)}
-                                            className="p-2 rounded-xl bg-[#211D1B] border border-[#B99A65]/30 hover:border-[#D4B886] text-left transition-all text-[10px]"
+                                            onClick={() => handleSelectDemoAccount(acc, true)}
+                                            className="p-2.5 rounded-xl bg-[#211D1B] border border-[#B99A65]/30 hover:border-[#D4B886] hover:bg-[#32151F]/60 text-left transition-all text-[10px] group flex flex-col justify-between"
+                                            title="Klik untuk langsung masuk menggunakan akun ini"
                                         >
-                                            <div className="font-semibold text-[#D4B886]">{acc.badge}</div>
+                                            <div className="flex items-center justify-between w-full mb-1">
+                                                <span className="font-semibold text-[#D4B886]">{acc.badge}</span>
+                                                <span className="text-[9px] text-[#B99A65] font-mono opacity-70 group-hover:opacity-100 flex items-center gap-0.5">
+                                                    Masuk &rarr;
+                                                </span>
+                                            </div>
                                             <div className="text-[#F4EFE6]/70 truncate">{acc.email}</div>
                                         </button>
                                     ))}
