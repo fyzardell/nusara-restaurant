@@ -71,6 +71,12 @@ export default function NusaraSplashScreen({
         setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
     };
 
+    // Replay animation
+    const handleReplay = () => {
+        setIsFadingOut(false);
+        setRenderKey(prev => prev + 1);
+    };
+
     // Auto transition timer:
     // Tunggu animasi logo reveal selesai 1 siklus (~8 detik).
     // Jika halaman landing page sudah sepenuhnya selesai di-render (isReady === true), fade out dan lanjut ke halaman.
@@ -368,9 +374,16 @@ export default function NusaraSplashScreen({
                 </svg>
             </div>
 
-            {/* Controls Bar: Hanya Button Terang / Gelap (Light / Dark Mode) sesuai request */}
+            {/* Controls Bar: Putar ulang & Terang / Gelap sesuai spesifikasi animasi logo */}
             {showControls && (
-                <div className="controls flex gap-2 flex-wrap justify-center items-center z-20 max-w-3xl px-4 pb-2">
+                <div className="controls flex gap-2.5 flex-wrap justify-center items-center z-20 max-w-3xl px-4 pb-2">
+                    <button id="replay" type="button" onClick={handleReplay} className="nusara-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 14, height: 14 }}>
+                            <path d="M3 12a9 9 0 1 0 3-6.7" />
+                            <path d="M3 4v5h5" />
+                        </svg>
+                        <span>Putar ulang</span>
+                    </button>
                     <button id="theme" type="button" onClick={handleToggleTheme} className="nusara-btn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 14, height: 14 }}>
                             <circle cx={12} cy={12} r={9} />
