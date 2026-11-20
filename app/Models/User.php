@@ -29,4 +29,14 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+        public function chatMessages()
+    {
+        return $this->hasMany(ChatMessage::class);
+    }
+
+    public function latestChatMessage()
+    {
+        return $this->hasOne(ChatMessage::class)->latestOfMany();
+    }
 }

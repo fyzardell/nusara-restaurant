@@ -41,6 +41,8 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     Route::post('/menu/{id}/stock', [AdminController::class, 'updateMenuStock'])->name('admin.menu.stock');
     Route::post('/table/{id}/status', [AdminController::class, 'updateTableStatus'])->name('admin.table.status');
     Route::post('/reservation/{id}/status', [AdminController::class, 'updateReservationStatus'])->name('admin.reservation.status');
+    Route::get('/chats', [AdminController::class, 'chats'])->name('admin.chats');                  // ← tambahkan
+    Route::get('/chats/{user}', [AdminController::class, 'chatShow'])->name('admin.chats.show');
 });
 
 // Cashier Operational Dashboard (PRD Section 8.1 & REQ-FE-003)
