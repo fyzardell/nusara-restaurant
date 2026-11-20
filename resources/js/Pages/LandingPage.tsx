@@ -166,22 +166,22 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                     1. HERO SECTION
                 ======================================================== */}
             <section className="relative min-h-screen flex items-center justify-center pt-24 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden bg-[#211D1B]">
-                {/* Background Atmosphere Image */}
+                {/* Background Atmosphere Image (Hint hitam dikurangi agar hidangan terlihat jelas & menggugah selera) */}
                 <div className="absolute inset-0 z-0">
                     <img 
                         src="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=2000&q=85" 
                         alt="NUSARA Dining Experience"
-                        className="w-full h-full object-cover object-center opacity-30 scale-105"
+                        className="w-full h-full object-cover object-center opacity-65 scale-105 transition-transform duration-1000 ease-out"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#211D1B] via-[#211D1B]/80 to-[#32151F]/90" />
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-[#211D1B]/60 to-[#211D1B]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#211D1B] via-[#211D1B]/40 to-black/30" />
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/25 to-[#211D1B]/80" />
                 </div>
 
                 <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 mt-12 md:mt-6">
                     {/* Majestic Headline */}
-                    <h1 className="font-heading text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-[#F4EFE6] leading-[1.08]">
+                    <h1 className="font-heading text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-[#F4EFE6] leading-[1.08] drop-shadow-2xl">
                         Harmoni Rasa Nusantara <br className="hidden sm:inline" />
-                        <span className="italic font-normal text-[#D4B886]">Dalam Kemewahan Kontemporer</span>
+                        <span className="italic font-normal text-[#D4B886] drop-shadow-lg">Dalam Kemewahan Kontemporer</span>
                     </h1>
 
                     {/* Hero CTAs */}

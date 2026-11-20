@@ -285,7 +285,6 @@ class OrderController extends Controller
             return redirect()->back()->with('error', $e->getMessage());
         }
     }
-    }
 
     public function submitRating(Request $request, $orderId)
     {

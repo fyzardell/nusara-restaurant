@@ -5,6 +5,10 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title inertia>{{ config('app.name', 'NUSARA — Indonesian Dining Experience') }}</title>
 
+        <!-- Favicon -->
+        <link rel="icon" type="image/png" href="/favicon.png">
+        <link rel="shortcut icon" href="/favicon.ico">
+
         <!-- Google Fonts: Cormorant Garamond, DM Sans, Manrope, Jost -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://gstatic.com" crossorigin>

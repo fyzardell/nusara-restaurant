@@ -317,24 +317,17 @@ export default function OrderApp({
                             <Link 
                                 href="/" 
                                 title="Kembali ke Beranda Publik"
-                                className="w-9 h-9 rounded-full bg-[#211D1B] border border-[#B99A65]/50 flex items-center justify-center text-[#D4B886] hover:scale-105 transition-all"
+                                className="group flex items-center"
                             >
-                                <span className="font-heading font-bold text-xl">N</span>
+                                <img 
+                                    src="/images/nusara-logo.png" 
+                                    alt="NUSARA" 
+                                    className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105" 
+                                />
+                                <span className="text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded bg-[#B99A65] text-[#211D1B] ml-2">
+                                    APP
+                                </span>
                             </Link>
-                            <div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="font-heading text-lg sm:text-xl font-bold tracking-wider text-[#F4EFE6] leading-none">
-                                        NUSARA
-                                    </span>
-                                    <span className="text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded bg-[#B99A65] text-[#211D1B]">
-                                        APP
-                                    </span>
-                                </div>
-                                <p className="text-[11px] text-[#D4B886] flex items-center gap-1 mt-0.5 truncate max-w-[200px] sm:max-w-none">
-                                    <MapPin className="w-3 h-3 flex-shrink-0" />
-                                    <span>Senopati Flagship · Buka 11:00-22:30 WIB</span>
-                                </p>
-                            </div>
                         </div>
 
                         {/* Right: User Profile & Mode Switcher */}

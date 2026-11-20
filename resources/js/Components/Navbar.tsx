@@ -122,19 +122,13 @@ export default function Navbar({
                                     )}
                                 </button>
 
-                                {/* Logo NUSARA */}
-                                <Link href="/" className="group flex items-center gap-2.5">
-                                    <div className="w-9 h-9 rounded-full border border-[#B99A65]/60 bg-[#171312] flex items-center justify-center text-[#D4B886] shadow-inner group-hover:border-[#B99A65] transition-colors">
-                                        <span className="font-heading text-xl font-bold tracking-tighter">N</span>
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className="font-heading text-xl sm:text-2xl font-bold tracking-widest text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors leading-none">
-                                            NUSARA
-                                        </span>
-                                        <span className="text-[9px] uppercase tracking-[0.22em] text-[#B99A65] mt-0.5 font-medium">
-                                            Indonesian Dining
-                                        </span>
-                                    </div>
+                                {/* Logo NUSARA (Image 2) */}
+                                <Link href="/" className="group flex items-center">
+                                    <img 
+                                        src="/images/nusara-logo.png" 
+                                        alt="NUSARA — Nusantara & Rasa" 
+                                        className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform group-hover:scale-105 drop-shadow-md" 
+                                    />
                                 </Link>
                             </div>
 
