@@ -84,45 +84,22 @@ export default function Navbar({
     return (
         <>
             {/* ========================================================
-                1. MAIN HEADER (Ultra-clean, shifts alongside page content)
-                KIRI: Button Side Panel (Icon Only, Warna Cerah) + Logo NUSARA
-                KANAN: Pilih Menu, Reservasi, Log In
+                1. MAIN HEADER (Ultra-clean Burgundy Style)
+                KIRI: Logo NUSARA (Image 2)
+                KANAN: HANYA Tombol Log In
             ======================================================== */}
-            <header 
-                className={`fixed top-0 right-0 z-40 transition-all duration-300 ease-in-out ${
-                    sidePanelOpen ? 'md:left-[350px] left-0' : 'left-0'
-                }`}
-            >
+            <header className="fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-in-out">
                 <nav 
                     className={`transition-all duration-300 ${
                         scrolled 
-                            ? 'bg-[#1E1A18]/95 backdrop-blur-md shadow-2xl py-3 border-b border-[#B99A65]/20' 
-                            : 'bg-gradient-to-b from-[#1E1A18]/95 via-[#1E1A18]/80 to-transparent py-3.5 sm:py-4'
+                            ? 'bg-[#32151F]/95 backdrop-blur-md shadow-2xl py-3 border-b border-[#B99A65]/20' 
+                            : 'bg-gradient-to-b from-[#32151F]/95 via-[#32151F]/80 to-transparent py-3.5 sm:py-4'
                     }`}
                 >
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="flex items-center justify-between">
-                            {/* Left Group: Button Side Panel (Icon Only, Warna Cerah Menyilaukan) + Logo NUSARA */}
-                            <div className="flex items-center gap-3 sm:gap-4">
-                                {/* Chrome-style Side Panel Toggle Button (ICON ONLY & WARNA CERAH) */}
-                                <button
-                                    onClick={onToggleSidePanel}
-                                    className={`p-2.5 sm:p-2.5 rounded-full border-2 transition-all flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 ${
-                                        sidePanelOpen 
-                                            ? 'bg-amber-400 text-[#1A1412] border-amber-200 ring-2 ring-amber-400/50 shadow-amber-500/40' 
-                                            : 'bg-gradient-to-br from-[#FFF0BA] via-[#F6D072] to-[#C99A36] text-[#1A1412] border-[#FFF8D6] shadow-amber-400/40 hover:shadow-amber-400/60'
-                                    }`}
-                                    title={sidePanelOpen ? 'Tutup Side Panel' : 'Buka Side Panel Menu (Kaya di Chrome)'}
-                                    aria-label="Toggle Side Panel"
-                                >
-                                    {sidePanelOpen ? (
-                                        <PanelLeftClose className="w-5 h-5 text-[#1A1412]" />
-                                    ) : (
-                                        <PanelLeft className="w-5 h-5 text-[#1A1412]" />
-                                    )}
-                                </button>
-
-                                {/* Logo NUSARA (Image 2) */}
+                            {/* Left: Logo NUSARA Resmi */}
+                            <div className="flex items-center">
                                 <Link href="/" className="group flex items-center">
                                     <img 
                                         src="/images/nusara-logo.png" 
@@ -132,45 +109,22 @@ export default function Navbar({
                                 </Link>
                             </div>
 
-                            {/* Right Group: Sesuai instruksi: HANYA sisain:
-                                1. Pilih Menu
-                                2. Reservasi
-                                3. Log In (atau nama profil pelanggan)
-                            */}
+                            {/* Right: HANYA Tombol Log In (atau profil pelanggan jika sudah masuk) */}
                             <div className="flex items-center gap-2 sm:gap-3">
-                                {/* 1. Tombol Pilih Menu */}
-                                <a
-                                    href="#menu"
-                                    className="px-3.5 sm:px-4 py-2 text-xs font-semibold tracking-wider text-[#F4EFE6] border border-[#B99A65]/40 rounded-full hover:bg-[#B99A65]/15 hover:border-[#D4B886] transition-all flex items-center gap-1.5"
-                                >
-                                    <Utensils className="w-3.5 h-3.5 text-[#D4B886]" />
-                                    <span>Pilih Menu</span>
-                                </a>
-
-                                {/* 2. Tombol Reservasi */}
-                                <button
-                                    onClick={onOpenReservation}
-                                    className="px-3.5 sm:px-5 py-2 text-xs font-semibold tracking-wider uppercase bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] rounded-full shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5"
-                                >
-                                    <Calendar className="w-3.5 h-3.5" />
-                                    <span>Reservasi</span>
-                                </button>
-
-                                {/* 3. Tombol Log In */}
                                 {auth?.user ? (
                                     <div className="relative">
                                         <button
                                             onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                                            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#171312] border border-[#B99A65]/50 text-[#F4EFE6] text-xs font-medium hover:border-[#D4B886] transition-colors"
+                                            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#211D1B] border border-[#B99A65]/50 text-[#F4EFE6] text-xs font-medium hover:border-[#D4B886] transition-colors shadow-sm"
                                         >
-                                            <div className="w-6 h-6 rounded-full bg-[#32151F] text-[#D4B886] flex items-center justify-center font-bold text-xs">
+                                            <div className="w-6 h-6 rounded-full bg-[#32151F] text-[#D4B886] flex items-center justify-center font-bold text-xs border border-[#B99A65]/30">
                                                 {auth.user.name.charAt(0)}
                                             </div>
-                                            <span className="hidden md:inline max-w-[90px] truncate">{auth.user.name}</span>
+                                            <span className="hidden md:inline max-w-[100px] truncate">{auth.user.name}</span>
                                         </button>
 
                                         {userDropdownOpen && (
-                                            <div className="absolute right-0 mt-2 w-52 bg-[#211D1B] border border-[#B99A65]/40 rounded-xl shadow-2xl py-2 z-50 text-xs">
+                                            <div className="absolute right-0 mt-2 w-52 bg-[#211D1B] border border-[#B99A65]/40 rounded-2xl shadow-2xl py-2 z-50 text-xs animate-fade-in">
                                                 <div className="px-4 py-2 border-b border-[#32151F]">
                                                     <p className="font-bold text-[#F4EFE6] truncate">{auth.user.name}</p>
                                                     <p className="text-[11px] text-[#B99A65] truncate">{auth.user.email}</p>
@@ -195,9 +149,9 @@ export default function Navbar({
                                 ) : (
                                     <Link
                                         href="/login"
-                                        className="px-3 sm:px-4 py-2 text-xs font-semibold tracking-wider text-[#F4EFE6] hover:text-[#D4B886] border border-stone-700 rounded-full hover:border-[#B99A65]/50 transition-colors flex items-center gap-1.5"
+                                        className="px-4 sm:px-5 py-2 text-xs font-semibold tracking-wider text-[#F4EFE6] hover:text-[#211D1B] bg-[#211D1B]/80 hover:bg-gradient-to-r hover:from-[#B99A65] hover:to-[#D4B886] border border-[#B99A65]/40 rounded-full transition-all shadow-md flex items-center gap-1.5"
                                     >
-                                        <UserIcon className="w-3.5 h-3.5 text-[#B99A65]" />
+                                        <UserIcon className="w-3.5 h-3.5 text-[#D4B886]" />
                                         <span>Log In</span>
                                     </Link>
                                 )}

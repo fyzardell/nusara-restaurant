@@ -160,21 +160,21 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                 </div>
             )}
 
-            {/* Main Page Body (Shifts smoothly to right when side panel opens, 100% interactive) */}
-            <div className={`transition-all duration-300 ease-in-out ${sidePanelOpen ? 'md:ml-[350px]' : 'ml-0'}`}>
+            {/* Main Page Body */}
+            <div className="transition-all duration-300 ease-in-out">
                 {/* ========================================================
                     1. HERO SECTION
                 ======================================================== */}
             <section className="relative min-h-screen flex items-center justify-center pt-24 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden bg-[#211D1B]">
-                {/* Background Atmosphere Image (Hint hitam dikurangi agar hidangan terlihat jelas & menggugah selera) */}
+                {/* Background Atmosphere Image (Warna hitam ditingkatkan sedikit & ada gradien burgundy elegan) */}
                 <div className="absolute inset-0 z-0">
                     <img 
                         src="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=2000&q=85" 
                         alt="NUSARA Dining Experience"
-                        className="w-full h-full object-cover object-center opacity-65 scale-105 transition-transform duration-1000 ease-out"
+                        className="w-full h-full object-cover object-center opacity-50 scale-105 transition-transform duration-1000 ease-out"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#211D1B] via-[#211D1B]/40 to-black/30" />
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/25 to-[#211D1B]/80" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#211D1B] via-[#32151F]/55 to-[#211D1B]/50" />
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#32151F]/30 via-black/40 to-[#211D1B]/90" />
                 </div>
 
                 <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 mt-12 md:mt-6">
@@ -184,50 +184,27 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                         <span className="italic font-normal text-[#D4B886] drop-shadow-lg">Dalam Kemewahan Kontemporer</span>
                     </h1>
 
-                    {/* Hero CTAs */}
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-4 flex-wrap">
-                        <Link
-                            href="/order"
-                            className="w-full sm:w-auto px-7 py-4 rounded-full bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#B99A65]/20 flex items-center justify-center gap-2"
+                    {/* Hero CTAs: Sesuai instruksi: HANYA ada "Pilih Menu" dan "Reservasi" */}
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 flex-wrap">
+                        {/* 1. Pilih Menu */}
+                        <a
+                            href="#menu"
+                            className="w-full sm:w-auto px-8 py-4 rounded-full bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#B99A65]/25 flex items-center justify-center gap-2"
                         >
-                            <ShoppingBag className="w-4 h-4" />
-                            <span>Buka Dashboard Pemesanan</span>
-                        </Link>
+                            <Utensils className="w-4 h-4 text-[#211D1B]" />
+                            <span>Pilih Menu</span>
+                        </a>
 
-                        <Link
-                            href="/admin"
-                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-stone-900/90 border border-stone-600 text-[#F4EFE6] font-semibold text-xs uppercase tracking-wider hover:bg-stone-800 hover:border-[#B99A65] transition-all flex items-center justify-center gap-2"
-                        >
-                            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                            <span>Dashboard Admin</span>
-                        </Link>
-
+                        {/* 2. Reservasi */}
                         <button
                             onClick={() => {
                                 setSelectedExperience(null);
                                 setReservationModalOpen(true);
                             }}
-                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-[#32151F]/80 border border-[#B99A65]/60 text-[#F4EFE6] font-semibold text-xs uppercase tracking-widest hover:bg-[#B99A65]/20 hover:border-[#D4B886] transition-all flex items-center justify-center gap-2"
+                            className="w-full sm:w-auto px-8 py-4 rounded-full bg-[#32151F]/90 border border-[#B99A65]/60 text-[#F4EFE6] font-semibold text-xs uppercase tracking-widest hover:bg-[#B99A65] hover:text-[#211D1B] hover:border-[#D4B886] transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-105 active:scale-95"
                         >
                             <Calendar className="w-4 h-4 text-[#D4B886]" />
-                            <span>Reservasi Meja</span>
-                        </button>
-
-                        <a
-                            href="#menu"
-                            className="w-full sm:w-auto px-6 py-4 rounded-full bg-black/40 border border-stone-700 text-[#F4EFE6] font-semibold text-xs uppercase tracking-widest hover:border-[#D4B886] transition-all flex items-center justify-center gap-2"
-                        >
-                            <span>Jelajahi Menu</span>
-                            <ArrowRight className="w-4 h-4 text-[#D4B886]" />
-                        </a>
-
-                        <button
-                            onClick={() => setShowSplash(true)}
-                            className="w-full sm:w-auto px-4 py-4 rounded-full bg-black/60 border border-[#B99A65]/40 text-[#D4B886] font-semibold text-xs tracking-wider hover:bg-[#B99A65]/20 hover:border-[#D4B886] transition-all flex items-center justify-center gap-2 shadow-lg"
-                            title="Tonton animasi logo reveal NUSARA"
-                        >
-                            <Sparkles className="w-4 h-4 text-[#B99A65]" />
-                            <span>Logo Reveal</span>
+                            <span>Reservasi</span>
                         </button>
                     </div>
 
