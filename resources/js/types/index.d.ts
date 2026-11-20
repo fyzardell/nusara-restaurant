@@ -175,6 +175,27 @@ export interface AuditLog {
     created_at: string;
 }
 
+export interface MonthSalesPoint {
+    key: string;
+    label: string;
+    short: string;
+    revenue: number;
+    orders: number;
+}
+
+export interface BestSellerTrendPoint {
+    month: string;
+    fullMonth: string;
+    qty: number;
+}
+
+export interface BestSellerTrend {
+    name: string;
+    color: string;
+    totalQty: number;
+    data: BestSellerTrendPoint[];
+}
+
 export interface AdminMetrics {
     todayRevenue: number;
     monthlyRevenue: number;
