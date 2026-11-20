@@ -64,9 +64,16 @@ export default function ReservationModal({ isOpen, onClose, experiences, selecte
                     </div>
                 ) : (
                     <div>
-                        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[#B99A65] font-semibold mb-1">
-                            <Sparkles className="w-4 h-4" />
-                            <span>Reservasi Meja Online</span>
+                        <div className="flex items-center justify-between mb-3 border-b border-[#32151F] pb-3">
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA — Nusantara & Rasa" 
+                                className="h-8 sm:h-9 w-auto object-contain drop-shadow" 
+                            />
+                            <div className="flex items-center gap-1.5 text-xs uppercase tracking-widest text-[#B99A65] font-semibold">
+                                <Sparkles className="w-4 h-4" />
+                                <span>Reservasi Online</span>
+                            </div>
                         </div>
                         <h2 className="font-heading text-3xl font-bold text-[#F4EFE6]">
                             Pengalaman Bersantap di NUSARA

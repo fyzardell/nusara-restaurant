@@ -22,8 +22,16 @@ export default function FavoriteLoginPromptModal({ isOpen, onClose, menu }: Prop
                     <X className="w-5 h-5" />
                 </button>
 
-                <div className="w-16 h-16 rounded-full bg-rose-950/60 border border-rose-500/40 text-rose-400 mx-auto flex items-center justify-center mb-4">
-                    <Heart className="w-8 h-8 fill-rose-500" />
+                <div className="flex justify-center mb-4">
+                    <img 
+                        src="/images/nusara-logo.png" 
+                        alt="NUSARA — Nusantara & Rasa" 
+                        className="h-9 w-auto object-contain drop-shadow" 
+                    />
+                </div>
+
+                <div className="w-14 h-14 rounded-full bg-rose-950/60 border border-rose-500/40 text-rose-400 mx-auto flex items-center justify-center mb-3">
+                    <Heart className="w-7 h-7 fill-rose-500" />
                 </div>
 
                 <div className="flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-widest text-[#B99A65] font-bold mb-1">

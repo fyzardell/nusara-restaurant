@@ -178,6 +178,15 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                 </div>
 
                 <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 mt-12 md:mt-6">
+                    {/* Brand Emblem / Official Logo Pill */}
+                    <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-[#32151F]/80 border border-[#B99A65]/40 backdrop-blur-md shadow-2xl hover:border-[#D4B886] transition-all">
+                        <img 
+                            src="/images/nusara-logo.png" 
+                            alt="NUSARA — Nusantara & Rasa" 
+                            className="h-8 sm:h-9 w-auto object-contain drop-shadow" 
+                        />
+                    </div>
+
                     {/* Majestic Headline */}
                     <h1 className="font-heading text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-[#F4EFE6] leading-[1.08] drop-shadow-2xl">
                         Harmoni Rasa Nusantara <br className="hidden sm:inline" />

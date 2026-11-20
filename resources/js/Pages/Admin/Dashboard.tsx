@@ -183,19 +183,18 @@ export default function AdminDashboard({
                     <div className="flex items-center justify-between h-16">
                         {/* Left: Brand & Single Branch Flagship */}
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full border border-[#B99A65] bg-[#32151F] flex items-center justify-center text-[#D4B886] font-heading font-bold text-xl shadow-lg">
-                                N
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-heading text-xl font-bold tracking-wider text-[#F4EFE6] leading-none">
-                                        NUSARA
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-widest bg-[#B99A65] text-[#211D1B]">
-                                        HQ Admin
-                                    </span>
-                                </div>
-                                <p className="text-[10px] text-[#B99A65] mt-0.5 flex items-center gap-1">
+                            <Link href="/" title="Ke Beranda Publik" className="group flex items-center gap-2.5">
+                                <img 
+                                    src="/images/nusara-logo.png" 
+                                    alt="NUSARA — Nusantara & Rasa" 
+                                    className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105 drop-shadow" 
+                                />
+                                <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-widest bg-[#B99A65] text-[#211D1B] shadow">
+                                    HQ Admin
+                                </span>
+                            </Link>
+                            <div className="hidden lg:block pl-3 border-l border-stone-800">
+                                <p className="text-[10px] text-[#B99A65] flex items-center gap-1">
                                     <MapPin className="w-3 h-3" />
                                     <span>Single Branch · Senopati, Jakarta Selatan</span>
                                 </p>

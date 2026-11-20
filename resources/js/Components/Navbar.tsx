@@ -182,10 +182,14 @@ export default function Navbar({
             >
                 {/* A. Top Panel Header (Chrome desktop side panel toolbar style) */}
                 <div className="p-3.5 sm:p-4 border-b border-[#32151F] flex items-center justify-between bg-[#130F0E]">
-                    <div className="flex items-center gap-2 text-[#D4B886]">
-                        <PanelLeftClose className="w-4 h-4 text-[#B99A65]" />
-                        <span className="font-heading text-sm font-bold tracking-wider text-[#F4EFE6]">
-                            NUSARA <span className="text-[#D4B886] font-normal text-xs">Side Panel</span>
+                    <div className="flex items-center gap-2.5">
+                        <img 
+                            src="/images/nusara-logo.png" 
+                            alt="NUSARA" 
+                            className="h-6 sm:h-7 w-auto object-contain" 
+                        />
+                        <span className="text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded bg-[#32151F] text-[#D4B886] border border-[#B99A65]/30">
+                            Side Panel
                         </span>
                     </div>
 

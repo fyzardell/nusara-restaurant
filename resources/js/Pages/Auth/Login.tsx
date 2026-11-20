@@ -80,10 +80,12 @@ export default function Login({ demoAccounts, status }: Props) {
                 <div className="bg-[#181413]/90 border border-[#B99A65]/40 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
                     {/* Brand Header */}
                     <div className="text-center mb-7">
-                        <Link href="/" className="inline-flex items-center justify-center mb-3 group">
-                            <div className="w-12 h-12 rounded-full border border-[#B99A65] bg-[#32151F] flex items-center justify-center text-[#D4B886] shadow-xl group-hover:scale-105 transition-transform">
-                                <span className="font-heading text-2xl font-bold">N</span>
-                            </div>
+                        <Link href="/" className="inline-flex items-center justify-center mb-4 group">
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA — Nusantara & Rasa" 
+                                className="h-12 sm:h-14 w-auto object-contain drop-shadow-xl group-hover:scale-105 transition-transform" 
+                            />
                         </Link>
                         <h1 className="font-heading text-3xl font-bold tracking-wide text-[#F4EFE6]">
                             Masuk ke Akun

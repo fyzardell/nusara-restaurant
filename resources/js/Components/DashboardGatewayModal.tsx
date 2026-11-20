@@ -37,7 +37,15 @@ export default function DashboardGatewayModal({ isOpen, onClose }: Props) {
                 </button>
 
                 {/* Header */}
-                <div className="text-center space-y-2 pt-2">
+                <div className="text-center space-y-3 pt-2">
+                    <div className="flex justify-center">
+                        <img 
+                            src="/images/nusara-logo.png" 
+                            alt="NUSARA — Nusantara & Rasa" 
+                            className="h-9 sm:h-11 w-auto object-contain drop-shadow" 
+                        />
+                    </div>
+
                     <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#32151F]/90 border border-[#B99A65]/40 text-[#D4B886] text-[11px] font-semibold uppercase tracking-[0.2em]">
                         <Sparkles className="w-3.5 h-3.5 text-[#B99A65]" />
                         <span>Harmoni Telah Siap Dinikmati</span>

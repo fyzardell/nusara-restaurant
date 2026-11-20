@@ -25,6 +25,13 @@ export default function OrderTypeModal({ isOpen, onClose, onSelectDineIn, onSele
                 </button>
 
                 <div className="text-center mb-6">
+                    <div className="flex justify-center mb-3">
+                        <img 
+                            src="/images/nusara-logo.png" 
+                            alt="NUSARA — Nusantara & Rasa" 
+                            className="h-9 sm:h-10 w-auto object-contain drop-shadow" 
+                        />
+                    </div>
                     <span className="text-[10px] uppercase font-bold tracking-widest text-[#B99A65]">
                         Sistem Pemesanan Restoran
                     </span>

@@ -24,19 +24,13 @@ export default function Footer({ settings, operatingHours }: Props) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
                     {/* Brand Info */}
                     <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full border border-[#B99A65] bg-[#32151F] flex items-center justify-center text-[#D4B886] font-heading font-bold text-xl shadow-lg">
-                                N
-                            </div>
-                            <div>
-                                <span className="font-heading text-2xl font-bold tracking-widest text-[#F4EFE6] block leading-none">
-                                    NUSARA
-                                </span>
-                                <span className="text-[10px] uppercase tracking-[0.25em] text-[#B99A65] font-semibold">
-                                    Indonesian Dining
-                                </span>
-                            </div>
-                        </div>
+                        <Link href="/" className="inline-flex items-center group">
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA — Nusantara & Rasa" 
+                                className="h-10 sm:h-11 w-auto object-contain transition-transform group-hover:scale-105 drop-shadow" 
+                            />
+                        </Link>
 
                         <p className="text-xs text-[#F4EFE6]/70 leading-relaxed">
                             Restoran modern casual dining yang merayakan kekayaan rempah kepulauan Nusantara dalam balutan elegansi kontemporer dan keramahtamahan luhur Indonesia.
