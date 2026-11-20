@@ -17,9 +17,18 @@ import {
     Eye, 
     Search,
     SlidersHorizontal,
-    Table as TableIcon
+    Table as TableIcon,
+    ArrowUpRight,
+    Bell,
+    CheckCheck,
+    Coffee,
+    HelpCircle,
+    ChevronDown,
+    MapPin,
+    ShieldCheck,
+    Phone
 } from 'lucide-react';
-import { RestaurantTable, WaiterMetrics, Order, OrderItem } from '../../types';
+import { RestaurantTable, WaiterMetrics, Order } from '../../types';
 
 interface WaiterOrder extends Order {
     customer_phone?: string;
@@ -50,19 +59,28 @@ export default function WaiterDashboard({
     tables = [],
     settings
 }: Props) {
+    // Active navigation tab matching App Shell 9 operational models
     const [activeTab, setActiveTab] = useState<'serve' | 'tables' | 'history'>('serve');
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [servingOrderId, setServingOrderId] = useState<number | null>(null);
     const [cleaningTableId, setCleaningTableId] = useState<number | null>(null);
     const [tableFilter, setTableFilter] = useState<string>('all');
-    const [searchTableQuery, setSearchTableQuery] = useState<string>('');
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-    // Handle Manual Refresh
+    // Manual Refresh
     const handleRefresh = () => {
         setIsRefreshing(true);
         router.reload({
             onFinish: () => setIsRefreshing(false),
         });
+    };
+
+    // Logout with confirmation alert
+    const handleLogout = () => {
+        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin mengakhiri sesi kerja Waiter? Pastikan seluruh pesanan siap saji telah dikoordinasikan.')) {
+            router.post('/logout');
+        }
     };
 
     // Format Rupiah
@@ -106,654 +124,835 @@ export default function WaiterDashboard({
         });
     };
 
-    // Simulasi Tamu Scan QR
-    const handleSimulateScan = (tableId: number) => {
-        router.post(`/waiter/table/${tableId}/request-occupancy`, {}, {
-            preserveScroll: true,
-        });
-    };
-
     // Filtered Tables
     const filteredTables = useMemo(() => {
         return tables.filter(t => {
             const matchFilter = tableFilter === 'all' || t.status.toLowerCase() === tableFilter.toLowerCase();
-            const matchSearch = t.table_number.toLowerCase().includes(searchTableQuery.toLowerCase()) ||
-                (t.active_session?.session_code || '').toLowerCase().includes(searchTableQuery.toLowerCase());
+            const matchSearch = t.table_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (t.location || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (t.active_session?.session_code || '').toLowerCase().includes(searchQuery.toLowerCase());
             return matchFilter && matchSearch;
         });
-    }, [tables, tableFilter, searchTableQuery]);
+    }, [tables, tableFilter, searchQuery]);
+
+    // Filtered Ready Orders
+    const filteredReadyOrders = useMemo(() => {
+        if (!searchQuery) return readyOrders;
+        const q = searchQuery.toLowerCase();
+        return readyOrders.filter(o => 
+            o.order_code.toLowerCase().includes(q) ||
+            (o.table?.table_number || '').toLowerCase().includes(q) ||
+            (o.customer?.name || '').toLowerCase().includes(q)
+        );
+    }, [readyOrders, searchQuery]);
 
     return (
-        <div className="min-h-screen bg-[#141110] text-[#F4EFE6] font-sans selection:bg-[#B99A65] selection:text-[#32151F]">
-            <Head title="Waiter Station — Layanan Meja & Saji NUSARA" />
+        <div className="min-h-screen bg-[#0E0D0C] text-[#F4EFE6] font-body flex flex-col lg:flex-row selection:bg-[#B99A65] selection:text-[#32151F]">
+            <Head title="Stasiun Pelayanan Waiter — Layanan Meja & Saji NUSARA" />
             <FlashToast />
 
             {/* ========================================================
-                TOP HEADER: BRAND, WAITER ROLE & QUICK ACTIONS
+                APP SHELL 9: LEFT SIDEBAR
             ======================================================== */}
-            <header className="sticky top-0 z-40 bg-[#1C1816] border-b border-[#2C2421] shadow-xl">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
-                    {/* Brand & Sub-role */}
-                    <div className="flex items-center gap-3">
-                        <Link href="/waiter" className="flex items-center gap-2.5">
-                            <img 
-                                src="/images/nusara-logo.png" 
-                                alt="NUSARA" 
-                                className="h-7 sm:h-8 w-auto object-contain"
-                                onError={(e) => {
-                                    (e.target as HTMLElement).style.display = 'none';
-                                }}
-                            />
-                            <div>
-                                <span className="font-heading tracking-[0.16em] text-sm sm:text-base font-bold text-[#F4EFE6] block leading-none">
-                                    NUSARA
-                                </span>
-                                <span className="text-[9px] sm:text-[10px] font-semibold text-[#D4B886] tracking-wider uppercase">
-                                    Staf Waiter · Layanan Meja
-                                </span>
+            <aside 
+                className={`${
+                    sidebarCollapsed ? 'lg:w-20' : 'lg:w-72'
+                } w-full lg:min-h-screen bg-[#141110] border-r border-[#2C2421] flex flex-col justify-between p-4 transition-all duration-300 z-30 shrink-0`}
+            >
+                {/* Top Section */}
+                <div className="space-y-4">
+                    {/* Header: Initial Box + Role + Collapse Button */}
+                    <div className="flex items-center justify-between pb-3 border-b border-[#2C2421]">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="w-9 h-9 rounded-xl bg-[#F4EFE6] text-[#211D1B] font-heading font-bold text-base flex items-center justify-center shrink-0 shadow-md">
+                                W
                             </div>
-                        </Link>
+                            {!sidebarCollapsed && (
+                                <div className="truncate">
+                                    <h1 className="text-sm font-bold text-[#F4EFE6] tracking-wide truncate">
+                                        Pramusaji Waiter
+                                    </h1>
+                                    <div className="flex items-center gap-1.5 text-[10px] text-[#B99A65] font-semibold">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                        <span>Layanan Meja Aktif</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                            className="hidden lg:flex p-1.5 rounded-lg text-stone-400 hover:text-[#D4B886] hover:bg-[#211D1B] transition-colors"
+                            title={sidebarCollapsed ? 'Perluas Sidebar' : 'Ciutkan Sidebar'}
+                        >
+                            <SlidersHorizontal className="w-4 h-4" />
+                        </button>
+                    </div>
 
-                        <div className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[10px] text-[#D4B886] font-bold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            <span>Station Aktif</span>
+                    {/* Primary Action Button (White/Light Pill from App Shell 9) */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setActiveTab('serve');
+                            const readyEl = document.getElementById('ready-orders-section');
+                            if (readyEl) readyEl.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="w-full bg-[#F4EFE6] hover:bg-white text-[#211D1B] font-semibold py-2.5 px-3.5 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.99] text-xs"
+                    >
+                        <UtensilsCrossed className="w-4 h-4 text-[#32151F]" />
+                        {!sidebarCollapsed && <span className="tracking-wide">Antar Sajian Siap Saji</span>}
+                    </button>
+
+                    {/* Segmented Chips (App Shell 9 "Model" Section) */}
+                    <div>
+                        {!sidebarCollapsed && (
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2 px-1">
+                                Mode Operasional
+                            </p>
+                        )}
+                        <div className={`grid ${sidebarCollapsed ? 'grid-cols-1' : 'grid-cols-3'} gap-1.5 bg-[#1C1816] p-1.5 rounded-xl border border-[#2C2421]`}>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('serve')}
+                                className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-[10px] font-medium transition-all ${
+                                    activeTab === 'serve'
+                                        ? 'bg-[#32151F] text-[#D4B886] shadow-sm font-bold border border-[#B99A65]/40'
+                                        : 'text-stone-400 hover:text-stone-200 hover:bg-[#241E1C]'
+                                }`}
+                                title="Pesanan Siap Saji"
+                            >
+                                <Bell className="w-3.5 h-3.5 mb-1 text-[#D4B886]" />
+                                {!sidebarCollapsed && <span>Siap Saji</span>}
+                                <span className="text-[9px] font-mono opacity-80 font-bold">{metrics.readyToServeOrders}</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('tables')}
+                                className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-[10px] font-medium transition-all ${
+                                    activeTab === 'tables'
+                                        ? 'bg-[#32151F] text-[#D4B886] shadow-sm font-bold border border-[#B99A65]/40'
+                                        : 'text-stone-400 hover:text-stone-200 hover:bg-[#241E1C]'
+                                }`}
+                                title="Denah Seluruh Meja"
+                            >
+                                <TableIcon className="w-3.5 h-3.5 mb-1 text-[#D4B886]" />
+                                {!sidebarCollapsed && <span>Meja</span>}
+                                <span className="text-[9px] font-mono opacity-80 font-bold">{tables.length}</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('history')}
+                                className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-[10px] font-medium transition-all ${
+                                    activeTab === 'history'
+                                        ? 'bg-[#32151F] text-[#D4B886] shadow-sm font-bold border border-[#B99A65]/40'
+                                        : 'text-stone-400 hover:text-stone-200 hover:bg-[#241E1C]'
+                                }`}
+                                title="Riwayat Tersaji"
+                            >
+                                <Clock className="w-3.5 h-3.5 mb-1 text-[#D4B886]" />
+                                {!sidebarCollapsed && <span>Riwayat</span>}
+                                <span className="text-[9px] font-mono opacity-80 font-bold">{recentServedOrders.length}</span>
+                            </button>
                         </div>
                     </div>
 
-                    {/* Waiter Profile & Action Controls */}
-                    <div className="flex items-center gap-2 sm:gap-3">
-                        {/* Tombol Refresh Live Floor */}
-                        <button
-                            type="button"
-                            onClick={handleRefresh}
-                            disabled={isRefreshing}
-                            className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#241E1C] border border-stone-800 text-stone-300 hover:text-[#D4B886] hover:border-[#B99A65]/50 transition-all text-xs flex items-center gap-1.5"
-                            title="Segarkan data lantai & pesanan"
-                        >
-                            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-[#D4B886]' : ''}`} />
-                            <span className="hidden sm:inline">Refresh</span>
-                        </button>
+                    {/* App Shell 9: Pinned Items Section */}
+                    {!sidebarCollapsed && (
+                        <div className="space-y-1.5 pt-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 px-1">
+                                Prioritas Langsung
+                            </p>
 
-                        {/* Profil Waiter */}
-                        <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-stone-800">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#B99A65] to-[#D4B886] text-[#211D1B] flex items-center justify-center font-bold text-xs">
-                                {waiterUser.name.charAt(0).toUpperCase()}
+                            {/* Pinned 1: Ready to Serve Orders */}
+                            <div 
+                                onClick={() => setActiveTab('serve')}
+                                className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                    metrics.readyToServeOrders > 0 
+                                        ? 'bg-[#32151F]/60 border-[#B99A65]/50 hover:border-[#D4B886]' 
+                                        : 'bg-[#1C1816] border-[#2C2421] opacity-70'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-stone-200 flex items-center gap-1.5">
+                                        <Sparkles className="w-3.5 h-3.5 text-[#D4B886]" />
+                                        <span>Siap Antar Meja</span>
+                                    </span>
+                                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#B99A65]/20 text-[#D4B886] font-mono">
+                                        {metrics.readyToServeOrders} order
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-stone-400 mt-1 truncate">
+                                    {metrics.readyToServeOrders > 0 ? 'Segera antarkan sajian hangat ke meja' : 'Semua pesanan siap telah tersaji'}
+                                </p>
                             </div>
-                            <div className="text-left text-xs leading-tight">
-                                <p className="font-semibold text-stone-200 truncate max-w-[120px]">{waiterUser.name}</p>
-                                <p className="text-[10px] text-[#B99A65]">Waiter On-Duty</p>
+
+                            {/* Pinned 2: Meja Pending Validation */}
+                            <div 
+                                onClick={() => { setActiveTab('tables'); setTableFilter('pending_validation'); }}
+                                className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                    metrics.pendingValidationTables > 0 
+                                        ? 'bg-amber-950/40 border-amber-800/60 hover:border-amber-600' 
+                                        : 'bg-[#1C1816] border-[#2C2421] opacity-70'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-stone-200 flex items-center gap-1.5">
+                                        <Clock className="w-3.5 h-3.5 text-amber-400" />
+                                        <span>Validasi Okupansi</span>
+                                    </span>
+                                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-900/50 text-amber-300 font-mono">
+                                        {metrics.pendingValidationTables} meja
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-stone-400 mt-1 truncate">
+                                    {metrics.pendingValidationTables > 0 ? 'Tamu memindai QR, butuh konfirmasi' : 'Tidak ada antrean validasi walk-in'}
+                                </p>
+                            </div>
+
+                            {/* Pinned 3: Meja Perlu Pembersihan */}
+                            <div 
+                                onClick={() => { setActiveTab('tables'); setTableFilter('cleaning'); }}
+                                className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                    metrics.cleaningTables > 0 
+                                        ? 'bg-blue-950/40 border-blue-800/60 hover:border-blue-600' 
+                                        : 'bg-[#1C1816] border-[#2C2421] opacity-70'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-stone-200 flex items-center gap-1.5">
+                                        <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                                        <span>Pembersihan Meja</span>
+                                    </span>
+                                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-900/50 text-blue-300 font-mono">
+                                        {metrics.cleaningTables} meja
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-stone-400 mt-1 truncate">
+                                    {metrics.cleaningTables > 0 ? 'Selesaikan pembersihan untuk tamu baru' : 'Seluruh meja bersih dan siap saji'}
+                                </p>
                             </div>
                         </div>
+                    )}
 
-                        {/* Logout Button */}
+                    {/* App Shell 9: Recent Meja Quick List */}
+                    {!sidebarCollapsed && (
+                        <div className="space-y-1 pt-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 px-1">
+                                Denah Meja Cepat
+                            </p>
+                            <div className="max-h-40 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                                {tables.slice(0, 8).map((tbl) => (
+                                    <button
+                                        key={tbl.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setActiveTab('tables');
+                                            setSearchQuery(tbl.table_number);
+                                        }}
+                                        className="w-full flex items-center justify-between p-1.5 rounded-lg text-xs text-stone-300 hover:bg-[#211D1B] hover:text-[#D4B886] transition-colors text-left"
+                                    >
+                                        <span className="flex items-center gap-2 truncate">
+                                            <TableIcon className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                            <span className="font-medium truncate">{tbl.table_number}</span>
+                                        </span>
+                                        <span className={`w-2 h-2 rounded-full shrink-0 ${
+                                            tbl.status === 'Available' ? 'bg-emerald-400' :
+                                            tbl.status === 'Occupied' ? 'bg-rose-400' :
+                                            tbl.status === 'Cleaning' ? 'bg-blue-400' :
+                                            tbl.status === 'Reserved' ? 'bg-amber-400' : 'bg-stone-500'
+                                        }`} />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Bottom Section: Waiter User Profile & Logout */}
+                <div className="pt-3 border-t border-[#2C2421] space-y-2">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5 overflow-hidden">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#B99A65] to-[#D4B886] text-[#211D1B] flex items-center justify-center font-bold text-xs shrink-0 shadow">
+                                {waiterUser.name.charAt(0).toUpperCase()}
+                            </div>
+                            {!sidebarCollapsed && (
+                                <div className="truncate text-xs leading-tight">
+                                    <p className="font-semibold text-stone-200 truncate">{waiterUser.name}</p>
+                                    <p className="text-[10px] text-[#B99A65] truncate">Pramusaji On-Duty</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Logout Trigger with Alert Confirmation */}
                         <button
                             type="button"
-                            onClick={() => router.post('/logout')}
-                            className="p-2 rounded-xl bg-[#241E1C] border border-stone-800 text-stone-400 hover:text-rose-400 hover:bg-rose-950/30 transition-all text-xs"
-                            title="Keluar / Logout Akun"
+                            onClick={handleLogout}
+                            className="p-2 rounded-xl bg-[#211D1B] hover:bg-rose-950/40 text-stone-400 hover:text-rose-400 border border-stone-800 transition-colors"
+                            title="Keluar dari Sesi Waiter"
                         >
                             <LogOut className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
-            </header>
+            </aside>
 
             {/* ========================================================
-                MAIN CONTENT: OPERATIONAL METRICS & WORK QUEUE
+                APP SHELL 9: MAIN STAGE & OPERATIONAL CANVAS
             ======================================================== */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                {/* 1. ROW METRIK OPERASIONAL WAITER (6 STATS) */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                    {/* Stat 1: Siap Saji (Ready) */}
-                    <div className="p-3.5 rounded-2xl bg-[#1C1816] border border-[#B99A65]/40 shadow-md relative overflow-hidden">
-                        <div className="flex items-center justify-between text-xs text-stone-400">
-                            <span className="font-medium text-[11px]">Siap Saji</span>
-                            <Sparkles className="w-4 h-4 text-[#D4B886]" />
-                        </div>
-                        <div className="mt-2 flex items-baseline gap-2">
-                            <span className={`text-2xl font-bold font-mono ${metrics.readyToServeOrders > 0 ? 'text-[#D4B886] animate-pulse' : 'text-stone-300'}`}>
-                                {metrics.readyToServeOrders}
-                            </span>
-                            <span className="text-[10px] text-stone-400">Pesanan</span>
+            <main className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
+                {/* Top Navigation Bar with Official NUSARA Logo */}
+                <header className="h-16 border-b border-[#2C2421] bg-[#141110]/95 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20">
+                    {/* Left: Station Dropdown Pill */}
+                    <div className="flex items-center gap-3">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#211D1B] border border-stone-800 text-xs font-semibold text-stone-200 shadow-sm">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                            <span>Stasiun Pramusaji Utama</span>
+                            <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
                         </div>
                     </div>
 
-                    {/* Stat 2: Perlu Validasi Okupansi */}
-                    <div className="p-3.5 rounded-2xl bg-[#1C1816] border border-stone-800 shadow-md">
-                        <div className="flex items-center justify-between text-xs text-stone-400">
-                            <span className="font-medium text-[11px]">Validasi Tamu</span>
-                            <Clock className="w-4 h-4 text-amber-500" />
-                        </div>
-                        <div className="mt-2 flex items-baseline gap-2">
-                            <span className={`text-2xl font-bold font-mono ${metrics.pendingValidationTables > 0 ? 'text-amber-400 animate-pulse' : 'text-stone-300'}`}>
-                                {metrics.pendingValidationTables}
-                            </span>
-                            <span className="text-[10px] text-stone-400">Meja</span>
-                        </div>
+                    {/* Center: Official Logo (navbar/hero identity) */}
+                    <div className="flex items-center justify-center">
+                        <Link href="/waiter" className="inline-flex items-center gap-2 group">
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA — Nusantara & Rasa" 
+                                className="h-8 sm:h-9 w-auto object-contain drop-shadow group-hover:scale-105 transition-transform" 
+                            />
+                        </Link>
                     </div>
 
-                    {/* Stat 3: Meja Ditempati (Occupied) */}
-                    <div className="p-3.5 rounded-2xl bg-[#1C1816] border border-stone-800 shadow-md">
-                        <div className="flex items-center justify-between text-xs text-stone-400">
-                            <span className="font-medium text-[11px]">Meja Terisi</span>
-                            <Users className="w-4 h-4 text-rose-400" />
-                        </div>
-                        <div className="mt-2 flex items-baseline gap-2">
-                            <span className="text-2xl font-bold font-mono text-stone-200">
-                                {metrics.occupiedTables}
-                            </span>
-                            <span className="text-[10px] text-stone-400">/ 10 Meja</span>
-                        </div>
-                    </div>
-
-                    {/* Stat 4: Perlu Dibersihkan (Cleaning) */}
-                    <div className="p-3.5 rounded-2xl bg-[#1C1816] border border-stone-800 shadow-md">
-                        <div className="flex items-center justify-between text-xs text-stone-400">
-                            <span className="font-medium text-[11px]">Perlu Bersih</span>
-                            <AlertCircle className="w-4 h-4 text-sky-400" />
-                        </div>
-                        <div className="mt-2 flex items-baseline gap-2">
-                            <span className={`text-2xl font-bold font-mono ${metrics.cleaningTables > 0 ? 'text-sky-400' : 'text-stone-300'}`}>
-                                {metrics.cleaningTables}
-                            </span>
-                            <span className="text-[10px] text-stone-400">Meja</span>
-                        </div>
-                    </div>
-
-                    {/* Stat 5: Meja Siap (Available) */}
-                    <div className="p-3.5 rounded-2xl bg-[#1C1816] border border-stone-800 shadow-md">
-                        <div className="flex items-center justify-between text-xs text-stone-400">
-                            <span className="font-medium text-[11px]">Meja Siap</span>
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        </div>
-                        <div className="mt-2 flex items-baseline gap-2">
-                            <span className="text-2xl font-bold font-mono text-emerald-400">
-                                {metrics.availableTables}
-                            </span>
-                            <span className="text-[10px] text-stone-400">Available</span>
-                        </div>
-                    </div>
-
-                    {/* Stat 6: Tersaji Hari Ini */}
-                    <div className="p-3.5 rounded-2xl bg-[#1C1816] border border-stone-800 shadow-md">
-                        <div className="flex items-center justify-between text-xs text-stone-400">
-                            <span className="font-medium text-[11px]">Tersaji Hari Ini</span>
-                            <UtensilsCrossed className="w-4 h-4 text-[#B99A65]" />
-                        </div>
-                        <div className="mt-2 flex items-baseline gap-2">
-                            <span className="text-2xl font-bold font-mono text-[#D4B886]">
-                                {metrics.servedToday}
-                            </span>
-                            <span className="text-[10px] text-stone-400">Selesai</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 2. ALERT BANNER: MEJA MENUNGGU VALIDASI OKUPANSI (PRD SECTION 4.1 & 6.1) */}
-                {metrics.pendingValidationTables > 0 && (
-                    <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/50 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-pulse">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
-                                <Clock className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h3 className="text-xs sm:text-sm font-bold text-amber-200">
-                                    {metrics.pendingValidationTables} Meja Menunggu Konfirmasi Okupansi!
-                                </h3>
-                                <p className="text-[11px] text-amber-300/80">
-                                    Tamu telah memindai QR meja. Mohon pastikan tamu benar-benar telah menempati meja sebelum membuka sesi.
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('tables')}
-                            className="px-4 py-2 rounded-xl bg-amber-500 text-[#211D1B] font-bold text-xs uppercase tracking-wider hover:bg-amber-400 transition-all self-start sm:self-auto shrink-0 shadow"
-                        >
-                            Periksa Denah Meja
-                        </button>
-                    </div>
-                )}
-
-                {/* 3. TAB NAVIGATION */}
-                <div className="flex items-center justify-between border-b border-stone-800 pb-2">
+                    {/* Right: Actions */}
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            onClick={() => setActiveTab('serve')}
-                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
-                                activeTab === 'serve'
-                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] border-[#D4B886] shadow'
-                                    : 'bg-[#1C1816] text-stone-400 border-stone-800 hover:text-stone-200'
-                            }`}
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#211D1B] hover:bg-[#32151F] text-stone-300 hover:text-[#D4B886] border border-stone-800 transition-all text-xs"
+                            title="Segarkan data lantai & pesanan"
                         >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            <span>Antrean Saji ({metrics.readyToServeOrders})</span>
+                            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-[#D4B886]' : ''}`} />
+                            <span className="hidden sm:inline">Segarkan Data</span>
                         </button>
+                    </div>
+                </header>
 
+                {/* Main Content Stage */}
+                <div className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-8">
+                    
+                    {/* ========================================================
+                        APP SHELL 9: CENTER HERO & GREETING
+                    ======================================================== */}
+                    <div className="text-center max-w-2xl mx-auto pt-2 pb-4 space-y-3">
+                        {/* Avatar Icon Box */}
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#32151F] to-[#211D1B] border border-[#B99A65]/40 text-[#D4B886] mx-auto flex items-center justify-center shadow-lg">
+                            <UtensilsCrossed className="w-7 h-7" />
+                        </div>
+
+                        {/* Title & Subtitle */}
+                        <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-[#F4EFE6] leading-tight">
+                            Layanan Meja & Stasiun Pramusaji
+                        </h2>
+                        <p className="text-xs sm:text-sm text-stone-400 leading-relaxed max-w-lg mx-auto">
+                            Pantau pesanan dapur, validasi kehadiran tamu meja walk-in, dan antarkan sajian siap saji secara tepat waktu.
+                        </p>
+                    </div>
+
+                    {/* ========================================================
+                        APP SHELL 9: FLOATING SEARCH & ACTION INPUT BOX
+                    ======================================================== */}
+                    <div className="max-w-2xl mx-auto">
+                        <div className="relative rounded-2xl bg-[#1C1816] border border-[#B99A65]/35 p-3 shadow-xl focus-within:border-[#D4B886] transition-all">
+                            <div className="flex items-center gap-3">
+                                <Search className="w-4 h-4 text-[#B99A65] shrink-0 ml-1" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Cari nomor meja (cth: Meja 03), kode pesanan, atau menu..."
+                                    className="w-full bg-transparent border-0 text-[#F4EFE6] text-xs sm:text-sm focus:outline-none placeholder-stone-500 font-sans"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSearchQuery('')}
+                                        className="text-stone-400 hover:text-stone-200 text-xs px-2 py-1 rounded bg-[#2A2421]"
+                                    >
+                                        Batal
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ========================================================
+                        APP SHELL 9: 4 QUICK ACTION SUGGESTION CARDS
+                    ======================================================== */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 max-w-5xl mx-auto">
+                        {/* Card 1: Antar Makanan Ready */}
                         <button
                             type="button"
-                            onClick={() => setActiveTab('tables')}
-                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
-                                activeTab === 'tables'
-                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] border-[#D4B886] shadow'
-                                    : 'bg-[#1C1816] text-stone-400 border-stone-800 hover:text-stone-200'
+                            onClick={() => {
+                                setActiveTab('serve');
+                                setSearchQuery('');
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition-all group flex flex-col justify-between ${
+                                activeTab === 'serve' 
+                                    ? 'bg-[#32151F]/80 border-[#D4B886] shadow-lg' 
+                                    : 'bg-[#141110] border-[#2C2421] hover:border-[#B99A65]/50 hover:bg-[#1C1816]'
                             }`}
                         >
-                            <TableIcon className="w-3.5 h-3.5" />
-                            <span>Denah 10 Meja ({tables.length})</span>
+                            <div className="flex items-center justify-between w-full mb-3">
+                                <div className="w-8 h-8 rounded-xl bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886] flex items-center justify-center">
+                                    <UtensilsCrossed className="w-4 h-4" />
+                                </div>
+                                <ArrowUpRight className="w-4 h-4 text-stone-400 group-hover:text-[#D4B886] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-xs text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
+                                    Antar Sajian Ready
+                                </h3>
+                                <p className="text-[11px] text-stone-400 mt-1 font-mono">
+                                    {metrics.readyToServeOrders} Pesanan Siap Saji
+                                </p>
+                            </div>
                         </button>
 
+                        {/* Card 2: Validasi Meja Tamu */}
                         <button
                             type="button"
-                            onClick={() => setActiveTab('history')}
-                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
-                                activeTab === 'history'
-                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] border-[#D4B886] shadow'
-                                    : 'bg-[#1C1816] text-stone-400 border-stone-800 hover:text-stone-200'
+                            onClick={() => {
+                                setActiveTab('tables');
+                                setTableFilter('pending_validation');
+                                setSearchQuery('');
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition-all group flex flex-col justify-between ${
+                                activeTab === 'tables' && tableFilter === 'pending_validation'
+                                    ? 'bg-[#32151F]/80 border-[#D4B886] shadow-lg' 
+                                    : 'bg-[#141110] border-[#2C2421] hover:border-[#B99A65]/50 hover:bg-[#1C1816]'
                             }`}
                         >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Tersaji Hari Ini ({metrics.servedToday})</span>
+                            <div className="flex items-center justify-between w-full mb-3">
+                                <div className="w-8 h-8 rounded-xl bg-amber-950/60 border border-amber-800/60 text-amber-400 flex items-center justify-center">
+                                    <Clock className="w-4 h-4" />
+                                </div>
+                                <ArrowUpRight className="w-4 h-4 text-stone-400 group-hover:text-amber-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-xs text-[#F4EFE6] group-hover:text-amber-400 transition-colors">
+                                    Validasi Tamu Walk-in
+                                </h3>
+                                <p className="text-[11px] text-stone-400 mt-1 font-mono">
+                                    {metrics.pendingValidationTables} Meja Menunggu
+                                </p>
+                            </div>
+                        </button>
+
+                        {/* Card 3: Pembersihan Meja Selesai Santap */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setActiveTab('tables');
+                                setTableFilter('cleaning');
+                                setSearchQuery('');
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition-all group flex flex-col justify-between ${
+                                activeTab === 'tables' && tableFilter === 'cleaning'
+                                    ? 'bg-[#32151F]/80 border-[#D4B886] shadow-lg' 
+                                    : 'bg-[#141110] border-[#2C2421] hover:border-[#B99A65]/50 hover:bg-[#1C1816]'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between w-full mb-3">
+                                <div className="w-8 h-8 rounded-xl bg-blue-950/60 border border-blue-800/60 text-blue-400 flex items-center justify-center">
+                                    <Sparkles className="w-4 h-4" />
+                                </div>
+                                <ArrowUpRight className="w-4 h-4 text-stone-400 group-hover:text-blue-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-xs text-[#F4EFE6] group-hover:text-blue-400 transition-colors">
+                                    Pembersihan Meja
+                                </h3>
+                                <p className="text-[11px] text-stone-400 mt-1 font-mono">
+                                    {metrics.cleaningTables} Meja Perlu Bersih
+                                </p>
+                            </div>
+                        </button>
+
+                        {/* Card 4: Denah Meja & Okupansi */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setActiveTab('tables');
+                                setTableFilter('all');
+                                setSearchQuery('');
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition-all group flex flex-col justify-between ${
+                                activeTab === 'tables' && tableFilter === 'all'
+                                    ? 'bg-[#32151F]/80 border-[#D4B886] shadow-lg' 
+                                    : 'bg-[#141110] border-[#2C2421] hover:border-[#B99A65]/50 hover:bg-[#1C1816]'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between w-full mb-3">
+                                <div className="w-8 h-8 rounded-xl bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 flex items-center justify-center">
+                                    <TableIcon className="w-4 h-4" />
+                                </div>
+                                <ArrowUpRight className="w-4 h-4 text-stone-400 group-hover:text-emerald-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-xs text-[#F4EFE6] group-hover:text-emerald-400 transition-colors">
+                                    Denah Lantai Restoran
+                                </h3>
+                                <p className="text-[11px] text-stone-400 mt-1 font-mono">
+                                    {metrics.occupiedTables} Terisi / {tables.length} Total
+                                </p>
+                            </div>
                         </button>
                     </div>
 
-                    <span className="hidden md:inline-block text-[11px] text-stone-400 font-mono">
-                        {settings?.restaurant_name || 'NUSARA Resto'} · Single Branch
-                    </span>
-                </div>
-
-                {/* ========================================================
-                    TAB 1: ANTREAN HIDANGAN SIAP SAJI (READY TO SERVE)
-                ======================================================== */}
-                {activeTab === 'serve' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Main Column: Hidangan Siap Disajikan (2 Cols) */}
-                        <div className="lg:col-span-2 space-y-4">
-                            <div className="flex items-center justify-between">
+                    {/* ========================================================
+                        TAB WORKSPACE FEEDS
+                    ======================================================== */}
+                    {/* TAB 1: PESANAN SIAP SAJI (SERVE QUEUE) */}
+                    {activeTab === 'serve' && (
+                        <div id="ready-orders-section" className="space-y-6 animate-in fade-in duration-300">
+                            {/* Section Header */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#2C2421]">
                                 <div>
-                                    <h2 className="font-heading text-lg sm:text-xl font-bold text-[#F4EFE6]">
-                                        Hidangan Siap Saji (Ready to Deliver)
-                                    </h2>
-                                    <p className="text-xs text-stone-400">
-                                        Makanan telah selesai dimasak dapur. Ambil dari pass dapur dan antarkan ke meja tamu.
+                                    <h3 className="font-heading text-xl font-bold text-[#F4EFE6] flex items-center gap-2">
+                                        <Sparkles className="w-5 h-5 text-[#D4B886]" />
+                                        <span>Pesanan Siap Saji ({filteredReadyOrders.length})</span>
+                                    </h3>
+                                    <p className="text-xs text-stone-400 mt-0.5">
+                                        Makanan telah selesai diracik oleh dapur dan siap diantarkan ke meja tamu.
                                     </p>
                                 </div>
-                                <span className="px-2.5 py-1 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886] text-xs font-bold font-mono">
-                                    {readyOrders.length} Siap
-                                </span>
                             </div>
 
-                            {readyOrders.length === 0 ? (
-                                <div className="p-10 rounded-2xl bg-[#1C1816] border border-dashed border-stone-800 text-center space-y-2">
-                                    <div className="w-12 h-12 mx-auto rounded-full bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                                        <CheckCircle2 className="w-6 h-6" />
-                                    </div>
-                                    <h3 className="font-bold text-sm text-stone-200">Semua Hidangan Telah Disajikan</h3>
-                                    <p className="text-xs text-stone-400 max-w-sm mx-auto">
-                                        Tidak ada pesanan Dine-in yang sedang menunggu disajikan saat ini. Anda dapat memeriksa proses memasak dapur di kolom samping.
+                            {/* Ready Orders Grid */}
+                            {filteredReadyOrders.length === 0 ? (
+                                <div className="p-12 text-center rounded-3xl bg-[#141110] border border-[#2C2421]">
+                                    <CheckCircle2 className="w-12 h-12 text-[#D4B886]/60 mx-auto mb-3" />
+                                    <h4 className="font-heading text-lg font-bold text-stone-200">
+                                        Tidak Ada Pesanan Menunggu Diantar
+                                    </h4>
+                                    <p className="text-xs text-stone-400 max-w-md mx-auto mt-1">
+                                        Seluruh sajian siap saji telah berhasil diantarkan ke meja tamu.
                                     </p>
                                 </div>
                             ) : (
-                                <div className="space-y-4">
-                                    {readyOrders.map(order => (
-                                        <div 
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {filteredReadyOrders.map((order) => (
+                                        <div
                                             key={order.id}
-                                            className="p-5 rounded-2xl bg-[#1C1816] border border-[#B99A65]/50 shadow-xl space-y-4 relative overflow-hidden"
+                                            className="p-5 rounded-2xl bg-[#141110] border border-[#B99A65]/40 hover:border-[#D4B886] shadow-xl flex flex-col justify-between transition-all"
                                         >
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-800 pb-3">
-                                                <div className="flex items-center gap-3">
-                                                    {/* Table Badge Callout */}
-                                                    <div className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-black text-base shadow flex items-center gap-1.5">
-                                                        <UtensilsCrossed className="w-4 h-4" />
-                                                        <span>{order.table_number}</span>
-                                                    </div>
+                                            {/* Order Card Top Info */}
+                                            <div>
+                                                <div className="flex items-center justify-between pb-3 border-b border-stone-800">
                                                     <div>
-                                                        <p className="font-bold text-sm text-[#F4EFE6] leading-tight">
-                                                            {order.customer_name || 'Tamu Restoran'}
-                                                        </p>
-                                                        <p className="text-[11px] text-stone-400 font-mono">
-                                                            Order #{order.order_code} · {order.session_code ? `Sesi ${order.session_code}` : 'Dine-In'}
-                                                        </p>
+                                                        <span className="text-xs font-mono font-bold text-[#D4B886]">
+                                                            {order.order_code}
+                                                        </span>
+                                                        <div className="text-[11px] text-stone-400 mt-0.5 flex items-center gap-1.5">
+                                                            <Users className="w-3.5 h-3.5 text-stone-400" />
+                                                            <span>{order.customer?.name || 'Tamu Dine-in'}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Table Badge */}
+                                                    <div className="px-3 py-1 rounded-xl bg-[#32151F] border border-[#B99A65]/60 text-center">
+                                                        <span className="text-[10px] text-[#B99A65] uppercase font-bold block">
+                                                            Antar Ke
+                                                        </span>
+                                                        <span className="font-heading font-bold text-base text-[#F4EFE6] leading-none">
+                                                            {order.table?.table_number || 'Meja Walk-in'}
+                                                        </span>
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-2">
-                                                    <span className="px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 animate-pulse">
-                                                        <Sparkles className="w-3.5 h-3.5" />
-                                                        <span>Siap Disajikan</span>
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Rincian Menu Yang Perlu Diantar */}
-                                            <div className="space-y-2 bg-[#141110] p-3.5 rounded-xl border border-stone-800">
-                                                <p className="text-[11px] font-bold uppercase tracking-wider text-[#D4B886]">
-                                                    Daftar Menu Hidangan:
-                                                </p>
-                                                <ul className="space-y-1.5 divide-y divide-stone-800/60">
-                                                    {(order.items || []).map((item, idx) => (
-                                                        <li key={idx} className="pt-1.5 first:pt-0 flex items-start justify-between gap-2 text-xs">
-                                                            <div className="space-y-0.5">
-                                                                <span className="font-semibold text-stone-200">
+                                                {/* Items List */}
+                                                <div className="py-3 space-y-2">
+                                                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                                                        Daftar Sajian:
+                                                    </p>
+                                                    <ul className="space-y-1.5">
+                                                        {order.items?.map((item, idx) => (
+                                                            <li key={idx} className="flex items-start justify-between text-xs text-stone-300">
+                                                                <span className="leading-snug">
                                                                     <strong className="text-[#D4B886] font-mono mr-1.5">{item.quantity}x</strong>
                                                                     {item.menu_name_snapshot}
                                                                 </span>
-                                                                {item.item_notes && (
-                                                                    <p className="text-[11px] text-amber-300/90 italic pl-5">
-                                                                        Catatan: "{item.item_notes}"
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        </li>
-                                                    ))}
-                                                </ul>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+
+                                                    {/* Customer Notes if any */}
+                                                    {order.customer_notes && (
+                                                        <div className="mt-2.5 p-2 rounded-lg bg-[#211D1B] border border-amber-900/40 text-[11px] text-amber-300">
+                                                            <strong>Catatan:</strong> {order.customer_notes}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
 
-                                            {/* Catatan Keseluruhan Tamu */}
-                                            {order.customer_notes && (
-                                                <div className="p-2.5 rounded-lg bg-stone-900 border border-stone-800 text-xs text-stone-300">
-                                                    <span className="text-[#D4B886] font-bold">Catatan Khusus Tamu:</span> {order.customer_notes}
-                                                </div>
-                                            )}
-
-                                            {/* Tombol Aksi Waiter: Konfirmasi Tersaji */}
-                                            <div className="flex items-center justify-between pt-2">
-                                                <span className="text-xs text-stone-400 font-mono">
-                                                    Total: {formatRupiah(order.total)}
-                                                </span>
-
+                                            {/* Action Button: Konfirmasi Tersaji */}
+                                            <div className="pt-3 border-t border-stone-800">
                                                 <button
                                                     type="button"
                                                     onClick={() => handleMarkServed(order.id)}
                                                     disabled={servingOrderId === order.id}
-                                                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                                                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-wider hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-md shadow-[#B99A65]/20 disabled:opacity-50"
                                                 >
-                                                    <Check className="w-4 h-4 stroke-[3]" />
-                                                    <span>{servingOrderId === order.id ? 'Memproses...' : 'Konfirmasi Tersaji ke Meja'}</span>
+                                                    <Check className="w-4 h-4" />
+                                                    <span>{servingOrderId === order.id ? 'Memproses...' : 'Konfirmasi Tersaji (Served)'}</span>
                                                 </button>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             )}
-                        </div>
 
-                        {/* Side Column: Dalam Proses Masak Dapur (Up Next Preview) */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
+                            {/* Section: Pesanan Sedang Dimasak di Dapur */}
+                            <div className="pt-8 border-t border-[#2C2421]">
+                                <h3 className="font-heading text-lg font-bold text-stone-300 flex items-center gap-2 mb-3">
+                                    <Flame className="w-4 h-4 text-amber-500" />
+                                    <span>Sedang Dimasak di Dapur ({preparingOrders.length})</span>
+                                </h3>
+
+                                {preparingOrders.length === 0 ? (
+                                    <p className="text-xs text-stone-400 italic">Tidak ada antrean masakan yang sedang diproses dapur.</p>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                        {preparingOrders.map((ord) => (
+                                            <div key={ord.id} className="p-3.5 rounded-xl bg-[#141110] border border-stone-800 text-xs">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-mono text-[11px] text-amber-400 font-bold">{ord.order_code}</span>
+                                                    <span className="px-2 py-0.5 rounded bg-amber-950/60 border border-amber-900/60 text-[10px] text-amber-300">
+                                                        {ord.table?.table_number || 'Dine-in'}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[11px] text-stone-400 mt-2 truncate">
+                                                    {ord.items?.map(it => `${it.quantity}x ${it.menu_name_snapshot}`).join(', ')}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 2: MANAJEMEN DENAH MEJA */}
+                    {activeTab === 'tables' && (
+                        <div className="space-y-6 animate-in fade-in duration-300">
+                            {/* Table Filter Tabs */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#2C2421]">
                                 <div>
-                                    <h3 className="font-heading text-base font-bold text-[#F4EFE6]">
-                                        Sedang Dimasak Dapur
+                                    <h3 className="font-heading text-xl font-bold text-[#F4EFE6] flex items-center gap-2">
+                                        <TableIcon className="w-5 h-5 text-[#D4B886]" />
+                                        <span>Denah Lantai Restoran ({filteredTables.length} Meja)</span>
                                     </h3>
-                                    <p className="text-[11px] text-stone-400">
-                                        Disiapkan dapur, segera siap saji berikutnya.
+                                    <p className="text-xs text-stone-400 mt-0.5">
+                                        Kelola status meja, validasi tamu walk-in, dan pastikan meja siap digunakan kembali.
                                     </p>
                                 </div>
-                                <span className="px-2 py-0.5 rounded-full bg-orange-950/60 border border-orange-500/40 text-orange-400 text-xs font-mono font-bold">
-                                    {preparingOrders.length} Masak
-                                </span>
-                            </div>
 
-                            {preparingOrders.length === 0 ? (
-                                <div className="p-6 rounded-2xl bg-[#1C1816] border border-stone-800 text-center text-xs text-stone-400">
-                                    Tidak ada hidangan yang sedang dimasak saat ini.
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {preparingOrders.map(order => (
-                                        <div 
-                                            key={order.id}
-                                            className="p-3.5 rounded-xl bg-[#1C1816] border border-stone-800 space-y-2 text-xs"
+                                {/* Filter Buttons */}
+                                <div className="flex items-center gap-1 bg-[#1C1816] p-1 rounded-xl border border-stone-800 text-xs">
+                                    {['all', 'pending_validation', 'available', 'occupied', 'cleaning', 'reserved'].map((f) => (
+                                        <button
+                                            key={f}
+                                            type="button"
+                                            onClick={() => setTableFilter(f)}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                                tableFilter === f
+                                                    ? 'bg-[#32151F] text-[#D4B886] font-bold border border-[#B99A65]/40 shadow-sm'
+                                                    : 'text-stone-400 hover:text-stone-200'
+                                            }`}
                                         >
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-bold text-[#D4B886] font-mono">
-                                                    {order.table_number}
-                                                </span>
-                                                <span className="px-2 py-0.5 rounded bg-orange-950/50 text-orange-300 text-[10px] font-semibold flex items-center gap-1">
-                                                    <Flame className="w-3 h-3 text-orange-400" />
-                                                    <span>Memasak</span>
-                                                </span>
-                                            </div>
-                                            <p className="text-stone-300 font-medium">
-                                                {order.customer_name || 'Tamu Meja'} · Order #{order.order_code}
-                                            </p>
-                                            <div className="text-[11px] text-stone-400 space-y-0.5">
-                                                {(order.items || []).map((itm, i) => (
-                                                    <p key={i} className="truncate">
-                                                        • {itm.quantity}x {itm.menu_name_snapshot}
-                                                    </p>
-                                                ))}
-                                            </div>
-                                        </div>
+                                            {f === 'all' && 'Semua'}
+                                            {f === 'pending_validation' && 'Perlu Validasi'}
+                                            {f === 'available' && 'Kosong'}
+                                            {f === 'occupied' && 'Terisi'}
+                                            {f === 'cleaning' && 'Pembersihan'}
+                                            {f === 'reserved' && 'Reservasi'}
+                                        </button>
                                     ))}
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* ========================================================
-                    TAB 2: DENAH 10 MEJA & KONTROL SESI (PRD SECTION 6.1 & 6.2)
-                ======================================================== */}
-                {activeTab === 'tables' && (
-                    <div className="space-y-4">
-                        {/* Filters & Floor Controls */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#1C1816] p-4 rounded-2xl border border-stone-800">
-                            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-                                {[
-                                    { id: 'all', label: 'Semua Meja' },
-                                    { id: 'available', label: 'Available (Siap)' },
-                                    { id: 'pending validation', label: 'Perlu Validasi' },
-                                    { id: 'occupied', label: 'Occupied (Terisi)' },
-                                    { id: 'cleaning', label: 'Cleaning (Bersih)' }
-                                ].map(f => (
-                                    <button
-                                        key={f.id}
-                                        type="button"
-                                        onClick={() => setTableFilter(f.id)}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
-                                            tableFilter === f.id
-                                                ? 'bg-[#B99A65]/20 border-[#D4B886] text-[#D4B886]'
-                                                : 'bg-[#241E1C] border-stone-800 text-stone-400 hover:text-stone-200'
-                                        }`}
-                                    >
-                                        {f.label}
-                                    </button>
-                                ))}
                             </div>
 
-                            <div className="relative w-full sm:w-60">
-                                <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                <input
-                                    type="text"
-                                    value={searchTableQuery}
-                                    onChange={(e) => setSearchTableQuery(e.target.value)}
-                                    placeholder="Cari nomor meja / kode sesi..."
-                                    className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-[#241E1C] border border-stone-800 text-xs text-[#F4EFE6] placeholder-stone-500 focus:outline-none focus:border-[#B99A65]"
-                                />
-                            </div>
-                        </div>
+                            {/* Tables Grid */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {filteredTables.map((tbl) => {
+                                    const isPending = tbl.status.toLowerCase() === 'pending_validation';
+                                    const isOccupied = tbl.status.toLowerCase() === 'occupied';
+                                    const isCleaning = tbl.status.toLowerCase() === 'cleaning';
+                                    const isAvailable = tbl.status.toLowerCase() === 'available';
+                                    const isReserved = tbl.status.toLowerCase() === 'reserved';
 
-                        {/* Grid 10 Meja Restoran (2x5 atau 5x2) */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                            {filteredTables.map(tbl => {
-                                const isPending = tbl.status === 'Pending Validation';
-                                const isOccupied = tbl.status === 'Occupied';
-                                const isCleaning = tbl.status === 'Cleaning';
-                                const isAvailable = tbl.status === 'Available';
-
-                                return (
-                                    <div
-                                        key={tbl.id}
-                                        className={`p-4 rounded-2xl border transition-all shadow-md space-y-3 relative flex flex-col justify-between ${
-                                            isPending
-                                                ? 'bg-amber-950/30 border-amber-500/70 shadow-amber-900/20 animate-pulse'
-                                                : isOccupied
-                                                    ? 'bg-[#231A19] border-[#B99A65]/50'
+                                    return (
+                                        <div
+                                            key={tbl.id}
+                                            className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                                                isPending
+                                                    ? 'bg-amber-950/30 border-amber-500/80 shadow-lg ring-1 ring-amber-500/40'
+                                                    : isOccupied
+                                                    ? 'bg-[#1C1816] border-rose-900/50'
                                                     : isCleaning
-                                                        ? 'bg-sky-950/30 border-sky-500/50'
-                                                        : 'bg-[#1C1816] border-stone-800'
-                                        }`}
-                                    >
-                                        {/* Header Meja */}
-                                        <div>
-                                            <div className="flex items-center justify-between">
-                                                <h3 className="font-heading text-lg font-bold text-[#F4EFE6]">
-                                                    {tbl.table_number}
-                                                </h3>
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border ${
-                                                    isPending
-                                                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
-                                                        : isOccupied
-                                                            ? 'bg-rose-950/60 text-rose-300 border-rose-600/40'
-                                                            : isCleaning
-                                                                ? 'bg-sky-950/60 text-sky-300 border-sky-600/40'
-                                                                : 'bg-emerald-950/60 text-emerald-300 border-emerald-600/40'
-                                                }`}>
-                                                    {tbl.status}
-                                                </span>
+                                                    ? 'bg-blue-950/20 border-blue-800/60'
+                                                    : isAvailable
+                                                    ? 'bg-[#141110] border-emerald-900/40'
+                                                    : 'bg-[#141110] border-stone-800'
+                                            }`}
+                                        >
+                                            <div>
+                                                {/* Header Table Info */}
+                                                <div className="flex items-center justify-between pb-2 border-b border-stone-800">
+                                                    <div>
+                                                        <h4 className="font-heading font-bold text-lg text-[#F4EFE6]">
+                                                            {tbl.table_number}
+                                                        </h4>
+                                                        <span className="text-[10px] text-stone-400">
+                                                            Kapasitas {tbl.capacity} Kursi · {tbl.location || 'Lantai 1'}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Status Badge */}
+                                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                        isAvailable ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' :
+                                                        isOccupied ? 'bg-rose-950 text-rose-300 border border-rose-800' :
+                                                        isCleaning ? 'bg-blue-950 text-blue-300 border border-blue-800 animate-pulse' :
+                                                        isPending ? 'bg-amber-950 text-amber-300 border border-amber-600 animate-pulse font-extrabold' :
+                                                        isReserved ? 'bg-amber-900 text-amber-200 border border-amber-700' :
+                                                        'bg-stone-800 text-stone-300'
+                                                    }`}>
+                                                        {isPending ? 'Perlu Validasi' : tbl.status}
+                                                    </span>
+                                                </div>
+
+                                                {/* Active Session Info */}
+                                                <div className="py-2.5 space-y-1 text-xs text-stone-400">
+                                                    {tbl.active_session ? (
+                                                        <div className="p-2 rounded-lg bg-[#211D1B] border border-stone-800 text-[11px]">
+                                                            <div className="flex items-center justify-between text-stone-300 font-mono">
+                                                                <span>Sesi: {tbl.active_session.session_code}</span>
+                                                                <span className="text-emerald-400 font-bold">{tbl.active_session.status}</span>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-[11px] italic text-stone-500">Tidak ada sesi aktif</p>
+                                                    )}
+                                                </div>
                                             </div>
 
-                                            <div className="mt-2 text-[11px] text-stone-400 space-y-1">
-                                                <p className="flex items-center gap-1.5">
-                                                    <Users className="w-3.5 h-3.5 text-[#B99A65]" />
-                                                    <span>Kapasitas {tbl.capacity} Kursi</span>
-                                                </p>
-                                                {tbl.active_session && (
-                                                    <p className="flex items-center gap-1 text-[#D4B886] font-mono text-[10px]">
-                                                        <QrCode className="w-3 h-3" />
-                                                        <span>{tbl.active_session.session_code}</span>
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Aksi Operasional Sesuai Status Meja */}
-                                        <div className="pt-2 border-t border-stone-800/80 space-y-2">
-                                            {isPending && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleValidateTable(tbl.id)}
-                                                    className="w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#211D1B] font-extrabold text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow"
-                                                >
-                                                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                                    <span>Validasi Ditempati</span>
-                                                </button>
-                                            )}
-
-                                            {isOccupied && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleStartCleaning(tbl.id)}
-                                                    className="w-full py-2 rounded-xl bg-sky-900/60 hover:bg-sky-800/80 text-sky-200 border border-sky-600/40 font-bold text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
-                                                >
-                                                    <Sparkles className="w-3.5 h-3.5" />
-                                                    <span>Tamu Selesai (Bersihkan)</span>
-                                                </button>
-                                            )}
-
-                                            {isCleaning && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleFinishCleaning(tbl.id)}
-                                                    disabled={cleaningTableId === tbl.id}
-                                                    className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow disabled:opacity-50"
-                                                >
-                                                    <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.5]" />
-                                                    <span>{cleaningTableId === tbl.id ? 'Memproses...' : 'Selesai Bersih (Available)'}</span>
-                                                </button>
-                                            )}
-
-                                            {isAvailable && (
-                                                <div className="flex items-center gap-1.5">
+                                            {/* Action Buttons for Waiter */}
+                                            <div className="pt-3 border-t border-stone-800 space-y-2">
+                                                {/* If Pending Validation -> Button Konfirmasi Tamu Duduk */}
+                                                {isPending && (
                                                     <button
                                                         type="button"
                                                         onClick={() => handleValidateTable(tbl.id)}
-                                                        className="flex-1 py-1.5 rounded-lg bg-stone-800 hover:bg-[#32151F] text-stone-300 hover:text-[#D4B886] font-semibold text-[10px] transition-colors"
-                                                        title="Buka sesi manual untuk tamu walk-in"
+                                                        className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md"
                                                     >
-                                                        Buka Meja Tamu
+                                                        <Check className="w-4 h-4" />
+                                                        <span>Validasi Tamu Duduk</span>
                                                     </button>
+                                                )}
+
+                                                {/* If Occupied -> Button Mulai Pembersihan */}
+                                                {isOccupied && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => handleSimulateScan(tbl.id)}
-                                                        className="p-1.5 rounded-lg bg-stone-800 hover:bg-amber-950/50 text-stone-400 hover:text-amber-300 text-[10px] transition-colors"
-                                                        title="Tes: Simulasi Tamu Scan QR"
+                                                        onClick={() => handleStartCleaning(tbl.id)}
+                                                        className="w-full py-2 px-3 rounded-xl bg-[#211D1B] hover:bg-blue-950/60 text-blue-300 border border-blue-900/60 font-semibold text-xs transition-all flex items-center justify-center gap-1.5"
                                                     >
-                                                        <QrCode className="w-3.5 h-3.5" />
+                                                        <Sparkles className="w-3.5 h-3.5" />
+                                                        <span>Mulai Bersihkan Meja</span>
                                                     </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
+                                                )}
 
-                {/* ========================================================
-                    TAB 3: RIWAYAT TERSAJI HARI INI
-                ======================================================== */}
-                {activeTab === 'history' && (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="font-heading text-lg sm:text-xl font-bold text-[#F4EFE6]">
-                                    Riwayat Hidangan Tersaji Hari Ini
-                                </h2>
-                                <p className="text-xs text-stone-400">
-                                    Daftar pesanan Dine-in yang telah sukses diantarkan oleh staf waiter hari ini.
+                                                {/* If Cleaning -> Button Selesai Bersih & Available */}
+                                                {isCleaning && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleFinishCleaning(tbl.id)}
+                                                        disabled={cleaningTableId === tbl.id}
+                                                        className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
+                                                    >
+                                                        <CheckCheck className="w-4 h-4" />
+                                                        <span>{cleaningTableId === tbl.id ? 'Memproses...' : 'Selesai Bersih (Available)'}</span>
+                                                    </button>
+                                                )}
+
+                                                {/* If Available -> Label Status */}
+                                                {isAvailable && (
+                                                    <div className="text-center py-1 text-[11px] text-emerald-400 font-medium flex items-center justify-center gap-1">
+                                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                                        <span>Meja Bersih & Siap Digunakan</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 3: RIWAYAT SAJIAN TERSAJI HARI INI */}
+                    {activeTab === 'history' && (
+                        <div className="space-y-6 animate-in fade-in duration-300">
+                            <div className="pb-3 border-b border-[#2C2421]">
+                                <h3 className="font-heading text-xl font-bold text-[#F4EFE6] flex items-center gap-2">
+                                    <Clock className="w-5 h-5 text-[#D4B886]" />
+                                    <span>Riwayat Pesanan Berhasil Tersaji Hari Ini ({recentServedOrders.length})</span>
+                                </h3>
+                                <p className="text-xs text-stone-400 mt-0.5">
+                                    Catatan audit pesanan dine-in yang telah selesai diantarkan pramusaji.
                                 </p>
                             </div>
-                            <span className="px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold">
-                                {recentServedOrders.length} Pesanan
-                            </span>
-                        </div>
 
-                        {recentServedOrders.length === 0 ? (
-                            <div className="p-10 rounded-2xl bg-[#1C1816] border border-stone-800 text-center text-xs text-stone-400">
-                                Belum ada hidangan yang tercatat tersaji hari ini.
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {recentServedOrders.map(order => (
-                                    <div 
-                                        key={order.id}
-                                        className="p-4 rounded-2xl bg-[#1C1816] border border-stone-800 space-y-2.5 shadow-sm"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <span className="font-bold text-sm text-[#D4B886]">
-                                                {order.table_number}
-                                            </span>
-                                            <span className="px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-600/40 text-[10px] font-bold">
-                                                Tersaji
-                                            </span>
-                                        </div>
+                            {recentServedOrders.length === 0 ? (
+                                <div className="p-12 text-center rounded-3xl bg-[#141110] border border-[#2C2421]">
+                                    <Clock className="w-10 h-10 text-stone-500 mx-auto mb-2" />
+                                    <p className="text-xs text-stone-400">Belum ada catatan sajian tersaji pada sesi operasional ini.</p>
+                                </div>
+                            ) : (
+                                <div className="rounded-2xl bg-[#141110] border border-stone-800 overflow-hidden shadow-lg">
+                                    <div className="divide-y divide-stone-800">
+                                        {recentServedOrders.map((ord) => (
+                                            <div key={ord.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-mono font-bold text-[#D4B886]">{ord.order_code}</span>
+                                                        <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 text-[10px] font-bold">
+                                                            TERSAJI
+                                                        </span>
+                                                        <span className="text-stone-400 font-semibold">
+                                                            {ord.table?.table_number || 'Meja Dine-in'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[11px] text-stone-400 mt-1">
+                                                        {ord.items?.map(i => `${i.quantity}x ${i.menu_name_snapshot}`).join(', ')}
+                                                    </p>
+                                                </div>
 
-                                        <p className="text-xs font-semibold text-stone-200">
-                                            {order.customer_name || 'Tamu Restoran'}
-                                        </p>
-
-                                        <div className="text-[11px] text-stone-400 space-y-0.5 pt-1 border-t border-stone-800">
-                                            {(order.items || []).map((itm, i) => (
-                                                <p key={i} className="truncate">
-                                                    • {itm.quantity}x {itm.menu_name_snapshot}
-                                                </p>
-                                            ))}
-                                        </div>
-
-                                        <div className="text-[10px] text-stone-500 font-mono pt-1 flex justify-between">
-                                            <span>Order #{order.order_code}</span>
-                                            <span>{formatRupiah(order.total)}</span>
-                                        </div>
+                                                <div className="text-right text-stone-400 text-[11px]">
+                                                    <span className="font-mono font-bold text-stone-200 block">
+                                                        {formatRupiah(ord.total)}
+                                                    </span>
+                                                    <span>{ord.customer?.name || 'Pelanggan'}</span>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </main>
         </div>
     );

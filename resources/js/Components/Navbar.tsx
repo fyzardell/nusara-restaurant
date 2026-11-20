@@ -72,7 +72,9 @@ export default function Navbar({
 
     const handleLogout = (e: React.FormEvent) => {
         e.preventDefault();
-        router.post('/logout');
+        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin keluar dari akun NUSARA?')) {
+            router.post('/logout');
+        }
     };
 
     const handleNavClick = (href: string) => {

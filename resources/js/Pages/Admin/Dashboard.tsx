@@ -1,46 +1,39 @@
+// resources/js/Pages/Admin/Dashboard.tsx
 import React, { useState, useMemo } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
-import { 
-    AdminMetrics, 
-    Order, 
-    Menu, 
-    RestaurantTable, 
-    Reservation, 
-    AuditLog, 
-    RestaurantSettings, 
+import {
+    AdminMetrics,
+    Order,
+    Menu,
+    RestaurantTable,
+    Reservation,
+    AuditLog,
+    RestaurantSettings,
     User,
     MonthSalesPoint,
     BestSellerTrend
 } from '../../types';
-import { 
-    LayoutDashboard, 
-    ShoppingBag, 
-    UtensilsCrossed, 
-    QrCode, 
-    Calendar, 
-    History, 
-    Search, 
-    Filter, 
-    TrendingUp, 
-    Clock, 
-    CheckCircle2, 
-    AlertCircle, 
-    DollarSign, 
-    Users, 
-    Sparkles, 
-    MapPin, 
-    LogOut, 
-    ExternalLink, 
-    ChevronRight, 
+import {
+    LayoutDashboard,
+    ShoppingBag,
+    UtensilsCrossed,
+    QrCode,
+    Calendar,
+    History,
+    MessageSquare,
+    Search,
+    TrendingUp,
+    Users,
+    MapPin,
+    LogOut,
+    ExternalLink,
+    ChevronRight,
     ChevronLeft,
-    Edit3, 
-    Star, 
-    Eye, 
-    X, 
-    RefreshCw, 
-    ArrowUpRight,
-    ShieldCheck,
+    Edit3,
+    Star,
+    X,
+    RefreshCw,
     PanelRightClose,
     PanelRight,
     Menu as MenuIcon,
@@ -49,6 +42,112 @@ import {
     ArrowRight
 } from 'lucide-react';
 
+/* ============================================================
+   ADMIN HEADER (dipakai juga oleh halaman Chats & ChatShow)
+   - adminUser, onSelect, metrics bersifat opsional agar kompatibel
+     dengan semua pemanggil lama (Dashboard lama & halaman Chat).
+============================================================ */
+export type DashboardTab = 'overview' | 'orders' | 'menus' | 'tables' | 'reservations' | 'audit';
+export type AdminTab = DashboardTab | 'chats';
+
+const adminTabs: { key: AdminTab; label: string; icon: React.ElementType }[] = [
+    { key: 'overview', label: 'Dashboard', icon: LayoutDashboard },
+    { key: 'orders', label: 'Pesanan', icon: ShoppingBag },
+    { key: 'menus', label: 'Menu & Stok', icon: UtensilsCrossed },
+    { key: 'tables', label: 'Meja & QR', icon: QrCode },
+    { key: 'reservations', label: 'Reservasi', icon: Calendar },
+    { key: 'audit', label: 'Audit Log', icon: History },
+    { key: 'chats', label: 'Konsierge / Chat', icon: MessageSquare },
+];
+
+export function AdminHeader({ adminUser, active, onSelect, metrics }: {
+    adminUser?: User;
+    active?: AdminTab | string;
+    onSelect?: (tab: DashboardTab) => void;
+    metrics?: { activeOrders: number; pendingReservations: number };
+}) {
+    const current = active ?? 'overview';
+
+    const badge = (key: AdminTab) => {
+        if (key === 'orders' && metrics && metrics.activeOrders > 0) {
+            return (
+                <span className="px-1.5 rounded-full text-[10px] bg-amber-500 text-black font-extrabold animate-pulse">
+                    {metrics.activeOrders}
+                </span>
+            );
+        }
+        if (key === 'reservations' && metrics && metrics.pendingReservations > 0) {
+            return (
+                <span className="px-1.5 rounded-full text-[10px] bg-rose-500 text-white font-extrabold">
+                    {metrics.pendingReservations}
+                </span>
+            );
+        }
+        return null;
+    };
+
+    return (
+        <header className="sticky top-0 z-40 bg-[#141110] text-[#F4EFE6] border-b border-[#241F1D] px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+                <Link href="/admin" className="flex items-center gap-2.5 text-stone-200 hover:text-[#D4B886] font-bold shrink-0">
+                    <img src="/images/nusara-logo.png" alt="NUSARA — Nusantara & Rasa" className="h-7 w-auto object-contain" />
+                    <span className="px-2 py-0.5 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[10px] font-bold text-[#D4B886] tracking-wider uppercase">
+                        Admin Executive
+                    </span>
+                </Link>
+                <nav className="hidden sm:flex items-center gap-1 ml-4 text-xs text-stone-400 overflow-x-auto scrollbar-none">
+                    {adminTabs.map(({ key, label, icon: Icon }) => {
+                        const cls = `px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                            current === key
+                                ? 'text-[#D4B886] bg-[#211D1B] font-semibold border border-[#B99A65]/30'
+                                : 'hover:text-stone-200'
+                        }`;
+                        const content = (
+                            <>
+                                <Icon className="w-3.5 h-3.5" />
+                                <span>{label}</span>
+                                {badge(key)}
+                            </>
+                        );
+
+                        if (key === 'chats') {
+                            return <Link key={key} href="/admin/chats" className={cls}>{content}</Link>;
+                        }
+                        if (onSelect) {
+                            return <button key={key} onClick={() => onSelect(key as DashboardTab)} className={cls}>{content}</button>;
+                        }
+                        return (
+                            <Link key={key} href={key === 'overview' ? '/admin' : `/admin?tab=${key}`} className={cls}>
+                                {content}
+                            </Link>
+                        );
+                    })}
+                </nav>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+                {adminUser && (
+                    <span className="text-xs text-stone-300 font-medium">{adminUser.name}</span>
+                )}
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin keluar dari sesi Admin?')) {
+                            router.post('/logout');
+                        }
+                    }}
+                    className="p-1.5 rounded-lg text-stone-400 hover:text-rose-400 hover:bg-[#211D1B] transition-colors"
+                    title="Keluar / Logout"
+                >
+                    <LogOut className="w-4 h-4" />
+                </button>
+            </div>
+        </header>
+    );
+}
+
+/* ============================================================
+   DASHBOARD PAGE
+============================================================ */
 interface Props {
     metrics: AdminMetrics;
     orders: Order[];
@@ -62,54 +161,21 @@ interface Props {
     bestSellerTrends?: BestSellerTrend[];
 }
 
-export function AdminHeader({ adminUser, active }: { adminUser?: User; active?: string }) {
-    return (
-        <header className="sticky top-0 z-40 bg-[#141110] text-[#F4EFE6] border-b border-[#241F1D] px-4 sm:px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-                <Link href="/admin" className="flex items-center gap-2 text-stone-200 hover:text-[#D4B886] font-bold">
-                    <img src="/nusara-logo.png" alt="NUSARA" className="h-6 w-auto" />
-                    <span className="font-heading text-sm tracking-wider">NUSARA ADMIN</span>
-                </Link>
-                <div className="hidden sm:flex items-center gap-2 ml-4 text-xs text-stone-400">
-                    <Link 
-                        href="/admin" 
-                        className={`px-3 py-1.5 rounded-lg transition-colors ${active !== 'chats' ? 'text-[#D4B886] bg-[#211D1B] font-semibold border border-[#B99A65]/30' : 'hover:text-stone-200'}`}
-                    >
-                        Dashboard
-                    </Link>
-                    <Link 
-                        href="/admin/chats" 
-                        className={`px-3 py-1.5 rounded-lg transition-colors ${active === 'chats' ? 'text-[#D4B886] bg-[#211D1B] font-semibold border border-[#B99A65]/30' : 'hover:text-stone-200'}`}
-                    >
-                        Konsierge / Chat
-                    </Link>
-                </div>
-            </div>
-            <div className="flex items-center gap-3">
-                {adminUser && (
-                    <span className="text-xs text-stone-300 font-medium">{adminUser.name}</span>
-                )}
-                <button
-                    type="button"
-                    onClick={() => router.post('/logout')}
-                    className="p-1.5 rounded-lg text-stone-400 hover:text-rose-400 hover:bg-[#211D1B] transition-colors"
-                    title="Keluar / Logout"
-                >
-                    <LogOut className="w-4 h-4" />
-                </button>
-            </div>
-        </header>
-    );
-}
+const orderBadgeClass = (status: string) =>
+    ['Served', 'Picked Up'].includes(status)
+        ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-600/40'
+        : status === 'Preparing'
+        ? 'bg-amber-950/80 text-amber-300 border border-amber-600/40 animate-pulse'
+        : 'bg-sky-950/80 text-sky-300 border border-sky-600/40';
 
-export default function AdminDashboard({ 
-    metrics, 
-    orders: initialOrders, 
-    menus: initialMenus, 
-    tables: initialTables, 
-    reservations: initialReservations, 
-    auditLogs, 
-    settings, 
+export default function AdminDashboard({
+    metrics,
+    orders: initialOrders,
+    menus: initialMenus,
+    tables: initialTables,
+    reservations: initialReservations,
+    auditLogs,
+    settings,
     adminUser,
     monthlySales = [],
     bestSellerTrends = []
@@ -117,7 +183,13 @@ export default function AdminDashboard({
     const { flash } = usePage<{ flash: { success?: string; error?: string } }>().props;
 
     // App Shell 4 State: Navigation, Panels, and View
-    const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'menus' | 'tables' | 'reservations' | 'audit'>('overview');
+    // Tab awal bisa dibuka lewat /admin?tab=orders dari halaman lain (mis. halaman Chat)
+    const [activeTab, setActiveTab] = useState<DashboardTab>(() => {
+        if (typeof window === 'undefined') return 'overview';
+        const t = new URLSearchParams(window.location.search).get('tab');
+        const valid: DashboardTab[] = ['orders', 'menus', 'tables', 'reservations', 'audit'];
+        return valid.includes(t as DashboardTab) ? (t as DashboardTab) : 'overview';
+    });
     const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
@@ -399,7 +471,7 @@ export default function AdminDashboard({
             }, '');
 
             // Area path
-            const areaD = points.length > 0 
+            const areaD = points.length > 0
                 ? `${pathD} L ${points[points.length - 1].x} ${padding.top + plotHeight} L ${points[0].x} ${padding.top + plotHeight} Z`
                 : '';
 
@@ -420,6 +492,15 @@ export default function AdminDashboard({
         }
     }, [chartMode, bestSellerTrends, monthlySales]);
 
+    // Sidebar nav button style
+    const navCls = (tab: DashboardTab) =>
+        `w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+            activeTab === tab
+                ? 'bg-[#241F1D] text-white font-semibold shadow-inner'
+                : 'text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18]'
+        }`;
+    const goTab = (tab: DashboardTab) => { setActiveTab(tab); setIsMobileSidebarOpen(false); };
+
     return (
         <div className="h-screen w-screen bg-[#110F0E] text-[#F4EFE6] font-dashboard selection:bg-[#B99A65] selection:text-[#110F0E] flex overflow-hidden">
             <Head title="HQ Operations & Best Seller Analytics — NUSARA Admin" />
@@ -435,25 +516,23 @@ export default function AdminDashboard({
                 ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
             `}>
                 <div className="flex flex-col h-full overflow-y-auto scrollbar-none">
-                    {/* Top Identity Block (matching App Shell 4 "Northline / City desk") */}
+                    {/* Top Identity Block */}
                     <div className="p-4 border-b border-[#241F1D] flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            {/* White square with dark Monogram "N" (exact visual match to App Shell 4) */}
-                            <div className="w-10 h-10 rounded-xl bg-white text-[#110F0E] flex items-center justify-center font-heading font-black text-xl shadow-md flex-shrink-0">
-                                N
-                            </div>
+                        <Link href="/admin" className="flex items-center gap-2.5">
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA — Nusantara & Rasa" 
+                                className="h-8 w-auto object-contain drop-shadow" 
+                            />
                             <div className="leading-tight">
-                                <h1 className="font-heading font-bold text-sm tracking-wide text-[#F4EFE6]">
-                                    NUSARA
-                                </h1>
-                                <p className="text-[11px] text-[#9E938B]">
+                                <span className="px-2 py-0.5 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[9px] font-bold text-[#D4B886] tracking-wider uppercase block">
                                     Executive Desk
-                                </p>
+                                </span>
                             </div>
-                        </div>
+                        </Link>
 
                         {/* Mobile close */}
-                        <button 
+                        <button
                             onClick={() => setIsMobileSidebarOpen(false)}
                             className="md:hidden p-1.5 rounded-lg text-[#9E938B] hover:text-white hover:bg-[#241F1D]"
                         >
@@ -469,14 +548,7 @@ export default function AdminDashboard({
                                 Operasional
                             </span>
                             <div className="mt-1.5 space-y-1">
-                                <button
-                                    onClick={() => { setActiveTab('overview'); setIsMobileSidebarOpen(false); }}
-                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                                        activeTab === 'overview'
-                                            ? 'bg-[#241F1D] text-white font-semibold shadow-inner'
-                                            : 'text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18]'
-                                    }`}
-                                >
+                                <button onClick={() => goTab('overview')} className={navCls('overview')}>
                                     <div className="flex items-center gap-2.5">
                                         <LayoutDashboard className="w-4 h-4 text-[#B99A65]" />
                                         <span>Ikhtisar & Tren</span>
@@ -484,35 +556,21 @@ export default function AdminDashboard({
                                     <ArrowRight className={`w-3.5 h-3.5 transition-transform ${activeTab === 'overview' ? 'opacity-100' : 'opacity-0'}`} />
                                 </button>
 
-                                <button
-                                    onClick={() => { setActiveTab('orders'); setIsMobileSidebarOpen(false); }}
-                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                                        activeTab === 'orders'
-                                            ? 'bg-[#241F1D] text-white font-semibold shadow-inner'
-                                            : 'text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18]'
-                                    }`}
-                                >
+                                <button onClick={() => goTab('orders')} className={navCls('orders')}>
                                     <div className="flex items-center gap-2.5">
                                         <ShoppingBag className="w-4 h-4 text-[#B99A65]" />
                                         <span>Antrean Pesanan</span>
                                     </div>
                                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                        metrics.activeOrders > 0 
-                                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' 
+                                        metrics.activeOrders > 0
+                                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                                             : 'text-[#9E938B]'
                                     }`}>
                                         {metrics.activeOrders > 0 ? metrics.activeOrders : metrics.totalOrders}
                                     </span>
                                 </button>
 
-                                <button
-                                    onClick={() => { setActiveTab('menus'); setIsMobileSidebarOpen(false); }}
-                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                                        activeTab === 'menus'
-                                            ? 'bg-[#241F1D] text-white font-semibold shadow-inner'
-                                            : 'text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18]'
-                                    }`}
-                                >
+                                <button onClick={() => goTab('menus')} className={navCls('menus')}>
                                     <div className="flex items-center gap-2.5">
                                         <UtensilsCrossed className="w-4 h-4 text-[#B99A65]" />
                                         <span>Katalog & Stok</span>
@@ -522,14 +580,7 @@ export default function AdminDashboard({
                                     </span>
                                 </button>
 
-                                <button
-                                    onClick={() => { setActiveTab('tables'); setIsMobileSidebarOpen(false); }}
-                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                                        activeTab === 'tables'
-                                            ? 'bg-[#241F1D] text-white font-semibold shadow-inner'
-                                            : 'text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18]'
-                                    }`}
-                                >
+                                <button onClick={() => goTab('tables')} className={navCls('tables')}>
                                     <div className="flex items-center gap-2.5">
                                         <QrCode className="w-4 h-4 text-[#B99A65]" />
                                         <span>Meja & Sesi QR</span>
@@ -547,14 +598,7 @@ export default function AdminDashboard({
                                 Layanan & Tamu
                             </span>
                             <div className="mt-1.5 space-y-1">
-                                <button
-                                    onClick={() => { setActiveTab('reservations'); setIsMobileSidebarOpen(false); }}
-                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                                        activeTab === 'reservations'
-                                            ? 'bg-[#241F1D] text-white font-semibold shadow-inner'
-                                            : 'text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18]'
-                                    }`}
-                                >
+                                <button onClick={() => goTab('reservations')} className={navCls('reservations')}>
                                     <div className="flex items-center gap-2.5">
                                         <Calendar className="w-4 h-4 text-[#B99A65]" />
                                         <span>Jadwal Reservasi</span>
@@ -570,14 +614,19 @@ export default function AdminDashboard({
                                     )}
                                 </button>
 
-                                <button
-                                    onClick={() => { setActiveTab('audit'); setIsMobileSidebarOpen(false); }}
-                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                                        activeTab === 'audit'
-                                            ? 'bg-[#241F1D] text-white font-semibold shadow-inner'
-                                            : 'text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18]'
-                                    }`}
+                                {/* Riwayat Chat (halaman terpisah: /admin/chats) */}
+                                <Link
+                                    href="/admin/chats"
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18] transition-all"
                                 >
+                                    <div className="flex items-center gap-2.5">
+                                        <MessageSquare className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Konsierge / Chat</span>
+                                    </div>
+                                    <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                                </Link>
+
+                                <button onClick={() => goTab('audit')} className={navCls('audit')}>
                                     <div className="flex items-center gap-2.5">
                                         <History className="w-4 h-4 text-[#B99A65]" />
                                         <span>Audit Log</span>
@@ -651,7 +700,11 @@ export default function AdminDashboard({
                         </div>
 
                         <button
-                            onClick={() => router.post('/logout')}
+                            onClick={() => {
+                        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin keluar dari sesi Admin?')) {
+                            router.post('/logout');
+                        }
+                    }}
                             title="Keluar"
                             className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-950/60 transition-colors flex-shrink-0"
                         >
@@ -663,7 +716,7 @@ export default function AdminDashboard({
 
             {/* Mobile backdrop */}
             {isMobileSidebarOpen && (
-                <div 
+                <div
                     onClick={() => setIsMobileSidebarOpen(false)}
                     className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm md:hidden"
                 />
@@ -673,7 +726,7 @@ export default function AdminDashboard({
                 APP SHELL 4: COLUMN 2 — CENTER MAIN WORKSPACE
             ======================================================== */}
             <section className="flex-1 h-full overflow-hidden flex flex-col bg-[#110F0E]">
-                {/* Center Top Bar (matching App Shell 4 top breadcrumb & controls) */}
+                {/* Center Top Bar */}
                 <header className="h-14 px-4 sm:px-6 border-b border-[#241F1D] flex items-center justify-between bg-[#141110] flex-shrink-0">
                     <div className="flex items-center gap-3">
                         <button
@@ -683,7 +736,7 @@ export default function AdminDashboard({
                             <MenuIcon className="w-5 h-5" />
                         </button>
 
-                        {/* Breadcrumbs matching App Shell 4 format: "Section / Page" */}
+                        {/* Breadcrumbs */}
                         <div className="flex items-center gap-2 text-xs">
                             <span className="text-[#9E938B]">NUSARA</span>
                             <span className="text-[#4D443E]">/</span>
@@ -700,7 +753,6 @@ export default function AdminDashboard({
 
                     {/* Top Right Controls */}
                     <div className="flex items-center gap-2">
-                        {/* Quick Action Button matching App Shell 4 "New story" */}
                         {activeTab === 'orders' && (
                             <button
                                 onClick={() => router.reload({ only: ['orders', 'metrics'] })}
@@ -713,17 +765,17 @@ export default function AdminDashboard({
 
                         {activeTab === 'menus' && (
                             <span className="text-[11px] text-[#B99A65] font-mono hidden sm:inline">
-                                10 Meja · Senopati Branch
+                                {metrics.totalTables} Meja · Senopati Branch
                             </span>
                         )}
 
-                        {/* Inspector Toggle Button (matching icon in top right of App Shell 4 center panel) */}
+                        {/* Inspector Toggle Button */}
                         <button
                             onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
                             title={isRightPanelOpen ? "Tutup Panel Jadwal" : "Buka Panel Jadwal"}
                             className={`p-2 rounded-lg border transition-all ${
-                                isRightPanelOpen 
-                                    ? 'bg-[#241F1D] border-[#3D332D] text-[#D4B886]' 
+                                isRightPanelOpen
+                                    ? 'bg-[#241F1D] border-[#3D332D] text-[#D4B886]'
                                     : 'bg-transparent border-transparent text-[#9E938B] hover:text-white hover:bg-[#1E1A18]'
                             }`}
                         >
@@ -739,7 +791,7 @@ export default function AdminDashboard({
                     ==================================================== */}
                     {activeTab === 'overview' && (
                         <div className="space-y-6 animate-fade-in">
-                            {/* Filter Pills row matching App Shell 4: "All stories / In review / Needs edits" */}
+                            {/* Chart mode pills */}
                             <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-[#241F1D]">
                                 <div className="flex items-center gap-2">
                                     <button
@@ -822,9 +874,7 @@ export default function AdminDashboard({
                                 </div>
                             </div>
 
-                            {/* ====================================================
-                                MULTI-LINE CHART: TRACKING PENJUALAN PER BULAN & BEST SELLER
-                            ==================================================== */}
+                            {/* MULTI-LINE CHART */}
                             <div className="p-5 rounded-2xl bg-[#161312] border border-[#241F1D] space-y-4 shadow-sm">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                     <div>
@@ -835,13 +885,12 @@ export default function AdminDashboard({
                                             </h3>
                                         </div>
                                         <p className="text-xs text-[#9E938B] mt-0.5">
-                                            {chartMode === 'bestseller' 
-                                                ? 'Grafik garis pergerakan porsi terjual menu unggulan setiap bulan' 
+                                            {chartMode === 'bestseller'
+                                                ? 'Grafik garis pergerakan porsi terjual menu unggulan setiap bulan'
                                                 : 'Total pendapatan kotor bulanan dari Dine-in dan Takeaway'}
                                         </p>
                                     </div>
 
-                                    {/* Legends or Quick Indicators */}
                                     {chartMode === 'bestseller' && (
                                         <div className="flex flex-wrap items-center gap-2 text-[11px]">
                                             {bestSellerTrends.map(t => (
@@ -849,8 +898,8 @@ export default function AdminDashboard({
                                                     key={t.name}
                                                     onClick={() => setActiveMenuHighlight(activeMenuHighlight === t.name ? null : t.name)}
                                                     className={`px-2 py-0.5 rounded-md border flex items-center gap-1.5 transition-all ${
-                                                        activeMenuHighlight === t.name 
-                                                            ? 'bg-white text-black font-bold border-white' 
+                                                        activeMenuHighlight === t.name
+                                                            ? 'bg-white text-black font-bold border-white'
                                                             : 'bg-[#1C1816] text-[#9E938B] border-[#2A2421] hover:border-[#3D332D]'
                                                     }`}
                                                 >
@@ -862,7 +911,7 @@ export default function AdminDashboard({
                                     )}
                                 </div>
 
-                                {/* SVG Multi-Line Chart Canvas */}
+                                {/* SVG Chart Canvas */}
                                 <div className="relative w-full overflow-x-auto bg-[#13100F] rounded-xl border border-[#221D1B] p-2">
                                     <svg
                                         viewBox={`0 0 ${chartSvgProps.width} ${chartSvgProps.height}`}
@@ -910,16 +959,13 @@ export default function AdminDashboard({
                                             );
                                         })}
 
-                                        {/* Chart Content depending on Mode */}
                                         {chartMode === 'bestseller' ? (
-                                            /* MULTI-LINE BEST SELLER CURVES */
-                                            chartSvgProps.lines?.map((line, lIdx) => {
+                                            chartSvgProps.lines?.map((line) => {
                                                 const isMuted = activeMenuHighlight && activeMenuHighlight !== line.name;
                                                 const isSelected = activeMenuHighlight === line.name;
 
                                                 return (
                                                     <g key={line.name} opacity={isMuted ? 0.2 : 1} className="transition-opacity duration-200">
-                                                        {/* Line path */}
                                                         <path
                                                             d={line.pathD}
                                                             fill="none"
@@ -929,7 +975,6 @@ export default function AdminDashboard({
                                                             strokeLinejoin="round"
                                                         />
 
-                                                        {/* Point Circles */}
                                                         {line.points.map((pt, pIdx) => (
                                                             <circle
                                                                 key={pIdx}
@@ -956,7 +1001,6 @@ export default function AdminDashboard({
                                                 );
                                             })
                                         ) : (
-                                            /* REVENUE SINGLE SPLINE WITH GRADIENT FILL */
                                             <g>
                                                 {chartSvgProps.areaD && (
                                                     <path
@@ -1002,7 +1046,7 @@ export default function AdminDashboard({
 
                                     {/* Tooltip Overlay */}
                                     {chartHoverPoint && (
-                                        <div 
+                                        <div
                                             className="absolute pointer-events-none z-20 px-3 py-2 rounded-xl bg-[#1E1A18] border border-[#B99A65]/50 shadow-2xl text-xs -translate-x-1/2 -translate-y-full -mt-2 transition-all"
                                             style={{ left: chartHoverPoint.x, top: chartHoverPoint.y }}
                                         >
@@ -1013,7 +1057,7 @@ export default function AdminDashboard({
                                     )}
                                 </div>
 
-                                {/* Best Seller Ranking Table Underneath Line Chart */}
+                                {/* Best Seller Ranking */}
                                 {chartMode === 'bestseller' && (
                                     <div className="pt-2">
                                         <span className="text-[10px] uppercase font-bold tracking-wider text-[#B99A65] block mb-2">
@@ -1021,7 +1065,7 @@ export default function AdminDashboard({
                                         </span>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
                                             {bestSellerTrends.map((trend, idx) => (
-                                                <div 
+                                                <div
                                                     key={trend.name}
                                                     onClick={() => setActiveMenuHighlight(activeMenuHighlight === trend.name ? null : trend.name)}
                                                     className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
@@ -1031,7 +1075,7 @@ export default function AdminDashboard({
                                                     }`}
                                                 >
                                                     <div className="flex items-center justify-between mb-1">
-                                                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-black/40 text-stone-300">
+                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/40 text-stone-300">
                                                             #{idx + 1}
                                                         </span>
                                                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: trend.color }}></span>
@@ -1049,7 +1093,7 @@ export default function AdminDashboard({
                                 )}
                             </div>
 
-                            {/* Recent Orders Queue Feed matching App Shell 4 list items */}
+                            {/* Recent Orders Feed */}
                             <div className="rounded-2xl bg-[#161312] border border-[#241F1D] overflow-hidden shadow-sm">
                                 <div className="p-4 border-b border-[#241F1D] flex items-center justify-between">
                                     <div>
@@ -1102,13 +1146,7 @@ export default function AdminDashboard({
                                                         {formatRupiah(ord.total)}
                                                     </td>
                                                     <td className="py-2.5 px-4">
-                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                                            ['Served', 'Picked Up'].includes(ord.order_status)
-                                                                ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-600/40'
-                                                                : ord.order_status === 'Preparing'
-                                                                ? 'bg-amber-950/80 text-amber-300 border border-amber-600/40 animate-pulse'
-                                                                : 'bg-sky-950/80 text-sky-300 border border-sky-600/40'
-                                                        }`}>
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${orderBadgeClass(ord.order_status)}`}>
                                                             {ord.order_status}
                                                         </span>
                                                     </td>
@@ -1134,21 +1172,43 @@ export default function AdminDashboard({
                     ==================================================== */}
                     {activeTab === 'orders' && (
                         <div className="space-y-4 animate-fade-in">
-                            {/* Search & Status Filters */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#241F1D]">
-                                <div className="relative w-full sm:w-80">
-                                    <Search className="w-4 h-4 text-[#9E938B] absolute left-3 top-1/2 -translate-y-1/2" />
-                                    <input
-                                        type="text"
-                                        value={orderSearchQuery}
-                                        onChange={(e) => setOrderSearchQuery(e.target.value)}
-                                        placeholder="Cari kode order, tamu, meja..."
-                                        className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#161312] border border-[#241F1D] text-xs text-[#F4EFE6] placeholder-[#6E625A] focus:outline-none focus:border-[#B99A65]"
-                                    />
+                            {/* Search & Filters */}
+                            <div className="flex flex-col gap-3 pb-3 border-b border-[#241F1D]">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="relative w-full sm:w-80">
+                                        <Search className="w-4 h-4 text-[#9E938B] absolute left-3 top-1/2 -translate-y-1/2" />
+                                        <input
+                                            type="text"
+                                            value={orderSearchQuery}
+                                            onChange={(e) => setOrderSearchQuery(e.target.value)}
+                                            placeholder="Cari kode order, tamu, meja..."
+                                            className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#161312] border border-[#241F1D] text-xs text-[#F4EFE6] placeholder-[#6E625A] focus:outline-none focus:border-[#B99A65]"
+                                        />
+                                    </div>
+
+                                    {/* Filter Tipe Pesanan */}
+                                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                                        <span className="text-[10px] font-bold text-[#B99A65] uppercase mr-1">Tipe:</span>
+                                        {['all', 'dine_in', 'takeaway'].map((tp) => (
+                                            <button
+                                                key={tp}
+                                                onClick={() => setOrderTypeFilter(tp)}
+                                                className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                                                    orderTypeFilter === tp
+                                                        ? 'bg-white text-[#110F0E] font-bold shadow-sm'
+                                                        : 'bg-[#161312] text-[#9E938B] hover:text-[#F4EFE6] border border-[#241F1D]'
+                                                }`}
+                                            >
+                                                {tp === 'all' ? 'Semua Tipe' : (tp === 'dine_in' ? 'Dine-in (Meja)' : 'Takeaway')}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
 
+                                {/* Filter Status */}
                                 <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                                    {['all', 'Preparing', 'Ready', 'Served', 'Picked Up', 'Paid', 'Cancelled'].map((st) => (
+                                    <span className="text-[10px] font-bold text-[#B99A65] uppercase mr-1">Status:</span>
+                                    {['all', 'Pending', 'Preparing', 'Ready', 'Served', 'Picked Up', 'Paid', 'Cancelled'].map((st) => (
                                         <button
                                             key={st}
                                             onClick={() => setOrderStatusFilter(st)}
@@ -1210,13 +1270,7 @@ export default function AdminDashboard({
                                                         {formatRupiah(order.total)}
                                                     </td>
                                                     <td className="py-3 px-4">
-                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                                            ['Served', 'Picked Up'].includes(order.order_status)
-                                                                ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-600/40'
-                                                                : order.order_status === 'Preparing'
-                                                                ? 'bg-amber-950/80 text-amber-300 border border-amber-600/40 animate-pulse'
-                                                                : 'bg-sky-950/80 text-sky-300 border border-sky-600/40'
-                                                        }`}>
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${orderBadgeClass(order.order_status)}`}>
                                                             {order.order_status}
                                                         </span>
                                                     </td>
@@ -1226,11 +1280,11 @@ export default function AdminDashboard({
                                                             onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
                                                             className="px-2 py-1 rounded-md bg-[#241F1D] border border-[#342D2A] text-xs text-[#F4EFE6] focus:outline-none focus:border-[#B99A65]"
                                                         >
-                                                            <option value="Pending">Pending</option>
-                                                            <option value="Preparing">Preparing</option>
-                                                            <option value="Ready">Ready</option>
-                                                            <option value="Served">Served</option>
-                                                            <option value="Picked Up">Picked Up</option>
+                                                            <option value="Pending">Pending (Menunggu ACC)</option>
+                                                            <option value="Preparing">Preparing (Dapur)</option>
+                                                            <option value="Ready">Ready (Siap Saji)</option>
+                                                            <option value="Served">Served (Dine-in)</option>
+                                                            <option value="Picked Up">Picked Up (Takeaway)</option>
                                                             <option value="Cancelled">Cancelled</option>
                                                         </select>
                                                     </td>
@@ -1244,6 +1298,13 @@ export default function AdminDashboard({
                                                     </td>
                                                 </tr>
                                             ))}
+                                            {filteredOrders.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={9} className="py-10 text-center text-[#9E938B]">
+                                                        Tidak ada pesanan yang cocok dengan filter.
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -1263,7 +1324,7 @@ export default function AdminDashboard({
                                         type="text"
                                         value={menuSearchQuery}
                                         onChange={(e) => setMenuSearchQuery(e.target.value)}
-                                        placeholder="Cari menu nusantara..."
+                                        placeholder="Cari menu atau kategori..."
                                         className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#161312] border border-[#241F1D] text-xs text-[#F4EFE6] placeholder-[#6E625A] focus:outline-none focus:border-[#B99A65]"
                                     />
                                 </div>
@@ -1294,6 +1355,10 @@ export default function AdminDashboard({
                                     ))}
                                 </div>
                             </div>
+
+                            <p className="text-[11px] text-[#9E938B]">
+                                Pantau stok hidangan secara real-time. Menu habis otomatis berstatus disabled di halaman pemesanan pelanggan.
+                            </p>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {filteredMenus.map(menu => {
@@ -1337,8 +1402,8 @@ export default function AdminDashboard({
                                                     </span>
                                                 </div>
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                                    isOut 
-                                                        ? 'bg-rose-950/80 text-rose-300 border border-rose-600/40' 
+                                                    isOut
+                                                        ? 'bg-rose-950/80 text-rose-300 border border-rose-600/40'
                                                         : 'bg-emerald-950/80 text-emerald-300 border border-emerald-600/40'
                                                 }`}>
                                                     {isOut ? 'Habis' : 'Tersedia'}
@@ -1364,17 +1429,17 @@ export default function AdminDashboard({
                     )}
 
                     {/* ====================================================
-                        TAB 4: STATUS 10 MEJA & SESI QR (SESUAI PRD)
+                        TAB 4: STATUS MEJA & SESI QR
                     ==================================================== */}
                     {activeTab === 'tables' && (
                         <div className="space-y-4 animate-fade-in">
                             <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
                                 <div>
                                     <h3 className="font-heading text-base font-bold text-white">
-                                        Denah 10 Meja Makan Nusara (Kapasitas 5 Orang/Meja)
+                                        Denah {metrics.totalTables} Meja Makan Nusara
                                     </h3>
                                     <p className="text-xs text-[#9E938B]">
-                                        Kelola ketersediaan meja makan restoran Senopati Flagship
+                                        Kelola ketersediaan meja restoran Senopati Flagship. Pastikan meja berstatus Available setelah dibersihkan oleh waiter.
                                     </p>
                                 </div>
                                 <span className="text-xs font-mono text-emerald-400">
@@ -1417,7 +1482,7 @@ export default function AdminDashboard({
                                             <div className="text-[11px] text-[#9E938B] space-y-1">
                                                 <p className="flex items-center gap-1.5">
                                                     <Users className="w-3.5 h-3.5 text-[#B99A65] shrink-0" />
-                                                    <span>5 Kursi Tamu</span>
+                                                    <span>{tbl.capacity} Kursi Tamu</span>
                                                 </p>
                                                 <p className="flex items-center gap-1.5 truncate">
                                                     <MapPin className="w-3.5 h-3.5 text-[#B99A65] shrink-0" />
@@ -1435,11 +1500,11 @@ export default function AdminDashboard({
                                                 onChange={(e) => handleUpdateTableStatus(tbl.id, e.target.value)}
                                                 className="w-full px-2 py-1 rounded-md bg-[#241F1D] border border-[#342D2A] text-[#F4EFE6] text-xs font-semibold focus:outline-none focus:border-[#B99A65]"
                                             >
-                                                <option value="Available">Available</option>
-                                                <option value="Occupied">Occupied</option>
-                                                <option value="Reserved">Reserved</option>
-                                                <option value="Cleaning">Cleaning</option>
-                                                <option value="Inactive">Inactive</option>
+                                                <option value="Available">Available (Siap Digunakan)</option>
+                                                <option value="Occupied">Occupied (Tamu Duduk)</option>
+                                                <option value="Reserved">Reserved (Dipesan)</option>
+                                                <option value="Cleaning">Cleaning (Sedang Dibersihkan)</option>
+                                                <option value="Inactive">Inactive (Tutup)</option>
                                             </select>
                                         </div>
                                     );
@@ -1459,7 +1524,7 @@ export default function AdminDashboard({
                                         Buku Tamu & Jadwal Reservasi Meja
                                     </h3>
                                     <p className="text-xs text-[#9E938B]">
-                                        Konfirmasi permohonan reservasi jam makan tamu
+                                        Kelola permohonan reservasi meja online dan paket Dining Experience
                                     </p>
                                 </div>
                             </div>
@@ -1474,6 +1539,7 @@ export default function AdminDashboard({
                                                 <th className="py-3 px-4">Jadwal & Jam</th>
                                                 <th className="py-3 px-4">Pax</th>
                                                 <th className="py-3 px-4">Paket Experience</th>
+                                                <th className="py-3 px-4">Permintaan Khusus</th>
                                                 <th className="py-3 px-4">Status</th>
                                                 <th className="py-3 px-4 text-right">Tindakan</th>
                                             </tr>
@@ -1494,7 +1560,8 @@ export default function AdminDashboard({
                                                         {new Date(res.reservation_datetime).toLocaleDateString('id-ID', {
                                                             weekday: 'short',
                                                             day: 'numeric',
-                                                            month: 'short'
+                                                            month: 'short',
+                                                            year: 'numeric'
                                                         })}, {new Date(res.reservation_datetime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                                                     </td>
                                                     <td className="py-3 px-4 font-bold text-white">
@@ -1502,6 +1569,9 @@ export default function AdminDashboard({
                                                     </td>
                                                     <td className="py-3 px-4 text-[#D4B886]">
                                                         {res.experience_name || 'A la Carte Standard'}
+                                                    </td>
+                                                    <td className="py-3 px-4 max-w-xs text-stone-300 italic">
+                                                        {res.special_request || '-'}
                                                     </td>
                                                     <td className="py-3 px-4">
                                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
@@ -1521,7 +1591,7 @@ export default function AdminDashboard({
                                                                     onClick={() => handleUpdateReservationStatus(res.id, 'Confirmed')}
                                                                     className="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-bold hover:bg-emerald-500 text-[11px]"
                                                                 >
-                                                                    ACC
+                                                                    Konfirmasi
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleUpdateReservationStatus(res.id, 'Rejected')}
@@ -1564,28 +1634,34 @@ export default function AdminDashboard({
                             </div>
 
                             <div className="rounded-2xl bg-[#161312] border border-[#241F1D] p-4 space-y-2.5 shadow-sm">
-                                {auditLogs.map(log => (
-                                    <div 
-                                        key={log.id} 
-                                        className="p-3 rounded-xl bg-[#141110] border border-[#241F1D] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
-                                    >
-                                        <div className="flex items-start gap-2.5">
-                                            <div className="w-7 h-7 rounded-lg bg-[#241F1D] text-[#D4B886] flex items-center justify-center font-mono text-[10px] font-bold flex-shrink-0 mt-0.5">
-                                                LOG
+                                {auditLogs.length > 0 ? (
+                                    auditLogs.map(log => (
+                                        <div
+                                            key={log.id}
+                                            className="p-3 rounded-xl bg-[#141110] border border-[#241F1D] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                                        >
+                                            <div className="flex items-start gap-2.5">
+                                                <div className="w-7 h-7 rounded-lg bg-[#241F1D] text-[#D4B886] flex items-center justify-center font-mono text-[10px] font-bold flex-shrink-0 mt-0.5">
+                                                    LOG
+                                                </div>
+                                                <div>
+                                                    <span className="font-bold text-[#D4B886]">{log.action}</span>
+                                                    <p className="text-[#F4EFE6] mt-0.5">{log.description}</p>
+                                                    <span className="text-[10px] text-[#9E938B]">
+                                                        Oleh: {log.user_name || 'Sistem'} · {log.entity_type} #{log.entity_id}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <span className="font-bold text-[#D4B886]">{log.action}</span>
-                                                <p className="text-[#F4EFE6] mt-0.5">{log.description}</p>
-                                                <span className="text-[10px] text-[#9E938B]">
-                                                    Oleh: {log.user_name || 'Sistem'} · {log.entity_type} #{log.entity_id}
-                                                </span>
-                                            </div>
+                                            <span className="text-[10px] text-[#9E938B] font-mono flex-shrink-0">
+                                                {new Date(log.created_at).toLocaleString('id-ID')}
+                                            </span>
                                         </div>
-                                        <span className="text-[10px] text-[#9E938B] font-mono flex-shrink-0">
-                                            {new Date(log.created_at).toLocaleString('id-ID')}
-                                        </span>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-12 text-[#6E625A] text-xs">
+                                        Belum ada catatan aktivitas di audit log.
                                     </div>
-                                ))}
+                                )}
                             </div>
                         </div>
                     )}
@@ -1593,11 +1669,10 @@ export default function AdminDashboard({
             </section>
 
             {/* ========================================================
-                APP SHELL 4: COLUMN 3 — RIGHT SCHEDULE / CALENDAR INSPECTOR PANEL
+                APP SHELL 4: COLUMN 3 — RIGHT SCHEDULE / CALENDAR PANEL
             ======================================================== */}
             {isRightPanelOpen && (
                 <aside className="w-80 flex-shrink-0 bg-[#161312] border-l border-[#241F1D] flex flex-col h-full z-30 transition-all duration-300">
-                    {/* Schedule Header (exact match to App Shell 4 "Schedule" + close X) */}
                     <div className="h-14 px-5 border-b border-[#241F1D] flex items-center justify-between flex-shrink-0">
                         <h2 className="font-heading font-bold text-sm tracking-wide text-[#F4EFE6]">
                             Schedule
@@ -1610,9 +1685,8 @@ export default function AdminDashboard({
                         </button>
                     </div>
 
-                    {/* Scrollable Content */}
                     <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[#241F1D] p-5 space-y-6">
-                        {/* 1. Month Header & Navigation (e.g. "August 2026  <  >") */}
+                        {/* Month Header & Navigation */}
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <span className="font-heading font-bold text-sm text-[#F4EFE6]">
@@ -1634,7 +1708,7 @@ export default function AdminDashboard({
                                 </div>
                             </div>
 
-                            {/* 2. Calendar Days Grid (matching exact App Shell 4 layout: S M T W T F S) */}
+                            {/* Calendar Days Grid */}
                             <div className="grid grid-cols-7 gap-1 text-center text-xs">
                                 {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((dayHead, i) => (
                                     <span key={i} className="py-1 text-[11px] font-semibold text-[#6E625A]">
@@ -1660,7 +1734,6 @@ export default function AdminDashboard({
                                             }`}
                                         >
                                             <span className="leading-none">{calDay.day}</span>
-                                            {/* Dot indicator underneath date (matching App Shell 4 calendar indicator) */}
                                             {hasReservations && (
                                                 <span className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? 'bg-[#110F0E]' : 'bg-[#D4B886]'}`}></span>
                                             )}
@@ -1670,7 +1743,7 @@ export default function AdminDashboard({
                             </div>
                         </div>
 
-                        {/* 3. Up Next Timeline Section (matching App Shell 4 "Up next") */}
+                        {/* Up Next */}
                         <div className="space-y-3 pt-4 border-t border-[#241F1D]">
                             <div className="flex items-center justify-between">
                                 <span className="text-xs font-bold text-[#F4EFE6]">
@@ -1681,19 +1754,18 @@ export default function AdminDashboard({
                                 </span>
                             </div>
 
-                            {/* Agenda item list */}
                             {dayReservations.length > 0 ? (
                                 <div className="space-y-3">
                                     {dayReservations.map(res => (
-                                        <div 
-                                            key={res.id} 
+                                        <div
+                                            key={res.id}
                                             className="p-3 rounded-xl bg-[#141110] border border-[#241F1D] text-xs space-y-1"
                                         >
                                             <div className="flex items-center justify-between text-[11px] text-[#9E938B]">
                                                 <span>
                                                     {new Date(res.reservation_datetime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                                                 </span>
-                                                <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
+                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
                                                     res.status === 'Confirmed' ? 'text-emerald-400 bg-emerald-950/60' : 'text-amber-400 bg-amber-950/60'
                                                 }`}>
                                                     {res.status}
@@ -1714,14 +1786,14 @@ export default function AdminDashboard({
                                 </div>
                             )}
 
-                            {/* Active Kitchen Orders snippet in sidebar */}
+                            {/* Active Kitchen Orders */}
                             <div className="pt-2">
                                 <span className="text-[11px] font-bold text-[#9E938B] block mb-2">
                                     Pesanan Dalam Proses ({pendingOrdersForAgenda.length})
                                 </span>
                                 <div className="space-y-2">
                                     {pendingOrdersForAgenda.map(o => (
-                                        <div 
+                                        <div
                                             key={o.id}
                                             onClick={() => setSelectedOrderDetails(o)}
                                             className="p-2.5 rounded-xl bg-[#141110] border border-[#241F1D] hover:border-[#3D332D] cursor-pointer text-xs transition-colors"
@@ -1852,7 +1924,7 @@ export default function AdminDashboard({
                                     onClick={() => handleUpdateOrderStatus(selectedOrderDetails.id, 'Preparing')}
                                     className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs uppercase transition-all shadow"
                                 >
-                                    Masak
+                                    ACC Kasir & Masak
                                 </button>
                                 <button
                                     onClick={() => handleUpdateOrderStatus(selectedOrderDetails.id, 'Ready')}
@@ -1864,7 +1936,7 @@ export default function AdminDashboard({
                                     onClick={() => handleUpdateOrderStatus(selectedOrderDetails.id, 'Served')}
                                     className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase transition-all shadow"
                                 >
-                                    Terhidang
+                                    Selesai Terhidang
                                 </button>
                             </div>
                         </div>

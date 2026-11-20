@@ -30,7 +30,10 @@ import {
     XCircle,
     SlidersHorizontal,
     Bell,
-    TrendingUp
+    TrendingUp,
+    ChevronDown,
+    ArrowUpRight,
+    Table as TableIcon
 } from 'lucide-react';
 import { Order, OrderStatus, RestaurantSettings, Table } from '../../types';
 
@@ -135,12 +138,22 @@ export default function CashierDashboard({
     // Search query
     const [searchQuery, setSearchQuery] = useState<string>(filters.search || '');
 
+    // Sidebar collapse state (App Shell 9)
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
     // State modal cetak struk
     const [receiptOrder, setReceiptOrder] = useState<OrderWithDetails | null>(null);
 
     // State modal bayar tunai
     const [cashPaymentOrder, setCashPaymentOrder] = useState<OrderWithDetails | null>(null);
     const [cashReceived, setCashReceived] = useState<number>(0);
+
+    // Logout with confirmation alert
+    const handleLogout = () => {
+        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin mengakhiri sesi Kasir? Pastikan seluruh transaksi aktif telah diverifikasi.')) {
+            router.post('/logout');
+        }
+    };
 
     // Quick filter orders client-side for ultra-fast instant UI responsiveness
     const filteredOrders = useMemo(() => {
@@ -189,7 +202,7 @@ export default function CashierDashboard({
     // Handle Open Cash Payment Modal
     const handleOpenCashModal = (order: OrderWithDetails) => {
         setCashPaymentOrder(order);
-        setCashReceived(Math.ceil(order.total / 10000) * 10000); // Default ke pecahan terdekat
+        setCashReceived(Math.ceil(order.total / 10000) * 10000);
     };
 
     // Handle Confirm Cash Payment Submit
@@ -229,7 +242,7 @@ export default function CashierDashboard({
             style: 'currency',
             currency: 'IDR',
             maximumFractionDigits: 0
-        }).format(val);
+        }).format(val || 0);
     };
 
     // Get Status Badge Color
@@ -289,536 +302,668 @@ export default function CashierDashboard({
     };
 
     return (
-        <div className="min-h-screen bg-[#141211] text-[#F4EFE6] font-sans selection:bg-[#B99A65] selection:text-[#211D1B]">
-            <Head title="Dashboard Kasir & POS Antrean Terpusat — NUSARA" />
-
-            {/* Flash notification banner (3 detik) */}
+        <div className="min-h-screen bg-[#0E0D0C] text-[#F4EFE6] font-body flex flex-col lg:flex-row selection:bg-[#B99A65] selection:text-[#32151F]">
+            <Head title="Terminal Kasir Operasional — POS Antrean Terpusat NUSARA" />
             <FlashToast flash={flash} durationMs={3000} />
 
             {/* ========================================================
-                1. TOPBAR HEADER OPERASIONAL KASIR
+                APP SHELL 9: LEFT SIDEBAR
             ======================================================== */}
-            <header className="sticky top-0 z-40 bg-[#1C1716]/95 backdrop-blur-md border-b border-[#B99A65]/20 px-4 sm:px-6 lg:px-8 py-3.5 shadow-xl">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    {/* Brand & Badge Kasir */}
-                    <div className="flex items-center gap-3">
-                        <Link href="/" className="flex items-center gap-2.5 group">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#32151F] to-[#211D1B] border border-[#B99A65]/40 flex items-center justify-center shadow-md group-hover:border-[#D4B886] transition-all">
-                                <span className="font-heading text-lg font-bold text-[#D4B886] tracking-widest">N</span>
+            <aside 
+                className={`${
+                    sidebarCollapsed ? 'lg:w-20' : 'lg:w-72'
+                } w-full lg:min-h-screen bg-[#141110] border-r border-[#2C2421] flex flex-col justify-between p-4 transition-all duration-300 z-30 shrink-0`}
+            >
+                {/* Top Section */}
+                <div className="space-y-4">
+                    {/* Header: Initial Box + Role + Collapse Button */}
+                    <div className="flex items-center justify-between pb-3 border-b border-[#2C2421]">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="w-9 h-9 rounded-xl bg-[#F4EFE6] text-[#211D1B] font-heading font-bold text-base flex items-center justify-center shrink-0 shadow-md">
+                                K
                             </div>
-                            <div>
-                                <h1 className="font-heading text-base font-bold tracking-wider text-[#D4B886] uppercase leading-tight">
-                                    NUSARA
-                                </h1>
-                                <p className="text-[10px] tracking-[0.2em] uppercase text-stone-400">
-                                    Nusantara & Rasa
-                                </p>
-                            </div>
-                        </Link>
-
-                        <div className="h-6 w-px bg-stone-700/60 hidden sm:block mx-1" />
-
-                        {/* Kasir Operational Badge */}
-                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#32151F] border border-[#B99A65]/50 shadow-inner">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-[#D4B886]">
-                                Pos Kasir Operasional
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Quick Search & Control Buttons */}
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                        {/* Live Sync Status */}
-                        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/40 border border-stone-800 text-xs text-stone-400">
-                            <Clock className="w-3.5 h-3.5 text-[#B99A65]" />
-                            <span>Shift Aktif: {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}</span>
-                        </div>
-
-                        {/* Search Bar Input */}
-                        <div className="relative flex-1 sm:w-64">
-                            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Cari Kode / Meja / Tamu..."
-                                className="w-full pl-9 pr-3 py-1.5 bg-black/50 border border-[#B99A65]/30 rounded-xl text-xs text-[#F4EFE6] placeholder-stone-500 focus:outline-none focus:border-[#D4B886] transition-all"
-                            />
-                            {searchQuery && (
-                                <button 
-                                    onClick={() => setSearchQuery('')}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white"
-                                >
-                                    <X className="w-3.5 h-3.5" />
-                                </button>
+                            {!sidebarCollapsed && (
+                                <div className="truncate">
+                                    <h1 className="text-sm font-bold text-[#F4EFE6] tracking-wide truncate">
+                                        Kasir Operasional
+                                    </h1>
+                                    <div className="flex items-center gap-1.5 text-[10px] text-[#B99A65] font-semibold">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                        <span>Terminal POS Aktif</span>
+                                    </div>
+                                </div>
                             )}
                         </div>
-
-                        {/* Refresh Button */}
                         <button
-                            onClick={() => router.reload()}
-                            className="p-2 rounded-xl bg-black/40 hover:bg-black/70 border border-[#B99A65]/30 text-[#D4B886] transition-all hover:scale-105 active:scale-95"
-                            title="Segarkan Data Antrean"
+                            type="button"
+                            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                            className="hidden lg:flex p-1.5 rounded-lg text-stone-400 hover:text-[#D4B886] hover:bg-[#211D1B] transition-colors"
+                            title={sidebarCollapsed ? 'Perluas Sidebar' : 'Ciutkan Sidebar'}
                         >
-                            <RefreshCw className="w-4 h-4" />
+                            <SlidersHorizontal className="w-4 h-4" />
                         </button>
+                    </div>
 
-                        {/* User Profile Kasir & Logout */}
-                        <div className="flex items-center gap-2 pl-2 border-l border-stone-800">
-                            <div className="text-right hidden sm:block">
-                                <p className="text-xs font-semibold text-[#F4EFE6] leading-tight">
-                                    {cashierUser.name}
-                                </p>
-                                <p className="text-[10px] text-[#B99A65] font-mono capitalize">
-                                    {cashierUser.role}
-                                </p>
-                            </div>
+                    {/* Primary Action Button (White/Light Pill from App Shell 9) */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setMainTab('orders');
+                            setSelectedStatus('pending');
+                        }}
+                        className="w-full bg-[#F4EFE6] hover:bg-white text-[#211D1B] font-semibold py-2.5 px-3.5 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.99] text-xs"
+                    >
+                        <Wallet className="w-4 h-4 text-[#32151F]" />
+                        {!sidebarCollapsed && <span className="tracking-wide">Konfirmasi Transaksi Cepat</span>}
+                    </button>
+
+                    {/* Segmented Chips (App Shell 9 "Model" Section) */}
+                    <div>
+                        {!sidebarCollapsed && (
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-2 px-1">
+                                Mode Operasional
+                            </p>
+                        )}
+                        <div className={`grid ${sidebarCollapsed ? 'grid-cols-1' : 'grid-cols-3'} gap-1.5 bg-[#1C1816] p-1.5 rounded-xl border border-[#2C2421]`}>
                             <button
-                                onClick={() => router.post('/logout')}
-                                className="px-3 py-1.5 rounded-xl bg-[#32151F]/80 hover:bg-rose-950/80 border border-rose-500/30 text-rose-300 text-xs font-medium flex items-center gap-1.5 transition-all shadow-sm"
-                                title="Keluar dari Akun Kasir"
+                                type="button"
+                                onClick={() => setMainTab('orders')}
+                                className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-[10px] font-medium transition-all ${
+                                    mainTab === 'orders'
+                                        ? 'bg-[#32151F] text-[#D4B886] shadow-sm font-bold border border-[#B99A65]/40'
+                                        : 'text-stone-400 hover:text-stone-200 hover:bg-[#241E1C]'
+                                }`}
+                                title="Antrean Pesanan"
                             >
-                                <LogOut className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Keluar</span>
+                                <ShoppingBag className="w-3.5 h-3.5 mb-1 text-[#D4B886]" />
+                                {!sidebarCollapsed && <span>Order</span>}
+                                <span className="text-[9px] font-mono opacity-80 font-bold">{orders.length}</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setMainTab('tables')}
+                                className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-[10px] font-medium transition-all ${
+                                    mainTab === 'tables'
+                                        ? 'bg-[#32151F] text-[#D4B886] shadow-sm font-bold border border-[#B99A65]/40'
+                                        : 'text-stone-400 hover:text-stone-200 hover:bg-[#241E1C]'
+                                }`}
+                                title="Denah & Alokasi Meja"
+                            >
+                                <TableIcon className="w-3.5 h-3.5 mb-1 text-[#D4B886]" />
+                                {!sidebarCollapsed && <span>Meja</span>}
+                                <span className="text-[9px] font-mono opacity-80 font-bold">{tables.length}</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setMainTab('reservations')}
+                                className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-[10px] font-medium transition-all ${
+                                    mainTab === 'reservations'
+                                        ? 'bg-[#32151F] text-[#D4B886] shadow-sm font-bold border border-[#B99A65]/40'
+                                        : 'text-stone-400 hover:text-stone-200 hover:bg-[#241E1C]'
+                                }`}
+                                title="Buku Reservasi"
+                            >
+                                <Calendar className="w-3.5 h-3.5 mb-1 text-[#D4B886]" />
+                                {!sidebarCollapsed && <span>Reservasi</span>}
+                                <span className="text-[9px] font-mono opacity-80 font-bold">{reservations.length}</span>
                             </button>
                         </div>
                     </div>
-                </div>
-            </header>
 
-            {/* ========================================================
-                2. OPERATIONAL SUMMARY METRICS (KARTU STATISTIK KASIR)
-            ======================================================== */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
-                    {/* 1. Menunggu ACC Kasir */}
-                    <div 
-                        onClick={() => { setMainTab('orders'); setSelectedStatus('pending'); }}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                            selectedStatus === 'pending' && mainTab === 'orders'
-                                ? 'bg-amber-950/40 border-amber-500 ring-2 ring-amber-500/30'
-                                : 'bg-[#1C1716] border-[#B99A65]/20 hover:border-amber-500/40 hover:bg-amber-950/20'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-stone-400">Perlu ACC Kasir</span>
-                            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-                                <Clock className="w-4 h-4 animate-pulse" />
+                    {/* App Shell 9: Pinned Items Section */}
+                    {!sidebarCollapsed && (
+                        <div className="space-y-1.5 pt-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 px-1">
+                                Prioritas Langsung
+                            </p>
+
+                            {/* Pinned 1: Menunggu ACC Kasir */}
+                            <div 
+                                onClick={() => { setMainTab('orders'); setSelectedStatus('pending'); }}
+                                className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                    metrics.pendingOrders > 0 
+                                        ? 'bg-amber-950/40 border-amber-800/60 hover:border-amber-600' 
+                                        : 'bg-[#1C1816] border-[#2C2421] opacity-70'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-stone-200 flex items-center gap-1.5">
+                                        <Wallet className="w-3.5 h-3.5 text-amber-400" />
+                                        <span>Menunggu Bayar</span>
+                                    </span>
+                                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-900/50 text-amber-300 font-mono">
+                                        {metrics.pendingOrders} order
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-stone-400 mt-1 truncate">
+                                    {metrics.pendingOrders > 0 ? 'Verifikasi pembayaran tunai / QRIS segera' : 'Semua transaksi telah lunas'}
+                                </p>
+                            </div>
+
+                            {/* Pinned 2: Dapur & Siap Diambil */}
+                            <div 
+                                onClick={() => { setMainTab('orders'); setSelectedStatus('ready'); }}
+                                className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                    metrics.readyOrders > 0 
+                                        ? 'bg-emerald-950/40 border-emerald-800/60 hover:border-emerald-600' 
+                                        : 'bg-[#1C1816] border-[#2C2421] opacity-70'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-stone-200 flex items-center gap-1.5">
+                                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                                        <span>Siap Diambil / Saji</span>
+                                    </span>
+                                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-900/50 text-emerald-300 font-mono">
+                                        {metrics.readyOrders} order
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-stone-400 mt-1 truncate">
+                                    {metrics.readyOrders > 0 ? 'Pesanan matang, siap diserahkan ke tamu' : 'Tidak ada antrean siap ambil'}
+                                </p>
+                            </div>
+
+                            {/* Pinned 3: Total Omzet Hari Ini */}
+                            <div className="p-2.5 rounded-xl border border-[#B99A65]/40 bg-[#32151F]/40">
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-[#D4B886] flex items-center gap-1.5">
+                                        <TrendingUp className="w-3.5 h-3.5" />
+                                        <span>Omzet Sesi Ini</span>
+                                    </span>
+                                </div>
+                                <p className="text-base font-bold text-[#F4EFE6] font-mono mt-1">
+                                    {formatIDR(metrics.todayRevenue)}
+                                </p>
                             </div>
                         </div>
-                        <p className="text-2xl font-bold font-mono text-amber-300 mt-2">
-                            {metrics.pendingOrders}
-                        </p>
-                        <p className="text-[10px] text-amber-400/80 mt-0.5">
-                            Menunggu verifikasi kasir
-                        </p>
-                    </div>
+                    )}
 
-                    {/* 2. Sedang Dimasak Dapur */}
-                    <div 
-                        onClick={() => { setMainTab('orders'); setSelectedStatus('preparing'); }}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                            selectedStatus === 'preparing' && mainTab === 'orders'
-                                ? 'bg-orange-950/40 border-orange-500 ring-2 ring-orange-500/30'
-                                : 'bg-[#1C1716] border-[#B99A65]/20 hover:border-orange-500/40 hover:bg-orange-950/20'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-stone-400">Sedang Dimasak</span>
-                            <div className="w-8 h-8 rounded-lg bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400">
-                                <Flame className="w-4 h-4" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold font-mono text-orange-300 mt-2">
-                            {metrics.preparingOrders}
-                        </p>
-                        <p className="text-[10px] text-orange-400/80 mt-0.5">
-                            Proses chef & dapur
-                        </p>
-                    </div>
-
-                    {/* 3. Siap Saji / Siap Diambil */}
-                    <div 
-                        onClick={() => { setMainTab('orders'); setSelectedStatus('ready'); }}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                            selectedStatus === 'ready' && mainTab === 'orders'
-                                ? 'bg-emerald-950/40 border-emerald-500 ring-2 ring-emerald-500/30'
-                                : 'bg-[#1C1716] border-[#B99A65]/20 hover:border-emerald-500/40 hover:bg-emerald-950/20'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-stone-400">Siap Saji / Ambil</span>
-                            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                                <Sparkles className="w-4 h-4 animate-bounce" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold font-mono text-emerald-300 mt-2">
-                            {metrics.readyOrders}
-                        </p>
-                        <p className="text-[10px] text-emerald-400/80 mt-0.5">
-                            Siap diantar / diserahkan
-                        </p>
-                    </div>
-
-                    {/* 4. Selesai Terhidang Hari Ini */}
-                    <div 
-                        onClick={() => { setMainTab('orders'); setSelectedStatus('completed'); }}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                            selectedStatus === 'completed' && mainTab === 'orders'
-                                ? 'bg-teal-950/40 border-teal-500 ring-2 ring-teal-500/30'
-                                : 'bg-[#1C1716] border-[#B99A65]/20 hover:border-teal-500/40 hover:bg-teal-950/20'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-stone-400">Selesai Hari Ini</span>
-                            <div className="w-8 h-8 rounded-lg bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-300">
-                                <CheckCheck className="w-4 h-4" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold font-mono text-teal-300 mt-2">
-                            {metrics.completedToday}
-                        </p>
-                        <p className="text-[10px] text-stone-400 mt-0.5">
-                            Served / Picked Up
-                        </p>
-                    </div>
-
-                    {/* 5. Total Pendapatan Terverifikasi Hari Ini */}
-                    <div className="col-span-2 lg:col-span-1 p-4 rounded-2xl bg-gradient-to-br from-[#32151F] to-[#211D1B] border border-[#B99A65]/40 shadow-lg">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-[#D4B886]">Omset Hari Ini</span>
-                            <div className="w-8 h-8 rounded-lg bg-[#B99A65]/20 border border-[#B99A65]/40 flex items-center justify-center text-[#D4B886]">
-                                <TrendingUp className="w-4 h-4" />
-                            </div>
-                        </div>
-                        <p className="text-xl font-bold font-mono text-[#F4EFE6] mt-2">
-                            {formatIDR(metrics.todayRevenue)}
-                        </p>
-                        <p className="text-[10px] text-stone-300 mt-0.5">
-                            Total transaksi lunas
-                        </p>
-                    </div>
-                </div>
-
-                {/* ========================================================
-                    3. NAVIGATION TABS: ORDERS / TABLES / RESERVATIONS
-                ======================================================== */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-800 pb-3">
-                    {/* Main Nav Segmented Control */}
-                    <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#1C1716] border border-[#B99A65]/30">
-                        <button
-                            onClick={() => setMainTab('orders')}
-                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-                                mainTab === 'orders'
-                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-md'
-                                    : 'text-stone-400 hover:text-white'
-                            }`}
-                        >
-                            <UtensilsCrossed className="w-3.5 h-3.5" />
-                            <span>Antrean Pesanan ({orders.length})</span>
-                        </button>
-
-                        <button
-                            onClick={() => setMainTab('tables')}
-                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-                                mainTab === 'tables'
-                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-md'
-                                    : 'text-stone-400 hover:text-white'
-                            }`}
-                        >
-                            <Store className="w-3.5 h-3.5" />
-                            <span>Denah Meja ({tables.length})</span>
-                        </button>
-
-                        <button
-                            onClick={() => setMainTab('reservations')}
-                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-                                mainTab === 'reservations'
-                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-md'
-                                    : 'text-stone-400 hover:text-white'
-                            }`}
-                        >
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>Reservasi Tamu ({reservations.length})</span>
-                        </button>
-                    </div>
-
-                    {/* Secondary Filter Buttons (When Tab is Orders) */}
-                    {mainTab === 'orders' && (
-                        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-                            {/* Type filter pills */}
-                            <div className="flex items-center gap-1 p-1 rounded-xl bg-black/40 border border-stone-800">
-                                <button
-                                    onClick={() => setSelectedType('all')}
-                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                                        selectedType === 'all' ? 'bg-[#32151F] text-[#D4B886]' : 'text-stone-400 hover:text-white'
-                                    }`}
-                                >
-                                    Semua
-                                </button>
-                                <button
-                                    onClick={() => setSelectedType('dine_in')}
-                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 ${
-                                        selectedType === 'dine_in' ? 'bg-[#32151F] text-[#D4B886]' : 'text-stone-400 hover:text-white'
-                                    }`}
-                                >
-                                    <UtensilsCrossed className="w-3 h-3" />
-                                    <span>Dine-in</span>
-                                </button>
-                                <button
-                                    onClick={() => setSelectedType('takeaway')}
-                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 ${
-                                        selectedType === 'takeaway' ? 'bg-[#32151F] text-[#D4B886]' : 'text-stone-400 hover:text-white'
-                                    }`}
-                                >
-                                    <ShoppingBag className="w-3 h-3" />
-                                    <span>Takeaway</span>
-                                </button>
+                    {/* App Shell 9: Recent Order Queue */}
+                    {!sidebarCollapsed && (
+                        <div className="space-y-1 pt-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 px-1">
+                                Antrean Terkini
+                            </p>
+                            <div className="max-h-40 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                                {orders.slice(0, 8).map((ord) => (
+                                    <button
+                                        key={ord.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setMainTab('orders');
+                                            setSearchQuery(ord.order_code);
+                                        }}
+                                        className="w-full flex items-center justify-between p-1.5 rounded-lg text-xs text-stone-300 hover:bg-[#211D1B] hover:text-[#D4B886] transition-colors text-left"
+                                    >
+                                        <span className="font-mono font-medium truncate">{ord.order_code}</span>
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/40 text-stone-400">
+                                            {ord.order_type === 'dine_in' ? ord.table_number || 'Dine-in' : 'Takeaway'}
+                                        </span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* ========================================================
-                    4. CONTENT TAB 1: CENTRALIZED ORDER QUEUE
-                ======================================================== */}
-                {mainTab === 'orders' && (
-                    <div className="space-y-4">
-                        {/* Sub Status Filter Pills */}
-                        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
-                            {[
-                                { id: 'all', label: 'Semua Status', count: orders.length, icon: Filter },
-                                { id: 'pending', label: 'Perlu ACC Kasir', count: metrics.pendingOrders, icon: Clock },
-                                { id: 'preparing', label: 'Sedang Dimasak', count: metrics.preparingOrders, icon: Flame },
-                                { id: 'ready', label: 'Siap Saji / Ambil', count: metrics.readyOrders, icon: Sparkles },
-                                { id: 'completed', label: 'Selesai', count: metrics.completedToday, icon: CheckCircle2 },
-                                { id: 'cancelled', label: 'Dibatalkan', count: orders.filter(o => o.order_status === 'Cancelled').length, icon: XCircle }
-                            ].map(st => {
-                                const IconComp = st.icon;
-                                return (
-                                    <button
-                                        key={st.id}
-                                        onClick={() => setSelectedStatus(st.id)}
-                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
-                                            selectedStatus === st.id
-                                                ? 'bg-[#B99A65]/20 border-[#D4B886] text-[#D4B886] shadow-sm'
-                                                : 'bg-[#1C1716] border-stone-800 text-stone-400 hover:text-stone-200 hover:border-stone-700'
-                                        }`}
-                                    >
-                                        <IconComp className="w-3.5 h-3.5" />
-                                        <span>{st.label}</span>
-                                        <span className="ml-1 px-1.5 py-0.2 rounded-full bg-black/40 text-[10px] font-mono">
-                                            {st.count}
-                                        </span>
-                                    </button>
-                                );
-                            })}
+                {/* Bottom Section: Cashier Profile & Logout */}
+                <div className="pt-3 border-t border-[#2C2421] space-y-2">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5 overflow-hidden">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#B99A65] to-[#D4B886] text-[#211D1B] flex items-center justify-center font-bold text-xs shrink-0 shadow">
+                                {cashierUser.name.charAt(0).toUpperCase()}
+                            </div>
+                            {!sidebarCollapsed && (
+                                <div className="truncate text-xs leading-tight">
+                                    <p className="font-semibold text-stone-200 truncate">{cashierUser.name}</p>
+                                    <p className="text-[10px] text-[#B99A65] truncate font-mono">Kasir Shift Aktif</p>
+                                </div>
+                            )}
                         </div>
 
-                        {/* List of Orders */}
-                        {filteredOrders.length === 0 ? (
-                            <div className="py-16 text-center rounded-2xl bg-[#1C1716] border border-[#B99A65]/20 space-y-3">
-                                <div className="w-12 h-12 mx-auto rounded-full bg-stone-800/80 flex items-center justify-center text-stone-500">
-                                    <UtensilsCrossed className="w-6 h-6" />
+                        {/* Logout with Alert Confirmation */}
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="p-2 rounded-xl bg-[#211D1B] hover:bg-rose-950/40 text-stone-400 hover:text-rose-400 border border-stone-800 transition-colors"
+                            title="Keluar dari Akun Kasir"
+                        >
+                            <LogOut className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            {/* ========================================================
+                APP SHELL 9: MAIN STAGE & OPERATIONAL CANVAS
+            ======================================================== */}
+            <main className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
+                {/* Top Navigation Bar with Official NUSARA Logo */}
+                <header className="h-16 border-b border-[#2C2421] bg-[#141110]/95 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20">
+                    {/* Left: Station Dropdown Pill */}
+                    <div className="flex items-center gap-3">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#211D1B] border border-stone-800 text-xs font-semibold text-stone-200 shadow-sm">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                            <span>Terminal Kasir Utama POS</span>
+                            <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+                        </div>
+                    </div>
+
+                    {/* Center: Official Logo (navbar/hero identity) */}
+                    <div className="flex items-center justify-center">
+                        <Link href="/kasir" className="inline-flex items-center gap-2 group">
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA — Nusantara & Rasa" 
+                                className="h-8 sm:h-9 w-auto object-contain drop-shadow group-hover:scale-105 transition-transform" 
+                            />
+                        </Link>
+                    </div>
+
+                    {/* Right: Actions */}
+                    <div className="flex items-center gap-2">
+                        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#211D1B] border border-stone-800 text-xs text-stone-400">
+                            <Clock className="w-3.5 h-3.5 text-[#B99A65]" />
+                            <span>{new Date().toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => router.reload()}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#211D1B] hover:bg-[#32151F] text-stone-300 hover:text-[#D4B886] border border-stone-800 transition-all text-xs"
+                            title="Segarkan data antrean"
+                        >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Segarkan</span>
+                        </button>
+                    </div>
+                </header>
+
+                {/* Main Content Stage */}
+                <div className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-8">
+                    
+                    {/* ========================================================
+                        APP SHELL 9: CENTER HERO & GREETING
+                    ======================================================== */}
+                    <div className="text-center max-w-2xl mx-auto pt-2 pb-4 space-y-3">
+                        {/* Avatar Icon Box */}
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#32151F] to-[#211D1B] border border-[#B99A65]/40 text-[#D4B886] mx-auto flex items-center justify-center shadow-lg">
+                            <Receipt className="w-7 h-7" />
+                        </div>
+
+                        {/* Title & Subtitle */}
+                        <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-[#F4EFE6] leading-tight">
+                            Terminal Kasir & Konfirmasi Order
+                        </h2>
+                        <p className="text-xs sm:text-sm text-stone-400 leading-relaxed max-w-lg mx-auto">
+                            Kelola verifikasi pembayaran tunai & QRIS, koordinasikan antrean dapur, serta proses serah terima pesanan takeaway.
+                        </p>
+                    </div>
+
+                    {/* ========================================================
+                        APP SHELL 9: FLOATING SEARCH & ACTION INPUT BOX
+                    ======================================================== */}
+                    <div className="max-w-2xl mx-auto">
+                        <div className="relative rounded-2xl bg-[#1C1816] border border-[#B99A65]/35 p-3 shadow-xl focus-within:border-[#D4B886] transition-all">
+                            <div className="flex items-center gap-3">
+                                <Search className="w-4 h-4 text-[#B99A65] shrink-0 ml-1" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Cari kode pesanan (#ORD-...), nama tamu, atau nomor meja..."
+                                    className="w-full bg-transparent border-0 text-[#F4EFE6] text-xs sm:text-sm focus:outline-none placeholder-stone-500 font-sans"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSearchQuery('')}
+                                        className="text-stone-400 hover:text-stone-200 text-xs px-2 py-1 rounded bg-[#2A2421]"
+                                    >
+                                        Batal
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ========================================================
+                        APP SHELL 9: 4 QUICK ACTION SUGGESTION CARDS
+                    ======================================================== */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 max-w-5xl mx-auto">
+                        {/* Card 1: Verifikasi Pembayaran */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setMainTab('orders');
+                                setSelectedStatus('pending');
+                                setSearchQuery('');
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition-all group flex flex-col justify-between ${
+                                mainTab === 'orders' && selectedStatus === 'pending'
+                                    ? 'bg-[#32151F]/80 border-[#D4B886] shadow-lg' 
+                                    : 'bg-[#141110] border-[#2C2421] hover:border-[#B99A65]/50 hover:bg-[#1C1816]'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between w-full mb-3">
+                                <div className="w-8 h-8 rounded-xl bg-amber-950/60 border border-amber-800/60 text-amber-400 flex items-center justify-center">
+                                    <Wallet className="w-4 h-4" />
                                 </div>
-                                <h3 className="font-heading text-lg font-bold text-[#D4B886]">
-                                    Tidak Ada Pesanan Ditemukan
+                                <ArrowUpRight className="w-4 h-4 text-stone-400 group-hover:text-amber-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-xs text-[#F4EFE6] group-hover:text-amber-400 transition-colors">
+                                    Verifikasi Pembayaran
                                 </h3>
-                                <p className="text-xs text-stone-400 max-w-sm mx-auto">
-                                    Tidak ada antrean pesanan yang cocok dengan kriteria filter atau kata kunci pencarian Anda saat ini.
+                                <p className="text-[11px] text-stone-400 mt-1 font-mono">
+                                    {metrics.pendingOrders} Pesanan Menunggu
                                 </p>
                             </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {filteredOrders.map(order => {
-                                    const badge = getStatusBadge(order.order_status);
-                                    const isPaid = order.payment?.payment_status === 'Success' || ['Paid', 'Confirmed', 'Preparing', 'Ready', 'Served', 'Picked Up'].includes(order.order_status);
+                        </button>
 
-                                    return (
-                                        <div 
-                                            key={order.id}
-                                            className="rounded-2xl bg-[#1C1716] border border-[#B99A65]/25 hover:border-[#D4B886]/60 transition-all shadow-md flex flex-col justify-between overflow-hidden"
+                        {/* Card 2: Status Dapur */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setMainTab('orders');
+                                setSelectedStatus('preparing');
+                                setSearchQuery('');
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition-all group flex flex-col justify-between ${
+                                mainTab === 'orders' && selectedStatus === 'preparing'
+                                    ? 'bg-[#32151F]/80 border-[#D4B886] shadow-lg' 
+                                    : 'bg-[#141110] border-[#2C2421] hover:border-[#B99A65]/50 hover:bg-[#1C1816]'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between w-full mb-3">
+                                <div className="w-8 h-8 rounded-xl bg-orange-950/60 border border-orange-800/60 text-orange-400 flex items-center justify-center">
+                                    <Flame className="w-4 h-4" />
+                                </div>
+                                <ArrowUpRight className="w-4 h-4 text-stone-400 group-hover:text-orange-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-xs text-[#F4EFE6] group-hover:text-orange-400 transition-colors">
+                                    Pesanan Dalam Dapur
+                                </h3>
+                                <p className="text-[11px] text-stone-400 mt-1 font-mono">
+                                    {metrics.preparingOrders} Sedang Dimasak
+                                </p>
+                            </div>
+                        </button>
+
+                        {/* Card 3: Siap Saji / Ambil */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setMainTab('orders');
+                                setSelectedStatus('ready');
+                                setSearchQuery('');
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition-all group flex flex-col justify-between ${
+                                mainTab === 'orders' && selectedStatus === 'ready'
+                                    ? 'bg-[#32151F]/80 border-[#D4B886] shadow-lg' 
+                                    : 'bg-[#141110] border-[#2C2421] hover:border-[#B99A65]/50 hover:bg-[#1C1816]'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between w-full mb-3">
+                                <div className="w-8 h-8 rounded-xl bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 flex items-center justify-center">
+                                    <ShoppingBag className="w-4 h-4" />
+                                </div>
+                                <ArrowUpRight className="w-4 h-4 text-stone-400 group-hover:text-emerald-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-xs text-[#F4EFE6] group-hover:text-emerald-400 transition-colors">
+                                    Siap Ambil / Saji
+                                </h3>
+                                <p className="text-[11px] text-stone-400 mt-1 font-mono">
+                                    {metrics.readyOrders} Siap Diserahkan
+                                </p>
+                            </div>
+                        </button>
+
+                        {/* Card 4: Buku Reservasi */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setMainTab('reservations');
+                                setSearchQuery('');
+                            }}
+                            className={`p-4 rounded-2xl border text-left transition-all group flex flex-col justify-between ${
+                                mainTab === 'reservations'
+                                    ? 'bg-[#32151F]/80 border-[#D4B886] shadow-lg' 
+                                    : 'bg-[#141110] border-[#2C2421] hover:border-[#B99A65]/50 hover:bg-[#1C1816]'
+                            }`}
+                        >
+                            <div className="flex items-center justify-between w-full mb-3">
+                                <div className="w-8 h-8 rounded-xl bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886] flex items-center justify-center">
+                                    <Calendar className="w-4 h-4" />
+                                </div>
+                                <ArrowUpRight className="w-4 h-4 text-stone-400 group-hover:text-[#D4B886] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-xs text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
+                                    Buku Reservasi Meja
+                                </h3>
+                                <p className="text-[11px] text-stone-400 mt-1 font-mono">
+                                    {reservations.length} Jadwal Hari Ini
+                                </p>
+                            </div>
+                        </button>
+                    </div>
+
+                    {/* ========================================================
+                        TAB WORKSPACE FEEDS
+                    ======================================================== */}
+                    {/* TAB 1: CENTRALIZED ORDER QUEUE */}
+                    {mainTab === 'orders' && (
+                        <div className="space-y-6 animate-in fade-in duration-300">
+                            {/* Filter Bar */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#2C2421]">
+                                <div>
+                                    <h3 className="font-heading text-xl font-bold text-[#F4EFE6] flex items-center gap-2">
+                                        <ShoppingBag className="w-5 h-5 text-[#D4B886]" />
+                                        <span>Antrean Pesanan Terpusat ({filteredOrders.length})</span>
+                                    </h3>
+                                    <p className="text-xs text-stone-400 mt-0.5">
+                                        Pantau pesanan Dine-in dan Takeaway, konfirmasi pembayaran, dan perbarui proses dapur.
+                                    </p>
+                                </div>
+
+                                {/* Status Filters */}
+                                <div className="flex items-center gap-1 bg-[#1C1816] p-1 rounded-xl border border-stone-800 text-xs flex-wrap">
+                                    {[
+                                        { id: 'all', label: 'Semua' },
+                                        { id: 'pending', label: 'Menunggu ACC' },
+                                        { id: 'preparing', label: 'Dapur' },
+                                        { id: 'ready', label: 'Siap' },
+                                        { id: 'completed', label: 'Selesai' },
+                                        { id: 'cancelled', label: 'Batal' }
+                                    ].map((f) => (
+                                        <button
+                                            key={f.id}
+                                            type="button"
+                                            onClick={() => setSelectedStatus(f.id)}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                                selectedStatus === f.id
+                                                    ? 'bg-[#32151F] text-[#D4B886] font-bold border border-[#B99A65]/40 shadow-sm'
+                                                    : 'text-stone-400 hover:text-stone-200'
+                                            }`}
                                         >
-                                            {/* Card Top: Order Code, Type & Status */}
-                                            <div className="p-4 border-b border-stone-800/80 space-y-2.5">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-mono text-sm font-bold text-[#D4B886] tracking-wider">
-                                                            {order.order_code}
-                                                        </span>
-                                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 ${
-                                                            order.order_type === 'dine_in'
-                                                                ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40'
-                                                                : 'bg-amber-950/60 text-amber-300 border border-amber-600/40'
-                                                        }`}>
-                                                            {order.order_type === 'dine_in' ? (
-                                                                <>
-                                                                    <UtensilsCrossed className="w-2.5 h-2.5" />
-                                                                    <span>{order.table_number || 'Meja'}</span>
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <ShoppingBag className="w-2.5 h-2.5" />
-                                                                    <span>Takeaway</span>
-                                                                </>
-                                                            )}
-                                                        </span>
-                                                    </div>
+                                            {f.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
 
-                                                    {/* Waktu Pesan */}
-                                                    <span className="text-[11px] text-stone-400 font-mono">
-                                                        {new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
-                                                    </span>
-                                                </div>
+                            {/* Orders Grid */}
+                            {filteredOrders.length === 0 ? (
+                                <div className="p-12 text-center rounded-3xl bg-[#141110] border border-[#2C2421]">
+                                    <CheckCircle2 className="w-12 h-12 text-[#D4B886]/60 mx-auto mb-3" />
+                                    <h4 className="font-heading text-lg font-bold text-stone-200">
+                                        Tidak Ada Pesanan Ditemukan
+                                    </h4>
+                                    <p className="text-xs text-stone-400 max-w-md mx-auto mt-1">
+                                        Tidak ada pesanan yang sesuai dengan filter atau kata kunci pencarian.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {filteredOrders.map((order) => {
+                                        const badge = getStatusBadge(order.order_status);
+                                        const isAwaitingPay = ['Pending', 'Awaiting Payment'].includes(order.order_status);
+                                        const isPaidConfirmed = ['Paid', 'Confirmed'].includes(order.order_status);
+                                        const isPreparing = order.order_status === 'Preparing';
+                                        const isReady = order.order_status === 'Ready';
+                                        const isDineIn = order.order_type === 'dine_in';
 
-                                                {/* Customer Name & Status Badge */}
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <div className="flex items-center gap-1.5 text-xs text-stone-300 truncate">
-                                                        <UserIcon className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                                                        <span className="font-semibold truncate">{order.customer_name || 'Tamu Restoran'}</span>
-                                                    </div>
-
-                                                    <div className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold tracking-wider flex items-center gap-1.5 ${badge.bg}`}>
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
-                                                        <span>{badge.label}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Card Middle: Ordered Items List */}
-                                            <div className="p-4 space-y-2 flex-1 text-xs">
-                                                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
-                                                    {(order.items || []).map((item, idx) => (
-                                                        <div key={idx} className="flex items-start justify-between gap-2 py-1 border-b border-stone-800/40 last:border-none">
-                                                            <div className="space-y-0.5 flex-1">
-                                                                <p className="font-medium text-[#F4EFE6] leading-tight">
-                                                                    <span className="font-bold text-[#D4B886] font-mono mr-1">{item.quantity}x</span>
-                                                                    <span>{item.menu_name_snapshot}</span>
-                                                                </p>
-                                                                {item.item_notes && (
-                                                                    <p className="text-[10px] text-amber-300/90 italic bg-amber-950/30 px-1.5 py-0.5 rounded border border-amber-500/20">
-                                                                        "{item.item_notes}"
-                                                                    </p>
-                                                                )}
+                                        return (
+                                            <div
+                                                key={order.id}
+                                                className="p-5 rounded-2xl bg-[#141110] border border-[#2C2421] hover:border-[#B99A65]/50 shadow-xl flex flex-col justify-between transition-all"
+                                            >
+                                                <div>
+                                                    {/* Top Info */}
+                                                    <div className="flex items-center justify-between pb-3 border-b border-stone-800">
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-mono text-xs font-bold text-[#D4B886]">
+                                                                    {order.order_code}
+                                                                </span>
+                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                                                    isDineIn 
+                                                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40' 
+                                                                        : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                                                                }`}>
+                                                                    {isDineIn ? (order.table_number || 'Dine-in') : 'Takeaway'}
+                                                                </span>
                                                             </div>
-                                                            <span className="font-mono text-stone-400 shrink-0 text-[11px]">
-                                                                {formatIDR(item.subtotal)}
+                                                            <p className="text-[11px] text-stone-400 mt-1 flex items-center gap-1.5">
+                                                                <UserIcon className="w-3.5 h-3.5 text-stone-400" />
+                                                                <span>{order.customer_name || 'Pelanggan'}</span>
+                                                                {order.customer_phone && <span className="text-stone-500 font-mono">({order.customer_phone})</span>}
+                                                            </p>
+                                                        </div>
+
+                                                        {/* Status Pill */}
+                                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1.5 ${badge.bg}`}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                                                            <span>{badge.label}</span>
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Item Breakdown */}
+                                                    <div className="py-3 space-y-2">
+                                                        <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                                                            Rincian Menu:
+                                                        </p>
+                                                        <ul className="space-y-1.5 text-xs text-stone-300">
+                                                            {(order.items || []).map((it, idx) => (
+                                                                <li key={idx} className="flex justify-between items-start">
+                                                                    <span>
+                                                                        <strong className="text-[#D4B886] font-mono mr-1.5">{it.quantity}x</strong>
+                                                                        {it.menu_name_snapshot}
+                                                                    </span>
+                                                                    <span className="text-stone-400 font-mono">{formatIDR(it.subtotal)}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+
+                                                        {order.customer_notes && (
+                                                            <div className="mt-2 p-2 rounded-lg bg-[#211D1B] border border-amber-900/40 text-[11px] text-amber-300">
+                                                                <strong>Catatan:</strong> {order.customer_notes}
+                                                            </div>
+                                                        )}
+
+                                                        <div className="pt-2 border-t border-stone-800 flex justify-between items-baseline text-xs">
+                                                            <span className="text-stone-400">Total Transaksi:</span>
+                                                            <span className="font-mono text-base font-bold text-[#F4EFE6]">
+                                                                {formatIDR(order.total)}
                                                             </span>
                                                         </div>
-                                                    ))}
-                                                </div>
-
-                                                {/* Order General Notes if any */}
-                                                {order.customer_notes && (
-                                                    <div className="p-2 rounded-lg bg-black/40 border border-stone-800 text-[11px] text-stone-300">
-                                                        <span className="font-bold text-[#D4B886]">Catatan: </span>
-                                                        <span>{order.customer_notes}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Card Bottom: Financial & Action Buttons */}
-                                            <div className="p-4 bg-black/40 border-t border-stone-800/80 space-y-3">
-                                                {/* Payment Status & Total */}
-                                                <div className="flex items-center justify-between text-xs">
-                                                    <div>
-                                                        <span className="text-stone-400 block text-[10px]">Total Pembayaran:</span>
-                                                        <span className="font-mono text-base font-bold text-[#D4B886]">
-                                                            {formatIDR(order.total)}
-                                                        </span>
-                                                    </div>
-
-                                                    <div className="text-right">
-                                                        <span className="text-stone-400 block text-[10px]">Status Bayar:</span>
-                                                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                                                            isPaid 
-                                                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                                                : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                                        }`}>
-                                                            {isPaid ? 'LUNAS' : 'BELUM DIBAYAR'}
-                                                        </span>
                                                     </div>
                                                 </div>
 
-                                                {/* Cashier Workflow Action Buttons */}
-                                                <div className="space-y-1.5 pt-1">
-                                                    {/* 1. Status: PENDING / Awaiting Payment */}
-                                                    {['Pending', 'Awaiting Payment', 'Paid'].includes(order.order_status) && (
+                                                {/* Action Controls for Cashier */}
+                                                <div className="pt-3 border-t border-stone-800 space-y-2">
+                                                    {/* 1. Jika Menunggu Bayar -> Terima Tunai / ACC */}
+                                                    {isAwaitingPay && (
                                                         <div className="grid grid-cols-2 gap-2">
-                                                            {!isPaid ? (
-                                                                <button
-                                                                    onClick={() => handleOpenCashModal(order)}
-                                                                    className="w-full py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-md transition-all active:scale-95"
-                                                                >
-                                                                    <Wallet className="w-3.5 h-3.5" />
-                                                                    <span>Bayar Tunai</span>
-                                                                </button>
-                                                            ) : null}
-
                                                             <button
-                                                                onClick={() => handleUpdateStatus(order.id, 'Preparing', 'Dikonfirmasi kasir, diteruskan ke dapur')}
-                                                                className={`${!isPaid ? 'col-span-1' : 'col-span-2'} py-2 px-2.5 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:brightness-110 text-[#211D1B] font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95`}
+                                                                type="button"
+                                                                onClick={() => handleOpenCashModal(order)}
+                                                                className="py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow"
                                                             >
-                                                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                                                                <span>ACC & Masak Dapur</span>
+                                                                <Wallet className="w-3.5 h-3.5" />
+                                                                <span>Bayar Tunai</span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleUpdateStatus(order.id, 'Paid', 'Konfirmasi kasir')}
+                                                                className="py-2 px-3 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs flex items-center justify-center gap-1.5 shadow"
+                                                            >
+                                                                <Check className="w-3.5 h-3.5" />
+                                                                <span>Konfirmasi Paid</span>
                                                             </button>
                                                         </div>
                                                     )}
 
-                                                    {/* 2. Status: PREPARING (Sedang Dimasak) */}
-                                                    {order.order_status === 'Preparing' && (
+                                                    {/* 2. Jika Paid/Confirmed -> Kirim ke Dapur */}
+                                                    {isPaidConfirmed && (
                                                         <button
-                                                            onClick={() => handleUpdateStatus(order.id, 'Ready', 'Dapur selesai memasak, pesanan siap')}
-                                                            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
+                                                            type="button"
+                                                            onClick={() => handleUpdateStatus(order.id, 'Preparing', 'Diteruskan ke dapur')}
+                                                            className="w-full py-2 px-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow"
                                                         >
-                                                            <Sparkles className="w-3.5 h-3.5" />
-                                                            <span>Tandai Siap Saji / Ambil (Ready)</span>
+                                                            <Flame className="w-4 h-4" />
+                                                            <span>Kirim ke Dapur (Preparing)</span>
                                                         </button>
                                                     )}
 
-                                                    {/* 3. Status: READY (Siap Disajikan atau Diambil) */}
-                                                    {order.order_status === 'Ready' && (
-                                                        <div>
-                                                            {order.order_type === 'takeaway' ? (
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(order.id, 'Picked Up', 'Pesanan takeaway telah diserahkan ke pelanggan')}
-                                                                    className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
-                                                                >
-                                                                    <ShoppingBag className="w-3.5 h-3.5" />
-                                                                    <span>Konfirmasi Diambil (Picked Up)</span>
-                                                                </button>
-                                                            ) : (
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(order.id, 'Served', 'Pesanan dine-in selesai diantar ke meja')}
-                                                                    className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
-                                                                >
-                                                                    <UtensilsCrossed className="w-3.5 h-3.5" />
-                                                                    <span>Konfirmasi Terhidang (Served)</span>
-                                                                </button>
-                                                            )}
-                                                        </div>
+                                                    {/* 3. Jika Preparing -> Tandai Siap (Ready) */}
+                                                    {isPreparing && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleUpdateStatus(order.id, 'Ready', 'Dapur selesai')}
+                                                            className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow"
+                                                        >
+                                                            <Sparkles className="w-4 h-4" />
+                                                            <span>Konfirmasi Matang (Ready)</span>
+                                                        </button>
                                                     )}
 
-                                                    {/* Secondary Buttons: Cetak Struk & Pembatalan */}
+                                                    {/* 4. Jika Ready & Takeaway -> Serahkan ke Tamu (Picked Up) */}
+                                                    {isReady && !isDineIn && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleUpdateStatus(order.id, 'Picked Up', 'Takeaway diserahkan')}
+                                                            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow"
+                                                        >
+                                                            <CheckCheck className="w-4 h-4" />
+                                                            <span>Serahkan Takeaway (Picked Up)</span>
+                                                        </button>
+                                                    )}
+
+                                                    {/* Secondary Buttons: Cetak Struk */}
                                                     <div className="flex items-center gap-2 pt-1">
                                                         <button
+                                                            type="button"
                                                             onClick={() => setReceiptOrder(order)}
-                                                            className="flex-1 py-1.5 rounded-lg bg-black/50 hover:bg-black/80 border border-stone-800 hover:border-[#B99A65]/40 text-stone-300 text-[11px] font-medium flex items-center justify-center gap-1 transition-all"
+                                                            className="flex-1 py-1.5 rounded-lg bg-[#211D1B] hover:bg-black border border-stone-800 text-stone-300 text-xs flex items-center justify-center gap-1 transition-colors"
                                                         >
-                                                            <Printer className="w-3 h-3 text-[#D4B886]" />
-                                                            <span>Cetak Struk</span>
+                                                            <Printer className="w-3.5 h-3.5 text-[#D4B886]" />
+                                                            <span>Cetak Struk POS</span>
                                                         </button>
 
-                                                        {['Pending', 'Awaiting Payment'].includes(order.order_status) && (
+                                                        {isAwaitingPay && (
                                                             <button
+                                                                type="button"
                                                                 onClick={() => {
                                                                     if (confirm(`Yakin ingin membatalkan pesanan #${order.order_code}?`)) {
                                                                         handleUpdateStatus(order.id, 'Cancelled', 'Dibatalkan oleh kasir');
                                                                     }
                                                                 }}
-                                                                className="px-2.5 py-1.5 rounded-lg bg-rose-950/30 hover:bg-rose-950/60 border border-rose-800/40 text-rose-400 text-[11px] font-medium transition-all"
-                                                                title="Batalkan Pesanan"
+                                                                className="px-2.5 py-1.5 rounded-lg bg-rose-950/40 text-rose-300 hover:bg-rose-900/50 border border-rose-800/40 text-xs transition-colors"
                                                             >
                                                                 Batalkan
                                                             </button>
@@ -826,202 +971,195 @@ export default function CashierDashboard({
                                                     </div>
                                                 </div>
                                             </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* TAB 2: DENAH & ALOKASI MEJA */}
+                    {mainTab === 'tables' && (
+                        <div className="space-y-6 animate-in fade-in duration-300">
+                            <div className="pb-3 border-b border-[#2C2421]">
+                                <h3 className="font-heading text-xl font-bold text-[#F4EFE6] flex items-center gap-2">
+                                    <TableIcon className="w-5 h-5 text-[#D4B886]" />
+                                    <span>Denah & Koordinasi Meja Restoran ({tables.length} Meja)</span>
+                                </h3>
+                                <p className="text-xs text-stone-400 mt-0.5">
+                                    Pantau kapasitas meja, kelola status terisi, dan koordinasikan alokasi dengan tim waiter.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {tables.map(tbl => {
+                                    const isOccupied = tbl.status === 'Occupied';
+                                    const isCleaning = tbl.status === 'Cleaning';
+                                    const isReserved = tbl.status === 'Reserved';
+
+                                    return (
+                                        <div 
+                                            key={tbl.id}
+                                            className={`p-4 rounded-2xl border transition-all ${
+                                                isOccupied
+                                                    ? 'bg-[#32151F]/40 border-rose-500/40'
+                                                    : isCleaning
+                                                    ? 'bg-amber-950/30 border-amber-500/40'
+                                                    : isReserved
+                                                    ? 'bg-sky-950/30 border-sky-500/40'
+                                                    : 'bg-[#141110] border-stone-800'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="font-heading text-base font-bold text-[#D4B886]">
+                                                    {tbl.table_number}
+                                                </span>
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                    isOccupied ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
+                                                    isCleaning ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                                                    isReserved ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' :
+                                                    'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                                }`}>
+                                                    {tbl.status}
+                                                </span>
+                                            </div>
+
+                                            <div className="space-y-1 text-xs text-stone-400 mb-4">
+                                                <p>Kapasitas: <span className="text-white font-bold">{tbl.capacity} Orang</span></p>
+                                                <p>Lokasi: <span className="text-white font-medium">{tbl.location}</span></p>
+                                                {tbl.active_session && (
+                                                    <p className="text-[10px] text-[#B99A65] font-mono mt-1">
+                                                        Sesi: {tbl.active_session.session_code}
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            <div className="pt-2 border-t border-stone-800">
+                                                <select
+                                                    value={tbl.status}
+                                                    onChange={(e) => handleTableStatusChange(tbl.id, e.target.value)}
+                                                    className="w-full px-2 py-1.5 rounded-xl bg-black/60 border border-stone-700 text-xs text-stone-200 focus:outline-none focus:border-[#D4B886]"
+                                                >
+                                                    <option value="Available">Available (Kosong)</option>
+                                                    <option value="Occupied">Occupied (Terisi)</option>
+                                                    <option value="Reserved">Reserved (Dipesan)</option>
+                                                    <option value="Cleaning">Cleaning (Dibersihkan)</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     );
                                 })}
                             </div>
-                        )}
-                    </div>
-                )}
+                        </div>
+                    )}
 
-                {/* ========================================================
-                    5. CONTENT TAB 2: RESTAURANT TABLE STATUS BOARD
-                ======================================================== */}
-                {mainTab === 'tables' && (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="font-heading text-lg font-bold text-[#D4B886]">
-                                    Manajemen & Koordinasi Meja Restoran
+                    {/* TAB 3: BUKU RESERVASI */}
+                    {mainTab === 'reservations' && (
+                        <div className="space-y-6 animate-in fade-in duration-300">
+                            <div className="pb-3 border-b border-[#2C2421]">
+                                <h3 className="font-heading text-xl font-bold text-[#F4EFE6] flex items-center gap-2">
+                                    <Calendar className="w-5 h-5 text-[#D4B886]" />
+                                    <span>Buku Reservasi Tamu Restoran ({reservations.length})</span>
                                 </h3>
-                                <p className="text-xs text-stone-400">
-                                    Pantau kapasitas, status terisi, dan koordinasikan meja dengan staf waiter.
+                                <p className="text-xs text-stone-400 mt-0.5">
+                                    Kelola konfirmasi kedatangan dan alokasikan meja tamu prioritas hari ini.
                                 </p>
                             </div>
-                        </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {tables.map(tbl => {
-                                const isOccupied = tbl.status === 'Occupied';
-                                const isCleaning = tbl.status === 'Cleaning';
-                                const isReserved = tbl.status === 'Reserved';
+                            {reservations.length === 0 ? (
+                                <div className="py-16 text-center rounded-2xl bg-[#141110] border border-[#2C2421]">
+                                    <Calendar className="w-10 h-10 text-stone-500 mx-auto mb-2" />
+                                    <p className="text-sm font-semibold text-[#D4B886]">Belum Ada Reservasi Aktif</p>
+                                    <p className="text-xs text-stone-400">Jadwal reservasi tamu mendatang akan tampil di sini.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {reservations.map(res => (
+                                        <div key={res.id} className="p-4 rounded-2xl bg-[#141110] border border-[#2C2421] space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-mono text-xs font-bold text-[#D4B886]">
+                                                    {res.reservation_code}
+                                                </span>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40 font-bold uppercase">
+                                                    {res.status}
+                                                </span>
+                                            </div>
 
-                                return (
-                                    <div 
-                                        key={tbl.id}
-                                        className={`p-4 rounded-2xl border transition-all ${
-                                            isOccupied
-                                                ? 'bg-[#32151F]/40 border-rose-500/40 shadow-rose-950/30'
-                                                : isCleaning
-                                                ? 'bg-amber-950/30 border-amber-500/40'
-                                                : isReserved
-                                                ? 'bg-sky-950/30 border-sky-500/40'
-                                                : 'bg-[#1C1716] border-[#B99A65]/20 hover:border-[#D4B886]/40'
-                                        }`}
-                                    >
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className="font-heading text-base font-bold text-[#D4B886]">
-                                                {tbl.table_number}
-                                            </span>
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                                isOccupied
-                                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                                    : isCleaning
-                                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                                    : isReserved
-                                                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
-                                                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                            }`}>
-                                                {tbl.status}
-                                            </span>
-                                        </div>
-
-                                        <div className="space-y-1 text-xs text-stone-400 mb-4">
-                                            <p>Kapasitas: <span className="text-white font-bold">{tbl.capacity} Orang</span></p>
-                                            <p>Lokasi: <span className="text-white font-medium">{tbl.location}</span></p>
-                                            {tbl.active_session && (
-                                                <p className="text-[10px] text-[#B99A65] font-mono mt-1">
-                                                    Sesi: {tbl.active_session.session_code}
+                                            <div className="space-y-1 text-xs">
+                                                <p className="font-bold text-[#F4EFE6] text-sm">{res.customer_name || 'Tamu Reservasi'}</p>
+                                                <p className="text-stone-400 flex items-center gap-1.5">
+                                                    <Phone className="w-3 h-3 text-[#B99A65]" />
+                                                    <span>{res.customer_phone || '-'}</span>
                                                 </p>
-                                            )}
-                                        </div>
-
-                                        {/* Status Switcher Action */}
-                                        <div className="pt-2 border-t border-stone-800/80">
-                                            <select
-                                                value={tbl.status}
-                                                onChange={(e) => handleTableStatusChange(tbl.id, e.target.value)}
-                                                className="w-full px-2 py-1.5 rounded-xl bg-black/60 border border-stone-700 text-xs text-stone-200 focus:outline-none focus:border-[#D4B886]"
-                                            >
-                                                <option value="Available">Available (Kosong)</option>
-                                                <option value="Occupied">Occupied (Terisi)</option>
-                                                <option value="Reserved">Reserved (Dipesan)</option>
-                                                <option value="Cleaning">Cleaning (Dibersihkan)</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* ========================================================
-                    6. CONTENT TAB 3: RESERVATIONS BOARD
-                ======================================================== */}
-                {mainTab === 'reservations' && (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="font-heading text-lg font-bold text-[#D4B886]">
-                                    Kelola Reservasi Tamu Restoran
-                                </h3>
-                                <p className="text-xs text-stone-400">
-                                    Konfirmasi kedatangan dan alokasikan meja untuk tamu reservasi hari ini.
-                                </p>
-                            </div>
-                        </div>
-
-                        {reservations.length === 0 ? (
-                            <div className="py-16 text-center rounded-2xl bg-[#1C1716] border border-[#B99A65]/20">
-                                <Calendar className="w-8 h-8 text-stone-500 mx-auto mb-2" />
-                                <p className="text-sm font-semibold text-[#D4B886]">Belum Ada Reservasi Aktif</p>
-                                <p className="text-xs text-stone-400">Reservasi tamu mendatang akan muncul di sini.</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {reservations.map(res => (
-                                    <div key={res.id} className="p-4 rounded-2xl bg-[#1C1716] border border-[#B99A65]/25 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <span className="font-mono text-xs font-bold text-[#D4B886]">
-                                                {res.reservation_code}
-                                            </span>
-                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40 font-bold uppercase">
-                                                {res.status}
-                                            </span>
-                                        </div>
-
-                                        <div className="space-y-1 text-xs">
-                                            <p className="font-bold text-[#F4EFE6] text-sm">{res.customer_name || 'Tamu Reservasi'}</p>
-                                            <p className="text-stone-400 flex items-center gap-1.5">
-                                                <Phone className="w-3 h-3 text-[#B99A65]" />
-                                                <span>{res.customer_phone || '-'}</span>
-                                            </p>
-                                            <p className="text-stone-400 flex items-center gap-1.5">
-                                                <Clock className="w-3 h-3 text-[#B99A65]" />
-                                                <span>{new Date(res.reservation_datetime).toLocaleString('id-ID')}</span>
-                                            </p>
-                                            <p className="text-stone-400 flex items-center gap-1.5">
-                                                <UserIcon className="w-3 h-3 text-[#B99A65]" />
-                                                <span>{res.guest_count} Orang Guest</span>
-                                            </p>
-                                            {res.experience_name && (
-                                                <p className="text-[11px] font-semibold text-[#D4B886] mt-1">
-                                                    Paket: {res.experience_name}
+                                                <p className="text-stone-400 flex items-center gap-1.5">
+                                                    <Clock className="w-3 h-3 text-[#B99A65]" />
+                                                    <span>{new Date(res.reservation_datetime).toLocaleString('id-ID')}</span>
                                                 </p>
-                                            )}
-                                        </div>
+                                                <p className="text-stone-400 flex items-center gap-1.5">
+                                                    <UserIcon className="w-3 h-3 text-[#B99A65]" />
+                                                    <span>{res.guest_count} Orang Tamu</span>
+                                                </p>
+                                                {res.experience_name && (
+                                                    <p className="text-[11px] font-semibold text-[#D4B886] mt-1">
+                                                        Paket: {res.experience_name}
+                                                    </p>
+                                                )}
+                                            </div>
 
-                                        {/* Action buttons */}
-                                        <div className="pt-2 border-t border-stone-800 flex items-center gap-2">
-                                            {res.status === 'Pending' && (
+                                            <div className="pt-2 border-t border-stone-800 flex items-center gap-2">
+                                                {res.status === 'Pending' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleReservationStatusChange(res.id, 'Confirmed')}
+                                                        className="flex-1 py-1.5 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs"
+                                                    >
+                                                        Konfirmasi
+                                                    </button>
+                                                )}
+                                                {res.status === 'Confirmed' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleReservationStatusChange(res.id, 'Seated')}
+                                                        className="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                                                    >
+                                                        Tamu Duduk (Seated)
+                                                    </button>
+                                                )}
+                                                {res.status === 'Seated' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleReservationStatusChange(res.id, 'Completed')}
+                                                        className="flex-1 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs"
+                                                    >
+                                                        Selesai
+                                                    </button>
+                                                )}
                                                 <button
-                                                    onClick={() => handleReservationStatusChange(res.id, 'Confirmed')}
-                                                    className="flex-1 py-1.5 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs"
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (confirm('Batalkan reservasi ini?')) {
+                                                            handleReservationStatusChange(res.id, 'Cancelled');
+                                                        }
+                                                    }}
+                                                    className="px-3 py-1.5 rounded-xl bg-stone-800 text-stone-400 hover:text-rose-300 text-xs"
                                                 >
-                                                    Konfirmasi
+                                                    Batal
                                                 </button>
-                                            )}
-                                            {res.status === 'Confirmed' && (
-                                                <button
-                                                    onClick={() => handleReservationStatusChange(res.id, 'Seated')}
-                                                    className="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
-                                                >
-                                                    Tamu Duduk (Seated)
-                                                </button>
-                                            )}
-                                            {res.status === 'Seated' && (
-                                                <button
-                                                    onClick={() => handleReservationStatusChange(res.id, 'Completed')}
-                                                    className="flex-1 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs"
-                                                >
-                                                    Selesai
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => {
-                                                    if (confirm('Batalkan reservasi ini?')) {
-                                                        handleReservationStatusChange(res.id, 'Cancelled');
-                                                    }
-                                                }}
-                                                className="px-3 py-1.5 rounded-xl bg-stone-800 text-stone-400 hover:text-rose-300 text-xs"
-                                            >
-                                                Batal
-                                            </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </main>
 
             {/* ========================================================
-                7. MODAL CASH PAYMENT CONFIRMATION (BAYAR TUNAI DI KASIR)
+                MODAL: CASH PAYMENT CONFIRMATION
             ======================================================== */}
             {cashPaymentOrder && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="w-full max-w-md rounded-2xl bg-[#1C1716] border border-[#B99A65]/40 shadow-2xl p-6 space-y-4">
                         <div className="flex items-center justify-between pb-3 border-b border-stone-800">
                             <div className="flex items-center gap-2">
@@ -1031,6 +1169,7 @@ export default function CashierDashboard({
                                 </h3>
                             </div>
                             <button 
+                                type="button"
                                 onClick={() => setCashPaymentOrder(null)}
                                 className="text-stone-400 hover:text-white"
                             >
@@ -1058,7 +1197,6 @@ export default function CashierDashboard({
                                 </div>
                             </div>
 
-                            {/* Input Uang Tunai Diterima */}
                             <div className="space-y-1.5">
                                 <label className="text-xs font-semibold text-stone-300">
                                     Nominal Uang Tunai Diterima (Rp):
@@ -1072,7 +1210,6 @@ export default function CashierDashboard({
                                 />
                             </div>
 
-                            {/* Hitungan Kembalian */}
                             <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex justify-between items-center">
                                 <span className="font-semibold text-emerald-300">Kembalian ke Pelanggan:</span>
                                 <span className="font-mono text-base font-bold text-emerald-400">
@@ -1081,7 +1218,6 @@ export default function CashierDashboard({
                             </div>
                         </div>
 
-                        {/* Submit Button */}
                         <div className="pt-2 flex items-center gap-2">
                             <button
                                 type="button"
@@ -1103,17 +1239,21 @@ export default function CashierDashboard({
             )}
 
             {/* ========================================================
-                8. MODAL CETAK STRUK RESMI KASIR NUSARA (RECEIPT MODAL)
+                MODAL: RECEIPT PRINT
             ======================================================== */}
             {receiptOrder && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="w-full max-w-sm rounded-2xl bg-white text-[#211D1B] shadow-2xl p-6 space-y-4 font-mono max-h-[90vh] overflow-y-auto">
-                        {/* Struk Thermal View Header */}
                         <div className="text-center space-y-1 pb-3 border-b border-dashed border-stone-300">
-                            <h2 className="font-heading text-2xl font-bold tracking-wider text-[#32151F]">
-                                NUSARA
-                            </h2>
-                            <p className="text-[11px] uppercase tracking-widest text-stone-600">
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA" 
+                                className="h-10 w-auto object-contain mx-auto mb-1 filter invert"
+                                onError={(e) => {
+                                    (e.target as HTMLElement).style.display = 'none';
+                                }}
+                            />
+                            <p className="text-[11px] uppercase tracking-widest text-stone-600 font-bold">
                                 Restoran Nusantara & Rasa
                             </p>
                             <p className="text-[10px] text-stone-500 leading-tight">
@@ -1124,7 +1264,6 @@ export default function CashierDashboard({
                             </p>
                         </div>
 
-                        {/* Order Metadata */}
                         <div className="text-[11px] space-y-1 pb-3 border-b border-dashed border-stone-300 text-stone-700">
                             <div className="flex justify-between">
                                 <span>No. Struk:</span>
@@ -1150,7 +1289,6 @@ export default function CashierDashboard({
                             </div>
                         </div>
 
-                        {/* Item Breakdown */}
                         <div className="space-y-2 text-[11px] pb-3 border-b border-dashed border-stone-300">
                             {(receiptOrder.items || []).map((it, idx) => (
                                 <div key={idx} className="space-y-0.5">
@@ -1165,7 +1303,6 @@ export default function CashierDashboard({
                             ))}
                         </div>
 
-                        {/* Totals */}
                         <div className="text-xs space-y-1 pb-3 border-b border-dashed border-stone-300">
                             <div className="flex justify-between text-stone-600">
                                 <span>Subtotal:</span>
@@ -1191,14 +1328,12 @@ export default function CashierDashboard({
                             </div>
                         </div>
 
-                        {/* Struk Footer Greeting */}
                         <div className="text-center text-[10px] text-stone-500 space-y-1">
                             <p className="font-serif italic text-stone-700">"Matur Nuwun / Terima Kasih"</p>
                             <p>Cita Rasa Luhur Nusantara di Setiap Suapan</p>
                             <p className="text-[9px] text-stone-400">Simpan struk ini sebagai bukti pembayaran resmi</p>
                         </div>
 
-                        {/* Action Buttons: Print and Close */}
                         <div className="pt-2 flex items-center gap-2 print:hidden font-sans">
                             <button
                                 type="button"
