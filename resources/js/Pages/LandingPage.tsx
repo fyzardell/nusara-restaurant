@@ -45,7 +45,13 @@ interface Props {
     operatingHours: OperatingHour[];
 }
 
-export default function LandingPage({ settings, categories, menus, experiences, operatingHours }: Props) {
+export default function LandingPage({ 
+    settings, 
+    categories = [], 
+    menus = [], 
+    experiences = [], 
+    operatingHours = [] 
+}: Props) {
     const { auth, flash } = usePage<{ auth: { user: User | null }; flash: { success?: string; error?: string } }>().props;
 
     // Modals state
@@ -55,15 +61,7 @@ export default function LandingPage({ settings, categories, menus, experiences, 
     const [selectedExperience, setSelectedExperience] = useState<DiningExperience | null>(null);
     const [sidePanelOpen, setSidePanelOpen] = useState<boolean>(false);
     const [splashFading, setSplashFading] = useState<boolean>(false);
-    const [showSplash, setShowSplash] = useState<boolean>(() => {
-        if (typeof window !== 'undefined') {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('nosplash') === '1') {
-                return false;
-            }
-        }
-        return true;
-    });
+    const [showSplash, setShowSplash] = useState<boolean>(false);
 
     const handleSplashFinish = () => {
         setSplashFading(true);

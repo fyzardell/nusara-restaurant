@@ -59,12 +59,12 @@ interface CartItem {
 }
 
 export default function OrderApp({ 
-    categories, 
-    menus, 
-    favorites: initialFavorites, 
-    orders: initialOrders, 
-    chatMessages: initialChats, 
-    tables, 
+    categories = [], 
+    menus = [], 
+    favorites: initialFavorites = [], 
+    orders: initialOrders = [], 
+    chatMessages: initialChats = [], 
+    tables = [], 
     settings,
     initialTable,
     initialType,
