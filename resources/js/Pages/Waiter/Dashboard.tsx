@@ -31,8 +31,12 @@ import {
 import { RestaurantTable, WaiterMetrics, Order } from '../../types';
 
 interface WaiterOrder extends Order {
+    customer_name?: string;
     customer_phone?: string;
+    table_number?: string;
     session_code?: string;
+    table?: { id?: number; table_number?: string; location?: string } | null;
+    customer?: { id?: number; name?: string; phone_normalized?: string; email?: string } | null;
 }
 
 interface Props {
@@ -141,8 +145,8 @@ export default function WaiterDashboard({
         const q = searchQuery.toLowerCase();
         return readyOrders.filter(o => 
             o.order_code.toLowerCase().includes(q) ||
-            (o.table?.table_number || '').toLowerCase().includes(q) ||
-            (o.customer?.name || '').toLowerCase().includes(q)
+            (o.table_number || o.table?.table_number || '').toLowerCase().includes(q) ||
+            (o.customer_name || o.customer?.name || '').toLowerCase().includes(q)
         );
     }, [readyOrders, searchQuery]);
 
@@ -657,7 +661,7 @@ export default function WaiterDashboard({
                                                         </span>
                                                         <div className="text-[11px] text-stone-400 mt-0.5 flex items-center gap-1.5">
                                                             <Users className="w-3.5 h-3.5 text-stone-400" />
-                                                            <span>{order.customer?.name || 'Tamu Dine-in'}</span>
+                                                            <span>{order.customer_name || order.customer?.name || 'Tamu Dine-in'}</span>
                                                         </div>
                                                     </div>
 
@@ -667,7 +671,7 @@ export default function WaiterDashboard({
                                                             Antar Ke
                                                         </span>
                                                         <span className="font-heading font-bold text-base text-[#F4EFE6] leading-none">
-                                                            {order.table?.table_number || 'Meja Walk-in'}
+                                                            {order.table_number || order.table?.table_number || 'Meja Walk-in'}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -730,7 +734,7 @@ export default function WaiterDashboard({
                                                 <div className="flex items-center justify-between">
                                                     <span className="font-mono text-[11px] text-amber-400 font-bold">{ord.order_code}</span>
                                                     <span className="px-2 py-0.5 rounded bg-amber-950/60 border border-amber-900/60 text-[10px] text-amber-300">
-                                                        {ord.table?.table_number || 'Dine-in'}
+                                                        {ord.table_number || ord.table?.table_number || 'Dine-in'}
                                                     </span>
                                                 </div>
                                                 <p className="text-[11px] text-stone-400 mt-2 truncate">
@@ -931,7 +935,7 @@ export default function WaiterDashboard({
                                                             TERSAJI
                                                         </span>
                                                         <span className="text-stone-400 font-semibold">
-                                                            {ord.table?.table_number || 'Meja Dine-in'}
+                                                            {ord.table_number || ord.table?.table_number || 'Meja Dine-in'}
                                                         </span>
                                                     </div>
                                                     <p className="text-[11px] text-stone-400 mt-1">
@@ -943,7 +947,7 @@ export default function WaiterDashboard({
                                                     <span className="font-mono font-bold text-stone-200 block">
                                                         {formatRupiah(ord.total)}
                                                     </span>
-                                                    <span>{ord.customer?.name || 'Pelanggan'}</span>
+                                                    <span>{ord.customer_name || ord.customer?.name || 'Pelanggan'}</span>
                                                 </div>
                                             </div>
                                         ))}
