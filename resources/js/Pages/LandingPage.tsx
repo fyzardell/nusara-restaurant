@@ -61,7 +61,17 @@ export default function LandingPage({
     const [selectedExperience, setSelectedExperience] = useState<DiningExperience | null>(null);
     const [sidePanelOpen, setSidePanelOpen] = useState<boolean>(false);
     const [splashFading, setSplashFading] = useState<boolean>(false);
-    const [showSplash, setShowSplash] = useState<boolean>(true);
+    // Tampilkan splashscreen selamat datang di beranda pada kunjungan pertama sesi.
+    // Jika kembali ke beranda dari halaman lain (order, admin, login), tidak akan double splashscreen.
+    const [showSplash, setShowSplash] = useState<boolean>(() => {
+        if (typeof window !== 'undefined') {
+            const alreadySeen = sessionStorage.getItem('nusara_home_splash_seen');
+            if (alreadySeen === 'true') {
+                return false;
+            }
+        }
+        return true;
+    });
     const [isPageReady, setIsPageReady] = useState<boolean>(false);
 
     // Deteksi kesiapan render landing page:
@@ -83,6 +93,9 @@ export default function LandingPage({
     }, []);
 
     const handleSplashFinish = () => {
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem('nusara_home_splash_seen', 'true');
+        }
         setSplashFading(true);
         setTimeout(() => {
             setShowSplash(false);

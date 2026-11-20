@@ -58,6 +58,8 @@ export default function NusaraAssembleTransition() {
 
     const svgRef = useRef<SVGSVGElement | null>(null);
     const dotsRef = useRef<HTMLSpanElement | null>(null);
+    const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isActiveRef = useRef<boolean>(false);
     const isTargetReadyRef = useRef<boolean>(false);
     const isEndingRef = useRef<boolean>(false);
     const animFrameIdRef = useRef<number | null>(null);
@@ -65,33 +67,70 @@ export default function NusaraAssembleTransition() {
     // Deteksi navigasi antar halaman dari Inertia router
     useEffect(() => {
         const unregisterStart = router.on('start', (event) => {
-            const rawUrl = event.detail.visit.url;
-            let pathname = '';
-            if (typeof rawUrl === 'string') {
-                try {
-                    pathname = new URL(rawUrl, window.location.origin).pathname;
-                } catch {
-                    pathname = rawUrl;
-                }
-            } else if (rawUrl && typeof rawUrl === 'object') {
-                pathname = (rawUrl as any).pathname || (rawUrl as any).href || '';
-            }
+            const visit = event.detail.visit;
             
-            // Pengecualian mutlak: Jika menuju beranda '/', JANGAN gunakan animasi ini
-            // karena beranda sudah memiliki splashscreen sendiri
-            const isHome = pathname === '/' || pathname === '' || pathname.endsWith('8000/') || pathname.endsWith('.test/');
-            if (isHome) {
+            // 1. Abaikan partial reload (misalnya live cart sync, polling, filter katalog internal)
+            if (visit.only && visit.only.length > 0) {
                 return;
             }
 
-            // Aktifkan animasi Assemble untuk perpindahan halaman selain beranda
+            // 2. Dapatkan target pathname
+            const rawUrl = visit.url;
+            let targetPath = '';
+            if (typeof rawUrl === 'string') {
+                try {
+                    targetPath = new URL(rawUrl, window.location.origin).pathname;
+                } catch {
+                    targetPath = rawUrl;
+                }
+            } else if (rawUrl && typeof rawUrl === 'object') {
+                targetPath = (rawUrl as any).pathname || (rawUrl as any).href || '';
+            }
+
+            const currentPath = window.location.pathname;
+            const normCurrent = (currentPath || '/').replace(/\/+$/, '') || '/';
+            const normTarget = (targetPath || '/').replace(/\/+$/, '') || '/';
+
+            // 3. Abaikan navigasi pada halaman yang sama dengan metode GET (misal query parameter/hash saja)
+            const method = (visit.method || 'get').toLowerCase();
+            if (normCurrent === normTarget && method === 'get') {
+                return;
+            }
+
+            // 4. Jika menuju beranda ('/') dan belum pernah melihat splash beranda,
+            // beranda akan menampilkan intro splashscreen-nya sendiri, jadi jangan double splash!
+            if ((normTarget === '/' || normTarget === '') && typeof window !== 'undefined' && !sessionStorage.getItem('nusara_home_splash_seen')) {
+                return;
+            }
+
+            // Reset pending timer jika ada navigasi sebelumnya yang belum selesai
+            if (pendingTimerRef.current) {
+                clearTimeout(pendingTimerRef.current);
+                pendingTimerRef.current = null;
+            }
+
             isTargetReadyRef.current = false;
             isEndingRef.current = false;
-            setIsFadingOut(false);
-            setIsActive(true);
+
+            // 5. Aturan Ambang Batas 0.5 Detik (500ms):
+            // Jangan langsung munculkan loading screen.
+            // Hanya aktifkan jika proses perpindahan halaman membutuhkan waktu memuat LEBIH DARI 0.5 detik.
+            // Jika halaman selesai dimuat cepat (<500ms), loading screen tidak pernah muncul sama sekali.
+            pendingTimerRef.current = setTimeout(() => {
+                isActiveRef.current = true;
+                setIsFadingOut(false);
+                setIsActive(true);
+            }, 500);
         });
 
         const unregisterFinish = router.on('finish', () => {
+            // Jika selesai memuat halaman dalam waktu < 500ms, batalkan timer
+            // sehingga loading screen TIDAK PERNAH muncul sama sekali
+            if (pendingTimerRef.current) {
+                clearTimeout(pendingTimerRef.current);
+                pendingTimerRef.current = null;
+            }
+
             // Halaman tertuju telah selesai dimuat oleh Inertia
             // Beri jeda 1 frame agar browser sepenuhnya selesai me-render DOM halaman tujuan
             requestAnimationFrame(() => {
@@ -103,14 +142,22 @@ export default function NusaraAssembleTransition() {
                         window.removeEventListener('load', handleLoad);
                     };
                     window.addEventListener('load', handleLoad);
-                    setTimeout(() => { isTargetReadyRef.current = true; }, 400);
+                    setTimeout(() => { isTargetReadyRef.current = true; }, 300);
                 }
             });
+
+            // Jika loading screen tidak pernah aktif (karena navigasi selesai cepat <500ms), pastikan tetap nonaktif
+            if (!isActiveRef.current) {
+                setIsActive(false);
+            }
         });
 
         return () => {
             unregisterStart();
             unregisterFinish();
+            if (pendingTimerRef.current) {
+                clearTimeout(pendingTimerRef.current);
+            }
         };
     }, []);
 
@@ -227,19 +274,21 @@ export default function NusaraAssembleTransition() {
 
         function loop(now: number) {
             if (stopped) return;
-            const elapsed = (now - t0) / 1000;
+            const elapsed = ((now - t0) / 1000) * 1.12;
             const cycleTime = elapsed % T_ALL;
 
             frame(cycleTime);
 
             // Periksa syarat penyelesaian animasi:
-            // 1. Animasi telah menyelesaikan siklus pembentukan logo (cycleTime >= T_EXIT)
+            // 1. Animasi telah menyelesaikan siklus penuh pembentukan logo (cycleTime >= T_EXIT)
+            //    -> Tidak akan pernah berhenti di pertengahan animasi meskipun halaman sudah selesai dimuat lebih dulu!
             // 2. Halaman tertuju telah selesai 100% di-render (isTargetReadyRef.current === true)
             if (cycleTime >= T_EXIT && isTargetReadyRef.current && !isEndingRef.current) {
                 isEndingRef.current = true;
                 setIsFadingOut(true);
                 setTimeout(() => {
                     stopped = true;
+                    isActiveRef.current = false;
                     setIsActive(false);
                     setIsFadingOut(false);
                 }, 500);
