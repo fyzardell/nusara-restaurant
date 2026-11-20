@@ -509,7 +509,7 @@ export default function OrderApp({
                                 </div>
                                 <p className="text-xs font-semibold text-[#F4EFE6] mt-0.5">
                                     Status: <span className="text-[#D4B886]">
-                                        {activeOrder.order_status === 'Pending' ? '⏳ Menunggu Konfirmasi / ACC Kasir' : activeOrder.order_status === 'Preparing' ? '🔥 Sedang Dimasak Dapur' : '✨ Pesanan Siap Disajikan / Diambil'}
+                                        {(activeOrder.order_status as string) === 'Pending' ? '⏳ Menunggu Konfirmasi / ACC Kasir' : (activeOrder.order_status as string) === 'Preparing' ? '🔥 Sedang Dimasak Dapur' : '✨ Pesanan Siap Disajikan / Diambil'}
                                     </span>
                                 </p>
                             </div>
@@ -777,13 +777,13 @@ export default function OrderApp({
                                                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                                                         isServedOrDone
                                                             ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                                            : order.order_status === 'Preparing'
+                                                            : (order.order_status as string) === 'Preparing'
                                                             ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
-                                                            : order.order_status === 'Pending'
+                                                            : (order.order_status as string) === 'Pending'
                                                             ? 'bg-yellow-100 text-yellow-800 border border-yellow-300 animate-pulse'
                                                             : 'bg-sky-100 text-sky-800 border border-sky-300'
                                                     }`}>
-                                                        {order.order_status === 'Pending' ? 'Menunggu ACC Kasir' : order.order_status === 'Preparing' ? 'Proses Dapur' : order.order_status === 'Ready' ? 'Siap Saji' : order.order_status}
+                                                        {(order.order_status as string) === 'Pending' ? 'Menunggu ACC Kasir' : (order.order_status as string) === 'Preparing' ? 'Proses Dapur' : (order.order_status as string) === 'Ready' ? 'Siap Saji' : order.order_status}
                                                     </span>
                                                 </div>
                                             </div>
@@ -796,7 +796,7 @@ export default function OrderApp({
                                                         <span>Status Live Tracking:</span>
                                                     </span>
                                                     <span className="text-[11px] font-semibold text-[#B99A65]">
-                                                        {order.order_status === 'Pending' ? '1/4 - Menunggu ACC Kasir' : order.order_status === 'Preparing' ? '2/4 - Sedang Dimasak Dapur' : order.order_status === 'Ready' ? '3/4 - Siap Disajikan' : '4/4 - Selesai Terhidang'}
+                                                        {(order.order_status as string) === 'Pending' ? '1/4 - Menunggu ACC Kasir' : (order.order_status as string) === 'Preparing' ? '2/4 - Sedang Dimasak Dapur' : (order.order_status as string) === 'Ready' ? '3/4 - Siap Disajikan' : '4/4 - Selesai Terhidang'}
                                                     </span>
                                                 </div>
 

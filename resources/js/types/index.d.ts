@@ -93,7 +93,7 @@ export interface OrderRating {
     created_at: string;
 }
 
-export type OrderStatus = 'Pending' | 'Awaiting Payment' | 'Paid' | 'Confirmed' | 'Preparing' | 'Ready' | 'Served' | 'Picked Up' | 'Cancelled' | string;
+export type OrderStatus = 'Pending' | 'Awaiting Payment' | 'Paid' | 'Confirmed' | 'Preparing' | 'Ready' | 'Served' | 'Picked Up' | 'Cancelled' | (string & {});
 
 export interface Order {
     id: number;
@@ -112,11 +112,12 @@ export interface Order {
     session_code?: string;
     items?: OrderItem[];
     payment?: {
+        id?: number;
         payment_method: string;
         payment_status: string;
         amount: number;
         paid_at: string | null;
-    };
+    } | null;
     rating?: OrderRating | null;
 }
 
@@ -143,6 +144,8 @@ export interface RestaurantTable {
         started_at?: string;
     } | null;
 }
+
+export type Table = RestaurantTable;
 
 export interface Reservation {
     id: number;

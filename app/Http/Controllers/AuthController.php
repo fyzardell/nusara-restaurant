@@ -114,10 +114,12 @@ class AuthController extends Controller
 
         // Get role name
         $role = DB::table('roles')->where('id', $user->role_id)->first();
-        $roleName = $role ? $role->name : 'customer';
+        $roleName = $role ? strtolower($role->name) : 'customer';
 
-        $cleanName = preg_replace('/\s*\(' . preg_quote($roleName, '/') . '\)/i', '', $user->name);
-        session()->flash('success', "Selamat datang kembali, {$cleanName} (" . ucfirst($roleName) . ")!");
+        // Bersihkan nama dari role yang berulang (misal "Raden Mas Haryo (Admin)")
+        $cleanName = trim(preg_replace('/\s*\([^)]*\)/', '', $user->name));
+        $roleLabel = ucfirst($roleName);
+        session()->flash('success', "Selamat datang kembali, {$cleanName} ({$roleLabel})!");
 
         $redirectUrl = $request->input('redirect');
         if ($redirectUrl && is_string($redirectUrl) && str_starts_with($redirectUrl, '/')) {
@@ -126,6 +128,10 @@ class AuthController extends Controller
 
         if ($roleName === 'admin') {
             return redirect()->intended(route('admin.dashboard'));
+        }
+
+        if ($roleName === 'cashier') {
+            return redirect()->intended(route('cashier.dashboard'));
         }
 
         if ($roleName === 'customer') {

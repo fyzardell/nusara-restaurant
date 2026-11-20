@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CashierController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\OrderController;
 use Illuminate\Support\Facades\Route;
@@ -38,4 +39,13 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     Route::post('/menu/{id}/stock', [AdminController::class, 'updateMenuStock'])->name('admin.menu.stock');
     Route::post('/table/{id}/status', [AdminController::class, 'updateTableStatus'])->name('admin.table.status');
     Route::post('/reservation/{id}/status', [AdminController::class, 'updateReservationStatus'])->name('admin.reservation.status');
+});
+
+// Cashier Operational Dashboard (PRD Section 8.1 & REQ-FE-003)
+Route::middleware('auth')->prefix('cashier')->group(function () {
+    Route::get('/', [CashierController::class, 'index'])->name('cashier.dashboard');
+    Route::post('/order/{id}/status', [CashierController::class, 'updateOrderStatus'])->name('cashier.order.status');
+    Route::post('/order/{id}/payment', [CashierController::class, 'confirmCashPayment'])->name('cashier.order.payment');
+    Route::post('/table/{id}/status', [CashierController::class, 'updateTableStatus'])->name('cashier.table.status');
+    Route::post('/reservation/{id}/status', [CashierController::class, 'updateReservationStatus'])->name('cashier.reservation.status');
 });
