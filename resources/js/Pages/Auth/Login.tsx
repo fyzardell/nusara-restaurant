@@ -28,10 +28,13 @@ export default function Login({ demoAccounts, status }: Props) {
     const [showPassword, setShowPassword] = useState(false);
     const [showDemoDrawer, setShowDemoDrawer] = useState(false);
 
+    const redirectParam = typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('redirect') || '') : '';
+
     const { data, setData, post, processing, errors, reset } = useForm({
         login_id: '',
         password: '',
         remember: false,
+        redirect: redirectParam,
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -70,7 +73,6 @@ export default function Login({ demoAccounts, status }: Props) {
                 </Link>
 
                 <div className="flex items-center gap-2 text-[#D4B886]">
-                    <Sparkles className="w-3.5 h-3.5" />
                     <span className="text-[11px] uppercase tracking-widest font-semibold hidden sm:inline">
                         NUSARA Dining Experience
                     </span>

@@ -119,6 +119,11 @@ class AuthController extends Controller
         $cleanName = preg_replace('/\s*\(' . preg_quote($roleName, '/') . '\)/i', '', $user->name);
         session()->flash('success', "Selamat datang kembali, {$cleanName} (" . ucfirst($roleName) . ")!");
 
+        $redirectUrl = $request->input('redirect');
+        if ($redirectUrl && is_string($redirectUrl) && str_starts_with($redirectUrl, '/')) {
+            return redirect($redirectUrl);
+        }
+
         if ($roleName === 'admin') {
             return redirect()->intended(route('admin.dashboard'));
         }

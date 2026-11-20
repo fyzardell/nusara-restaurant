@@ -83,7 +83,7 @@ export default function OrderTypeModal({ isOpen, onClose, onSelectDineIn, onSele
 
                         <div>
                             <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#B99A65] mb-2">
-                                Simulasi Nomor Meja (Contoh Meja 01 s/d 08):
+                                Simulasi Nomor Meja (Meja 01 s/d 10 - Kapasitas 5 Orang):
                             </label>
                             <div className="flex items-center gap-3">
                                 <span className="font-heading text-lg font-bold text-[#D4B886]">Meja</span>
@@ -92,14 +92,16 @@ export default function OrderTypeModal({ isOpen, onClose, onSelectDineIn, onSele
                                     onChange={(e) => setTableInput(e.target.value)}
                                     className="flex-grow px-4 py-2.5 rounded-xl bg-[#32151F] border border-[#B99A65]/40 text-[#F4EFE6] text-sm font-bold focus:outline-none focus:border-[#D4B886]"
                                 >
-                                    <option value="01">Meja 01 (Kapasitas 4 Orang - Main Hall)</option>
-                                    <option value="02">Meja 02 (Kapasitas 4 Orang - Main Hall)</option>
-                                    <option value="03">Meja 03 (Kapasitas 4 Orang - Main Hall)</option>
-                                    <option value="04">Meja 04 (Kapasitas 4 Orang - Main Hall)</option>
-                                    <option value="05">Meja 05 (Kapasitas 2 Orang - Romantic Corner)</option>
-                                    <option value="06">Meja 06 (Kapasitas 2 Orang - Garden View)</option>
-                                    <option value="07">Meja 07 (Kapasitas 8 Orang - VIP Heritage Room)</option>
-                                    <option value="08">Meja 08 (Kapasitas 8 Orang - VIP Heritage Room)</option>
+                                    <option value="01">Meja 01 (Kapasitas 5 Orang - Main Dining Hall)</option>
+                                    <option value="02">Meja 02 (Kapasitas 5 Orang - Main Dining Hall)</option>
+                                    <option value="03">Meja 03 (Kapasitas 5 Orang - Main Dining Hall)</option>
+                                    <option value="04">Meja 04 (Kapasitas 5 Orang - Main Dining Hall)</option>
+                                    <option value="05">Meja 05 (Kapasitas 5 Orang - Garden Terrace)</option>
+                                    <option value="06">Meja 06 (Kapasitas 5 Orang - Garden Terrace)</option>
+                                    <option value="07">Meja 07 (Kapasitas 5 Orang - VIP Heritage Room)</option>
+                                    <option value="08">Meja 08 (Kapasitas 5 Orang - VIP Heritage Room)</option>
+                                    <option value="09">Meja 09 (Kapasitas 5 Orang - Royal Pavilion)</option>
+                                    <option value="10">Meja 10 (Kapasitas 5 Orang - Royal Pavilion)</option>
                                 </select>
                             </div>
                         </div>

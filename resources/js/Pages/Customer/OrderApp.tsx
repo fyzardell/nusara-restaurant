@@ -34,7 +34,8 @@ import {
     ShieldCheck,
     LogOut,
     Coffee,
-    User as UserIcon
+    User as UserIcon,
+    RefreshCw
 } from 'lucide-react';
 
 interface Props {
@@ -46,6 +47,8 @@ interface Props {
     tables: RestaurantTable[];
     settings: RestaurantSettings;
     initialTable?: string | null;
+    initialType?: 'dine_in' | 'takeaway';
+    initialMenuId?: number | null;
     isGuest?: boolean;
 }
 
@@ -64,6 +67,8 @@ export default function OrderApp({
     tables, 
     settings,
     initialTable,
+    initialType,
+    initialMenuId,
     isGuest: initialIsGuest = false
 }: Props) {
     const { auth, flash } = usePage<{ auth: { user: User | null }; flash: { success?: string; error?: string } }>().props;
@@ -73,7 +78,9 @@ export default function OrderApp({
     const [activeTab, setActiveTab] = useState<'menu' | 'favorites' | 'history' | 'chat'>('menu');
 
     // Order mode: 'dine_in' | 'takeaway'
-    const [orderType, setOrderType] = useState<'dine_in' | 'takeaway'>('dine_in');
+    const [orderType, setOrderType] = useState<'dine_in' | 'takeaway'>(
+        initialType || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('type') === 'takeaway' ? 'takeaway' : 'dine_in')
+    );
     const [selectedTable, setSelectedTable] = useState<string>(initialTable || 'Meja 01');
     const [customerName, setCustomerName] = useState<string>(auth?.user?.name || '');
     const [isTableModalOpen, setIsTableModalOpen] = useState(false);
@@ -120,6 +127,33 @@ export default function OrderApp({
             return matchesCategory && matchesSearch;
         });
     }, [menus, favorites, activeTab, selectedCategory, searchQuery]);
+
+    const activeOrder = useMemo(() => {
+        return initialOrders.find(o => ['Pending', 'Preparing', 'Ready'].includes(o.order_status)) || null;
+    }, [initialOrders]);
+
+    React.useEffect(() => {
+        if (initialMenuId) {
+            const m = menus.find(item => item.id === Number(initialMenuId));
+            if (m && m.is_available && m.stock_quantity > 0) {
+                setCustomizingMenu(m);
+                setCustomizeQuantity(1);
+                setCustomizeNotes('');
+            }
+        }
+    }, [initialMenuId, menus]);
+
+    const getStatusStep = (status: string) => {
+        switch (status) {
+            case 'Pending': return 1;
+            case 'Preparing': return 2;
+            case 'Ready': return 3;
+            case 'Served':
+            case 'Picked Up':
+            case 'Completed': return 4;
+            default: return 1;
+        }
+    };
 
     // Cart calculations
     const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -418,17 +452,19 @@ export default function OrderApp({
                         <span>Katalog Menu</span>
                     </button>
 
-                    <button
-                        onClick={() => setActiveTab('favorites')}
-                        className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
-                            activeTab === 'favorites'
-                                ? 'bg-[#32151F] text-[#D4B886] shadow-md border border-[#B99A65]/50'
-                                : 'text-[#211D1B]/70 hover:text-[#32151F] hover:bg-[#E8DFCF]'
-                        }`}
-                    >
-                        <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
-                        <span>Favorit Saya ({favorites.length})</span>
-                    </button>
+                    {!isGuest && (
+                        <button
+                            onClick={() => setActiveTab('favorites')}
+                            className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
+                                activeTab === 'favorites'
+                                    ? 'bg-[#32151F] text-[#D4B886] shadow-md border border-[#B99A65]/50'
+                                    : 'text-[#211D1B]/70 hover:text-[#32151F] hover:bg-[#E8DFCF]'
+                            }`}
+                        >
+                            <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
+                            <span>Favorit Saya ({favorites.length})</span>
+                        </button>
+                    )}
 
                     <button
                         onClick={() => setActiveTab('history')}
@@ -439,7 +475,7 @@ export default function OrderApp({
                         }`}
                     >
                         <Clock className="w-4 h-4" />
-                        <span>Riwayat Pembelian ({initialOrders.length})</span>
+                        <span>{isGuest ? `Pelacakan Pesanan (${initialOrders.length})` : `Riwayat Pembelian (${initialOrders.length})`}</span>
                     </button>
 
                     <button
@@ -454,6 +490,49 @@ export default function OrderApp({
                         <span>Konsierge / Chat Admin</span>
                     </button>
                 </div>
+
+                {/* Banner Status Pesanan Aktif (Live Tracking di Tab Menu) */}
+                {activeOrder && activeTab === 'menu' && (
+                    <div className="mb-6 p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-[#32151F] via-[#211D1B] to-[#32151F] border border-[#B99A65] text-[#F4EFE6] shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-[#B99A65]/20 border border-[#B99A65]/50 flex items-center justify-center text-[#D4B886] flex-shrink-0">
+                                <Clock className="w-5 h-5 animate-pulse" />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-mono text-xs font-bold text-[#D4B886]">
+                                        {activeOrder.order_code}
+                                    </span>
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/40 text-[#F4EFE6] font-semibold border border-[#B99A65]/30">
+                                        {activeOrder.order_type === 'dine_in' ? (activeOrder.table_number || 'Dine-in') : 'Takeaway'}
+                                    </span>
+                                </div>
+                                <p className="text-xs font-semibold text-[#F4EFE6] mt-0.5">
+                                    Status: <span className="text-[#D4B886]">
+                                        {activeOrder.order_status === 'Pending' ? '⏳ Menunggu Konfirmasi / ACC Kasir' : activeOrder.order_status === 'Preparing' ? '🔥 Sedang Dimasak Dapur' : '✨ Pesanan Siap Disajikan / Diambil'}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <button
+                                onClick={() => router.reload({ only: ['orders'] })}
+                                className="px-3 py-2 rounded-xl bg-black/30 text-[#D4B886] hover:bg-black/50 border border-[#B99A65]/30 transition-all text-xs flex items-center gap-1.5"
+                                title="Perbarui Status Pesanan"
+                            >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                <span>Cek Status</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('history')}
+                                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-wider shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+                            >
+                                Lihat Tracking Meja
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* ----------------------------------------------------
                     TAB 1 & 2: MENU & FAVORITES LIST
@@ -645,15 +724,27 @@ export default function OrderApp({
                         <div className="flex items-center justify-between">
                             <div>
                                 <h2 className="font-heading text-2xl font-bold text-[#32151F]">
-                                    Riwayat Pembelian Pelanggan
+                                    {isGuest ? 'Pelacakan Pesanan Meja (Live Tracking)' : 'Riwayat Pembelian Pelanggan'}
                                 </h2>
                                 <p className="text-xs text-[#211D1B]/70 mt-0.5">
-                                    Pantau status pesanan aktif dan beri rating kepuasan hidangan yang sudah selesai.
+                                    {isGuest 
+                                        ? 'Pantau tahapan pesanan aktif Anda: Menunggu ACC kasir, proses memasak dapur, hingga siap disajikan ke meja.'
+                                        : 'Pantau status pesanan aktif dan beri rating kepuasan hidangan yang sudah selesai.'}
                                 </p>
                             </div>
-                            <span className="px-3 py-1 rounded-full bg-[#32151F] text-[#D4B886] text-xs font-bold">
-                                {initialOrders.length} Pesanan
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => router.reload({ only: ['orders'] })}
+                                    className="p-2 rounded-xl bg-white border border-[#B99A65]/40 text-[#32151F] hover:bg-[#32151F] hover:text-[#D4B886] transition-all text-xs flex items-center gap-1.5 shadow-sm"
+                                    title="Perbarui status pesanan"
+                                >
+                                    <RefreshCw className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Refresh</span>
+                                </button>
+                                <span className="px-3 py-1 rounded-full bg-[#32151F] text-[#D4B886] text-xs font-bold">
+                                    {initialOrders.length} Pesanan
+                                </span>
+                            </div>
                         </div>
 
                         {initialOrders.length > 0 ? (
@@ -688,10 +779,79 @@ export default function OrderApp({
                                                             ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                                                             : order.order_status === 'Preparing'
                                                             ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                                            : order.order_status === 'Pending'
+                                                            ? 'bg-yellow-100 text-yellow-800 border border-yellow-300 animate-pulse'
                                                             : 'bg-sky-100 text-sky-800 border border-sky-300'
                                                     }`}>
-                                                        {order.order_status}
+                                                        {order.order_status === 'Pending' ? 'Menunggu ACC Kasir' : order.order_status === 'Preparing' ? 'Proses Dapur' : order.order_status === 'Ready' ? 'Siap Saji' : order.order_status}
                                                     </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Live Order Tracking Stepper */}
+                                            <div className="py-3.5 px-4 rounded-2xl bg-[#32151F]/5 border border-[#B99A65]/30">
+                                                <div className="flex items-center justify-between text-xs mb-3">
+                                                    <span className="font-bold text-[#32151F] flex items-center gap-1.5">
+                                                        <Clock className="w-4 h-4 text-[#B99A65]" />
+                                                        <span>Status Live Tracking:</span>
+                                                    </span>
+                                                    <span className="text-[11px] font-semibold text-[#B99A65]">
+                                                        {order.order_status === 'Pending' ? '1/4 - Menunggu ACC Kasir' : order.order_status === 'Preparing' ? '2/4 - Sedang Dimasak Dapur' : order.order_status === 'Ready' ? '3/4 - Siap Disajikan' : '4/4 - Selesai Terhidang'}
+                                                    </span>
+                                                </div>
+
+                                                <div className="grid grid-cols-4 gap-2 text-center text-[10px]">
+                                                    <div className="space-y-1">
+                                                        <div className={`w-7 h-7 mx-auto rounded-full flex items-center justify-center font-bold text-xs ${
+                                                            getStatusStep(order.order_status) >= 1
+                                                                ? getStatusStep(order.order_status) === 1 ? 'bg-amber-500 text-white animate-pulse' : 'bg-emerald-600 text-white'
+                                                                : 'bg-stone-200 text-stone-500'
+                                                        }`}>
+                                                            {getStatusStep(order.order_status) > 1 ? '✓' : '1'}
+                                                        </div>
+                                                        <p className={`font-semibold ${getStatusStep(order.order_status) === 1 ? 'text-amber-700 font-bold' : 'text-stone-600'}`}>
+                                                            ACC Kasir
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="space-y-1">
+                                                        <div className={`w-7 h-7 mx-auto rounded-full flex items-center justify-center font-bold text-xs ${
+                                                            getStatusStep(order.order_status) >= 2
+                                                                ? getStatusStep(order.order_status) === 2 ? 'bg-orange-500 text-white animate-pulse' : 'bg-emerald-600 text-white'
+                                                                : 'bg-stone-200 text-stone-500'
+                                                        }`}>
+                                                            {getStatusStep(order.order_status) > 2 ? '✓' : '2'}
+                                                        </div>
+                                                        <p className={`font-semibold ${getStatusStep(order.order_status) === 2 ? 'text-orange-700 font-bold' : 'text-stone-600'}`}>
+                                                            Proses Dapur
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="space-y-1">
+                                                        <div className={`w-7 h-7 mx-auto rounded-full flex items-center justify-center font-bold text-xs ${
+                                                            getStatusStep(order.order_status) >= 3
+                                                                ? getStatusStep(order.order_status) === 3 ? 'bg-sky-500 text-white animate-pulse' : 'bg-emerald-600 text-white'
+                                                                : 'bg-stone-200 text-stone-500'
+                                                        }`}>
+                                                            {getStatusStep(order.order_status) > 3 ? '✓' : '3'}
+                                                        </div>
+                                                        <p className={`font-semibold ${getStatusStep(order.order_status) === 3 ? 'text-sky-700 font-bold' : 'text-stone-600'}`}>
+                                                            Siap Saji
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="space-y-1">
+                                                        <div className={`w-7 h-7 mx-auto rounded-full flex items-center justify-center font-bold text-xs ${
+                                                            getStatusStep(order.order_status) >= 4
+                                                                ? 'bg-emerald-600 text-white'
+                                                                : 'bg-stone-200 text-stone-500'
+                                                        }`}>
+                                                            {getStatusStep(order.order_status) >= 4 ? '✓' : '4'}
+                                                        </div>
+                                                        <p className={`font-semibold ${getStatusStep(order.order_status) >= 4 ? 'text-emerald-700 font-bold' : 'text-stone-600'}`}>
+                                                            Selesai
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -999,7 +1159,7 @@ export default function OrderApp({
                 MOBILE BOTTOM NAVIGATION BAR (KOPKEN APP STYLE)
             ======================================================== */}
             <nav className="fixed bottom-0 left-0 right-0 z-30 sm:hidden bg-[#211D1B] border-t border-[#32151F] text-[#F4EFE6] py-2 px-4 shadow-2xl">
-                <div className="grid grid-cols-4 gap-1 text-center">
+                <div className={`grid ${isGuest ? 'grid-cols-3' : 'grid-cols-4'} gap-1 text-center`}>
                     <button
                         onClick={() => setActiveTab('menu')}
                         className={`flex flex-col items-center py-1 transition-colors ${
@@ -1010,15 +1170,17 @@ export default function OrderApp({
                         <span className="text-[10px] mt-1">Menu</span>
                     </button>
 
-                    <button
-                        onClick={() => setActiveTab('favorites')}
-                        className={`flex flex-col items-center py-1 transition-colors ${
-                            activeTab === 'favorites' ? 'text-rose-400 font-bold' : 'text-[#F4EFE6]/60'
-                        }`}
-                    >
-                        <Heart className="w-5 h-5" />
-                        <span className="text-[10px] mt-1">Favorit</span>
-                    </button>
+                    {!isGuest && (
+                        <button
+                            onClick={() => setActiveTab('favorites')}
+                            className={`flex flex-col items-center py-1 transition-colors ${
+                                activeTab === 'favorites' ? 'text-rose-400 font-bold' : 'text-[#F4EFE6]/60'
+                            }`}
+                        >
+                            <Heart className="w-5 h-5" />
+                            <span className="text-[10px] mt-1">Favorit</span>
+                        </button>
+                    )}
 
                     <button
                         onClick={() => setActiveTab('history')}
@@ -1027,7 +1189,7 @@ export default function OrderApp({
                         }`}
                     >
                         <Clock className="w-5 h-5" />
-                        <span className="text-[10px] mt-1">Riwayat</span>
+                        <span className="text-[10px] mt-1">{isGuest ? 'Tracking' : 'Riwayat'}</span>
                     </button>
 
                     <button

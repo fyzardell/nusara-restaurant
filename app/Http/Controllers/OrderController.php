@@ -49,7 +49,9 @@ class OrderController extends Controller
                     'bebek-betutu-gianyar-asap-bambu',
                     'rawon-iga-bakar-kluwek-hitam',
                     'cendol-nangka-gelato-madu-hutan',
-                    'es-bir-pletok-keraton-royale'
+                    'es-bir-pletok-keraton-royale',
+                    'sop-buntut-bakar-rempah-pala',
+                    'iga-sapi-bakar-madu-hutan-sumbawa'
                 ]);
                 return $menu;
             });
@@ -69,10 +71,13 @@ class OrderController extends Controller
         if ($user && $customer) {
             $ordersQuery->where('customer_id', $customer->id);
         } else {
-            // Tamu meja hanya bisa melihat pesanan sesi saat ini (jika baru pesan)
+            // Tamu meja hanya bisa melihat pesanan sesi saat ini atau pesanan aktif meja ini
             $guestOrderIds = session('guest_order_ids', []);
             if (!empty($guestOrderIds)) {
                 $ordersQuery->whereIn('id', $guestOrderIds);
+            } elseif ($initialTable) {
+                $ordersQuery->where('table_number', $initialTable)
+                    ->whereIn('order_status', ['Pending', 'Preparing', 'Ready', 'Served']);
             } else {
                 $ordersQuery->whereRaw('1 = 0');
             }
@@ -125,6 +130,10 @@ class OrderController extends Controller
             }
         }
 
+        $rawType = $request->query('type');
+        $initialType = ($rawType === 'takeaway') ? 'takeaway' : 'dine_in';
+        $initialMenuId = $request->query('menu_id') ? (int)$request->query('menu_id') : null;
+
         return Inertia::render('Customer/OrderApp', [
             'categories' => $categories,
             'menus' => $menus,
@@ -135,6 +144,8 @@ class OrderController extends Controller
             'settings' => $settings,
             'customer' => $customer,
             'initialTable' => $initialTable,
+            'initialType' => $initialType,
+            'initialMenuId' => $initialMenuId,
             'isGuest' => !$user,
         ]);
     }
@@ -245,7 +256,7 @@ class OrderController extends Controller
                 'table_session_id' => $tableSessionId,
                 'table_number' => $finalTableNumber,
                 'order_type' => $request->order_type,
-                'order_status' => 'Preparing',
+                'order_status' => 'Pending',
                 'subtotal' => $subtotal,
                 'tax' => $tax,
                 'discount' => 0,

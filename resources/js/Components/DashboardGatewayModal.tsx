@@ -46,8 +46,7 @@ export default function DashboardGatewayModal({ isOpen, onClose }: Props) {
                         />
                     </div>
 
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#32151F]/90 border border-[#B99A65]/40 text-[#D4B886] text-[11px] font-semibold uppercase tracking-[0.2em]">
-                        <Sparkles className="w-3.5 h-3.5 text-[#B99A65]" />
+                    <div className="inline-flex items-center px-3.5 py-1 rounded-full bg-[#32151F]/90 border border-[#B99A65]/40 text-[#D4B886] text-[11px] font-semibold uppercase tracking-[0.2em]">
                         <span>Harmoni Telah Siap Dinikmati</span>
                     </div>
 
@@ -89,8 +88,8 @@ export default function DashboardGatewayModal({ isOpen, onClose }: Props) {
                                 <span className="px-2 py-0.5 rounded-full bg-[#B99A65]/10 border border-[#B99A65]/20 flex items-center gap-1">
                                     <MessageSquare className="w-3 h-3 text-amber-400" /> Live Chat
                                 </span>
-                                <span className="px-2 py-0.5 rounded-full bg-[#B99A65]/10 border border-[#B99A65]/20 flex items-center gap-1">
-                                    <Star className="w-3 h-3 text-amber-300 fill-amber-300" /> Rating
+                                <span className="px-2 py-0.5 rounded-full bg-[#B99A65]/10 border border-[#B99A65]/20">
+                                    Rating & Ulasan
                                 </span>
                             </div>
                         </div>
@@ -128,8 +127,8 @@ export default function DashboardGatewayModal({ isOpen, onClose }: Props) {
                                 <span className="px-2 py-0.5 rounded-full bg-stone-800 border border-stone-700 flex items-center gap-1">
                                     <QrCode className="w-3 h-3 text-emerald-400" /> Tracking Meja
                                 </span>
-                                <span className="px-2 py-0.5 rounded-full bg-stone-800 border border-stone-700 flex items-center gap-1">
-                                    <Sparkles className="w-3 h-3 text-[#D4B886]" /> Dapur Live
+                                <span className="px-2 py-0.5 rounded-full bg-stone-800 border border-stone-700">
+                                    Dapur Live
                                 </span>
                             </div>
                         </div>

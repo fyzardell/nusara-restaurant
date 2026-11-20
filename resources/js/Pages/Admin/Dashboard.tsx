@@ -625,8 +625,7 @@ export default function AdminDashboard({
                                                         onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
                                                         className="px-2.5 py-1 rounded-lg bg-[#32151F] border border-[#B99A65]/40 text-[#F4EFE6] text-xs font-semibold focus:outline-none focus:border-[#D4B886]"
                                                     >
-                                                        <option value="Paid">Paid</option>
-                                                        <option value="Confirmed">Confirmed</option>
+                                                        <option value="Pending">Pending (Menunggu ACC)</option>
                                                         <option value="Preparing">Preparing (Dapur)</option>
                                                         <option value="Ready">Ready (Siap Saji)</option>
                                                         <option value="Served">Served (Dine-in)</option>
@@ -1087,21 +1086,21 @@ export default function AdminDashboard({
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => handleUpdateOrderStatus(selectedOrderDetails.id, 'Preparing')}
-                                    className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white font-bold text-xs uppercase"
+                                    className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs uppercase transition-all shadow"
                                 >
-                                    Dapur Memasak
+                                    ACC Kasir & Masak
                                 </button>
                                 <button
                                     onClick={() => handleUpdateOrderStatus(selectedOrderDetails.id, 'Ready')}
-                                    className="flex-1 py-2.5 rounded-xl bg-sky-600 text-white font-bold text-xs uppercase"
+                                    className="flex-1 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase transition-all shadow"
                                 >
                                     Siap Saji
                                 </button>
                                 <button
                                     onClick={() => handleUpdateOrderStatus(selectedOrderDetails.id, 'Served')}
-                                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs uppercase"
+                                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase transition-all shadow"
                                 >
-                                    Disajikan
+                                    Selesai Terhidang
                                 </button>
                             </div>
                         </div>

@@ -34,8 +34,7 @@ export default function FavoriteLoginPromptModal({ isOpen, onClose, menu }: Prop
                     <Heart className="w-7 h-7 fill-rose-500" />
                 </div>
 
-                <div className="flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-widest text-[#B99A65] font-bold mb-1">
-                    <Sparkles className="w-3.5 h-3.5" />
+                <div className="flex items-center justify-center text-[10px] uppercase tracking-widest text-[#B99A65] font-bold mb-1">
                     <span>Fitur Eksklusif Member NUSARA</span>
                 </div>
 

@@ -48,7 +48,9 @@ class LandingPageController extends Controller
                     'bebek-betutu-gianyar-asap-bambu',
                     'rawon-iga-bakar-kluwek-hitam',
                     'cendol-nangka-gelato-madu-hutan',
-                    'es-bir-pletok-keraton-royale'
+                    'es-bir-pletok-keraton-royale',
+                    'sop-buntut-bakar-rempah-pala',
+                    'iga-sapi-bakar-madu-hutan-sumbawa'
                 ]);
                 return $menu;
             });

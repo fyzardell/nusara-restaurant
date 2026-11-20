@@ -208,9 +208,8 @@ export default function Navbar({
                     {/* 1. DAFTAR HALAMAN & MENU (DITONJOLKAN SESUAI REQUEST USER) */}
                     <div className="space-y-2.5">
                         <div className="flex items-center justify-between">
-                            <span className="text-[11px] uppercase font-bold tracking-[0.2em] text-[#D4B886] flex items-center gap-1.5">
-                                <Sparkles className="w-3.5 h-3.5 text-[#B99A65]" />
-                                <span>Eksplorasi Halaman NUSARA</span>
+                            <span className="text-[11px] uppercase font-bold tracking-[0.2em] text-[#D4B886]">
+                                Eksplorasi Halaman NUSARA
                             </span>
                             <span className="text-[9px] text-[#F4EFE6]/50">Navigasi Utama</span>
                         </div>
@@ -274,7 +273,7 @@ export default function Navbar({
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2.5">
                                         <div className="w-8 h-8 rounded-lg bg-stone-800 border border-stone-700 flex items-center justify-center text-[#D4B886]">
-                                            <Sparkles className="w-4 h-4" />
+                                            <UtensilsCrossed className="w-4 h-4" />
                                         </div>
                                         <div>
                                             <h4 className="font-heading text-xs font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
@@ -348,7 +347,7 @@ export default function Navbar({
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2.5">
                                         <div className="w-8 h-8 rounded-lg bg-[#32151F] border border-[#B99A65]/40 flex items-center justify-center text-[#D4B886]">
-                                            <Sparkles className="w-4 h-4 text-[#B99A65]" />
+                                            <Eye className="w-4 h-4 text-[#B99A65]" />
                                         </div>
                                         <div>
                                             <h4 className="font-heading text-xs font-bold text-[#D4B886] group-hover:text-[#F4EFE6] transition-colors">
@@ -433,7 +432,6 @@ export default function Navbar({
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <Sparkles className="w-3.5 h-3.5 text-[#B99A65]" />
                                     <span className="text-xs font-semibold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
                                         Menu Pemesanan Digital
                                     </span>

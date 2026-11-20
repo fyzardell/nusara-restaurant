@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage, router } from '@inertiajs/react';
 import Navbar from '../Components/Navbar';
 import Footer from '../Components/Footer';
 import MenuCard from '../Components/MenuCard';
@@ -106,18 +106,30 @@ export default function LandingPage({ settings, categories, menus, experiences, 
 
     const handleSelectDineIn = (tableNum: string) => {
         setOrderTypeModalOpen(false);
-        const element = document.getElementById('menu');
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth' });
+        const destination = `/order?type=dine_in&table=${encodeURIComponent(tableNum)}`;
+        if (auth?.user) {
+            router.visit(destination);
+        } else {
+            router.visit(`/login?redirect=${encodeURIComponent(destination)}`);
         }
-        alert(`Simulasi Sesi Meja: Anda memilih Meja ${tableNum}. Sesuai PRD NUSARA, waiter akan memvalidasi meja sebelum pesanan dikirim ke dapur.`);
     };
 
     const handleSelectTakeaway = () => {
         setOrderTypeModalOpen(false);
-        const element = document.getElementById('menu');
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth' });
+        const destination = '/order?type=takeaway';
+        if (auth?.user) {
+            router.visit(destination);
+        } else {
+            router.visit(`/login?redirect=${encodeURIComponent(destination)}`);
+        }
+    };
+
+    const handleSelectMenuToOrder = (menu: Menu) => {
+        const destination = `/order?menu_id=${menu.id}`;
+        if (auth?.user) {
+            router.visit(destination);
+        } else {
+            router.visit(`/login?redirect=${encodeURIComponent(destination)}`);
         }
     };
 
@@ -183,13 +195,13 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                     {/* Hero CTAs: Sesuai instruksi: HANYA ada "Pilih Menu" dan "Reservasi" */}
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 flex-wrap">
                         {/* 1. Pilih Menu */}
-                        <a
-                            href="#menu"
+                        <button
+                            onClick={() => setOrderTypeModalOpen(true)}
                             className="w-full sm:w-auto px-8 py-4 rounded-full bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#B99A65]/25 flex items-center justify-center gap-2"
                         >
                             <Utensils className="w-4 h-4 text-[#211D1B]" />
                             <span>Pilih Menu</span>
-                        </a>
+                        </button>
 
                         {/* 2. Reservasi */}
                         <button
@@ -297,8 +309,7 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Section Header */}
                     <div className="text-center max-w-3xl mx-auto space-y-3 mb-12">
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#32151F] border border-[#B99A65]/30 text-[#D4B886] text-xs font-semibold uppercase tracking-widest">
-                            <Sparkles className="w-3.5 h-3.5" />
+                        <div className="inline-flex items-center px-3 py-1 rounded-full bg-[#32151F] border border-[#B99A65]/30 text-[#D4B886] text-xs font-semibold uppercase tracking-widest">
                             <span>Koleksi Gastronomi Unggulan</span>
                         </div>
                         <h2 className="font-heading text-3xl sm:text-5xl font-bold text-[#F4EFE6]">
@@ -375,7 +386,7 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                                     menu={menu}
                                     isFavorite={favoriteMenuIds.includes(menu.id)}
                                     onToggleFavorite={handleToggleFavorite}
-                                    onAddToCart={() => setOrderTypeModalOpen(true)}
+                                    onAddToCart={handleSelectMenuToOrder}
                                 />
                             ))}
                         </div>

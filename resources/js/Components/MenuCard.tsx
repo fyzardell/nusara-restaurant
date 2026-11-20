@@ -1,6 +1,6 @@
 import React from 'react';
 import { Menu } from '../types';
-import { Heart, Sparkles, AlertCircle, Plus, Check } from 'lucide-react';
+import { Heart, AlertCircle, Plus, Check } from 'lucide-react';
 
 interface Props {
     menu: Menu;

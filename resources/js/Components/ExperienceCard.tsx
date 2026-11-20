@@ -1,6 +1,6 @@
 import React from 'react';
 import { DiningExperience } from '../types';
-import { Clock, Users, ArrowUpRight, Sparkles } from 'lucide-react';
+import { Clock, Users, ArrowUpRight } from 'lucide-react';
 
 interface Props {
     experience: DiningExperience;

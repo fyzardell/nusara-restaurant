@@ -70,8 +70,7 @@ export default function ReservationModal({ isOpen, onClose, experiences, selecte
                                 alt="NUSARA — Nusantara & Rasa" 
                                 className="h-8 sm:h-9 w-auto object-contain drop-shadow" 
                             />
-                            <div className="flex items-center gap-1.5 text-xs uppercase tracking-widest text-[#B99A65] font-semibold">
-                                <Sparkles className="w-4 h-4" />
+                            <div className="text-xs uppercase tracking-widest text-[#B99A65] font-semibold">
                                 <span>Reservasi Online</span>
                             </div>
                         </div>
