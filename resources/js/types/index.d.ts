@@ -110,6 +110,8 @@ export interface Order {
     customer_phone?: string;
     table_number?: string;
     session_code?: string;
+    table?: { id?: number; table_number?: string; location?: string } | null;
+    customer?: { id?: number; name?: string; phone_normalized?: string; email?: string } | null;
     items?: OrderItem[];
     payment?: {
         id?: number;
