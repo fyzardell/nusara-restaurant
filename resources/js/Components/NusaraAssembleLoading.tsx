@@ -43,6 +43,9 @@ const T_EXIT = 6.3;
 
 export default function NusaraAssembleLoading({ isOpen, statusText = 'Memverifikasi Sesi' }: Props) {
     const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+    const themeRef = useRef(theme);
+    themeRef.current = theme;
+
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
 
@@ -56,9 +59,13 @@ export default function NusaraAssembleLoading({ isOpen, statusText = 'Memverifik
     const regPathRef = useRef<SVGPathElement>(null);
     const sheenRectRef = useRef<SVGRectElement>(null);
     const dotsRef = useRef<(HTMLSpanElement | null)[]>([]);
+    const t0Ref = useRef<number>(0);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            t0Ref.current = 0;
+            return;
+        }
 
         // Initialize element centers via getBBox() or static fallbacks
         const tileElements = tileGroupsRef.current;
@@ -92,7 +99,9 @@ export default function NusaraAssembleLoading({ isOpen, statusText = 'Memverifik
 
         let animationFrameId: number;
         let isStopped = false;
-        const t0 = performance.now();
+        if (t0Ref.current === 0) {
+            t0Ref.current = performance.now();
+        }
         const prefersReducedMotion = typeof window !== 'undefined' 
             && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -131,7 +140,7 @@ export default function NusaraAssembleLoading({ isOpen, statusText = 'Memverifik
                 ringCircleRef.current.setAttribute('opacity', (t > 1.1 && ru < 1 ? (1 - ru) * 0.55 : 0).toFixed(3));
             }
             if (glowCircleRef.current) {
-                const glowVal = theme === 'dark' ? 0.2 : 0.12;
+                const glowVal = themeRef.current === 'dark' ? 0.2 : 0.12;
                 glowCircleRef.current.setAttribute('opacity', (smooth((t - 1) / 1.2) * glowVal).toFixed(3));
             }
 
@@ -174,7 +183,7 @@ export default function NusaraAssembleLoading({ isOpen, statusText = 'Memverifik
         } else {
             const loop = (now: number) => {
                 if (isStopped) return;
-                frame(((now - t0) / 1000) % T_ALL);
+                frame(((now - t0Ref.current) / 1000) % T_ALL);
                 animationFrameId = requestAnimationFrame(loop);
             };
             animationFrameId = requestAnimationFrame(loop);
@@ -186,7 +195,7 @@ export default function NusaraAssembleLoading({ isOpen, statusText = 'Memverifik
                 cancelAnimationFrame(animationFrameId);
             }
         };
-    }, [isOpen, theme]);
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -410,7 +419,7 @@ export default function NusaraAssembleLoading({ isOpen, statusText = 'Memverifik
                         <circle cx="12" cy="12" r="9" />
                         <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" />
                     </svg>
-                    <span>{isDark ? 'Mode Terang' : 'Mode Gelap'}</span>
+                    <span>Terang / Gelap</span>
                 </button>
             </div>
         </aside>
