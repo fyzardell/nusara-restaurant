@@ -188,6 +188,86 @@ interface Props {
     adminUser: User;
 }
 
+export function AdminHeader({ adminUser, active }: { adminUser?: User; active?: string }) {
+    return (
+        <header className="sticky top-0 z-40 bg-[#141110] text-[#F4EFE6] border-b border-[#241F1D] px-4 sm:px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+                <Link href="/admin" className="flex items-center gap-2 text-stone-200 hover:text-[#D4B886] font-bold">
+                    <img src="/nusara-logo.png" alt="NUSARA" className="h-6 w-auto" />
+                    <span className="font-heading text-sm tracking-wider">NUSARA ADMIN</span>
+                </Link>
+                <div className="hidden sm:flex items-center gap-2 ml-4 text-xs text-stone-400">
+                    <Link 
+                        href="/admin" 
+                        className={`px-3 py-1.5 rounded-lg transition-colors ${active !== 'chats' ? 'text-[#D4B886] bg-[#211D1B] font-semibold border border-[#B99A65]/30' : 'hover:text-stone-200'}`}
+                    >
+                        Dashboard
+                    </Link>
+                    <Link 
+                        href="/admin/chats" 
+                        className={`px-3 py-1.5 rounded-lg transition-colors ${active === 'chats' ? 'text-[#D4B886] bg-[#211D1B] font-semibold border border-[#B99A65]/30' : 'hover:text-stone-200'}`}
+                    >
+                        Konsierge / Chat
+                    </Link>
+                </div>
+            </div>
+            <div className="flex items-center gap-3">
+                {adminUser && (
+                    <span className="text-xs text-stone-300 font-medium">{adminUser.name}</span>
+                )}
+                <button
+                    type="button"
+                    onClick={() => router.post('/logout')}
+                    className="p-1.5 rounded-lg text-stone-400 hover:text-rose-400 hover:bg-[#211D1B] transition-colors"
+                    title="Keluar / Logout"
+                >
+                    <LogOut className="w-4 h-4" />
+                </button>
+            </div>
+        </header>
+    );
+}
+
+export function AdminHeader({ adminUser, active }: { adminUser?: User; active?: string }) {
+    return (
+        <header className="sticky top-0 z-40 bg-[#141110] text-[#F4EFE6] border-b border-[#241F1D] px-4 sm:px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+                <Link href="/admin" className="flex items-center gap-2 text-stone-200 hover:text-[#D4B886] font-bold">
+                    <img src="/nusara-logo.png" alt="NUSARA" className="h-6 w-auto" />
+                    <span className="font-heading text-sm tracking-wider">NUSARA ADMIN</span>
+                </Link>
+                <div className="hidden sm:flex items-center gap-2 ml-4 text-xs text-stone-400">
+                    <Link 
+                        href="/admin" 
+                        className={`px-3 py-1.5 rounded-lg transition-colors ${active !== 'chats' ? 'text-[#D4B886] bg-[#211D1B] font-semibold border border-[#B99A65]/30' : 'hover:text-stone-200'}`}
+                    >
+                        Dashboard
+                    </Link>
+                    <Link 
+                        href="/admin/chats" 
+                        className={`px-3 py-1.5 rounded-lg transition-colors ${active === 'chats' ? 'text-[#D4B886] bg-[#211D1B] font-semibold border border-[#B99A65]/30' : 'hover:text-stone-200'}`}
+                    >
+                        Konsierge / Chat
+                    </Link>
+                </div>
+            </div>
+            <div className="flex items-center gap-3">
+                {adminUser && (
+                    <span className="text-xs text-stone-300 font-medium">{adminUser.name}</span>
+                )}
+                <button
+                    type="button"
+                    onClick={() => router.post('/logout')}
+                    className="p-1.5 rounded-lg text-stone-400 hover:text-rose-400 hover:bg-[#211D1B] transition-colors"
+                    title="Keluar / Logout"
+                >
+                    <LogOut className="w-4 h-4" />
+                </button>
+            </div>
+        </header>
+    );
+}
+
 export default function AdminDashboard({
     metrics,
     orders: initialOrders,
