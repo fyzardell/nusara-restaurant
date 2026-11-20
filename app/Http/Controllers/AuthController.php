@@ -231,6 +231,14 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('home'),
+                'message' => 'Sesi telah berhasil diakhiri.',
+            ]);
+        }
+
         return redirect()->route('home');
     }
 }
