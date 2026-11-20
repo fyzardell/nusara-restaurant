@@ -56,9 +56,9 @@ class AdminController extends Controller
             ->leftJoin('restaurant_tables', 'table_sessions.table_id', '=', 'restaurant_tables.id')
             ->select(
                 'orders.*',
-                'customers.name as customer_name',
+                DB::raw("COALESCE(orders.customer_name, customers.name, 'Tamu Meja') as customer_name"),
                 'customers.phone_normalized as customer_phone',
-                'restaurant_tables.table_number',
+                DB::raw("COALESCE(orders.table_number, restaurant_tables.table_number, 'Meja -') as table_number"),
                 'table_sessions.session_code'
             )
             ->orderBy('orders.id', 'desc')

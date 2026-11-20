@@ -32,7 +32,8 @@ import {
     Info, 
     ShieldCheck,
     LogOut,
-    Coffee
+    Coffee,
+    User as UserIcon
 } from 'lucide-react';
 
 interface Props {
@@ -43,6 +44,8 @@ interface Props {
     chatMessages: ChatMessage[];
     tables: RestaurantTable[];
     settings: RestaurantSettings;
+    initialTable?: string | null;
+    isGuest?: boolean;
 }
 
 interface CartItem {
@@ -58,16 +61,20 @@ export default function OrderApp({
     orders: initialOrders, 
     chatMessages: initialChats, 
     tables, 
-    settings 
+    settings,
+    initialTable,
+    isGuest: initialIsGuest = false
 }: Props) {
-    const { auth, flash } = usePage<{ auth: { user: User }; flash: { success?: string; error?: string } }>().props;
+    const { auth, flash } = usePage<{ auth: { user: User | null }; flash: { success?: string; error?: string } }>().props;
+    const isGuest = !auth?.user;
 
     // Navigation Tab state: 'menu' | 'favorites' | 'history' | 'chat'
     const [activeTab, setActiveTab] = useState<'menu' | 'favorites' | 'history' | 'chat'>('menu');
 
     // Order mode: 'dine_in' | 'takeaway'
     const [orderType, setOrderType] = useState<'dine_in' | 'takeaway'>('dine_in');
-    const [selectedTable, setSelectedTable] = useState<string>('Meja 03');
+    const [selectedTable, setSelectedTable] = useState<string>(initialTable || 'Meja 01');
+    const [customerName, setCustomerName] = useState<string>(auth?.user?.name || '');
     const [isTableModalOpen, setIsTableModalOpen] = useState(false);
 
     // Search and Category
@@ -129,6 +136,11 @@ export default function OrderApp({
 
     // Toggle Favorite
     const handleToggleFavorite = (menuId: number) => {
+        if (isGuest) {
+            alert('Fitur favorit hidangan memerlukan Akun Customer. Silakan masuk untuk menyimpan menu favorit Anda.');
+            router.visit('/login');
+            return;
+        }
         setFavorites(prev => 
             prev.includes(menuId) ? prev.filter(id => id !== menuId) : [...prev, menuId]
         );
@@ -192,10 +204,27 @@ export default function OrderApp({
         e.preventDefault();
         if (cart.length === 0) return;
 
+        if (!customerName.trim()) {
+            alert('Mohon masukkan nama pemesan / pelanggan terlebih dahulu.');
+            return;
+        }
+
+        if (orderType === 'dine_in' && !selectedTable.trim()) {
+            alert('Mohon pilih atau ketik nomor meja yang sedang Anda tempati.');
+            return;
+        }
+
+        if (orderType === 'takeaway' && isGuest) {
+            alert('Pesanan Bawa Pulang (Takeaway) mewajibkan Anda masuk ke Akun Customer terlebih dahulu agar kami dapat mengonfirmasi kesiapan pesanan.');
+            router.visit('/login');
+            return;
+        }
+
         setIsCheckingOut(true);
         router.post('/order/checkout', {
             order_type: orderType,
-            table_number: orderType === 'dine_in' ? selectedTable : null,
+            customer_name: customerName.trim(),
+            table_number: orderType === 'dine_in' ? selectedTable.trim() : null,
             customer_notes: generalNotes,
             payment_method: paymentMethod,
             items: cart.map(item => ({
@@ -339,28 +368,50 @@ export default function OrderApp({
                                 </button>
                             </div>
 
-                            {/* User Avatar & Logout */}
-                            <button
-                                onClick={() => router.post('/logout')}
-                                title="Keluar / Logout"
-                                className="w-8 h-8 rounded-full bg-[#211D1B] border border-rose-500/40 text-rose-300 flex items-center justify-center hover:bg-rose-950 transition-colors"
-                            >
-                                <LogOut className="w-3.5 h-3.5" />
-                            </button>
+                            {/* User Profile / Login Button */}
+                            {auth?.user ? (
+                                <button
+                                    onClick={() => router.post('/logout')}
+                                    title="Keluar / Logout"
+                                    className="w-8 h-8 rounded-full bg-[#211D1B] border border-rose-500/40 text-rose-300 flex items-center justify-center hover:bg-rose-950 transition-colors"
+                                >
+                                    <LogOut className="w-3.5 h-3.5" />
+                                </button>
+                            ) : (
+                                <Link
+                                    href="/login"
+                                    className="px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FFF0BA] via-[#F6D072] to-[#C99A36] text-[#1A1412] font-bold text-xs flex items-center gap-1.5 shadow-md hover:scale-105 active:scale-95 transition-all"
+                                >
+                                    <UserIcon className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Masuk</span> Akun
+                                </Link>
+                            )}
                         </div>
                     </div>
 
-                    {/* Member Greeting Sub-bar */}
+                    {/* Member Greeting / Guest Table Sub-bar */}
                     <div className="mt-3 pt-2.5 border-t border-[#B99A65]/20 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                            <span className="text-[#F4EFE6]/70">Selamat datang,</span>
-                            <span className="font-bold text-[#D4B886]">{auth.user.name}</span>
-                            <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-[#B99A65]/20 text-[#D4B886] text-[10px] font-semibold border border-[#B99A65]/30">
-                                Member Prioritas NUSARA
-                            </span>
-                        </div>
-                        <div className="text-[11px] text-[#F4EFE6]/60">
-                            {orderType === 'dine_in' ? `Makan di ${selectedTable}` : 'Takeaway (Self-Pickup)'}
+                        {auth?.user ? (
+                            <div className="flex items-center gap-2">
+                                <span className="text-[#F4EFE6]/70">Selamat datang,</span>
+                                <span className="font-bold text-[#D4B886]">{auth.user.name}</span>
+                                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-[#B99A65]/20 text-[#D4B886] text-[10px] font-semibold border border-[#B99A65]/30">
+                                    Akun Customer (Member)
+                                </span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 rounded-md bg-[#211D1B] border border-[#B99A65]/40 text-[#D4B886] text-[10px] font-bold uppercase tracking-wider">
+                                    Akun Tamu Meja
+                                </span>
+                                <span className="text-[11px] text-[#F4EFE6]/70 hidden sm:inline">
+                                    Bisa pesan langsung tanpa login. <Link href="/login" className="text-[#D4B886] underline font-semibold ml-1">Masuk Customer</Link> untuk simpan riwayat & favorit.
+                                </span>
+                            </div>
+                        )}
+                        <div className="text-[11px] text-[#D4B886] font-semibold flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                            <span>{orderType === 'dine_in' ? `Makan di ${selectedTable}` : 'Takeaway (Self-Pickup)'}</span>
                         </div>
                     </div>
                 </div>
@@ -467,8 +518,38 @@ export default function OrderApp({
                             </div>
                         </div>
 
-                        {/* Menu Grid */}
-                        {displayedMenus.length > 0 ? (
+                        {/* Menu Grid / Favorites Guest Lock */}
+                        {activeTab === 'favorites' && isGuest ? (
+                            <div className="text-center py-16 px-6 bg-white rounded-3xl border border-[#B99A65]/40 shadow-md max-w-lg mx-auto">
+                                <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-200 text-rose-500 mx-auto flex items-center justify-center mb-4">
+                                    <Heart className="w-8 h-8 fill-current" />
+                                </div>
+                                <span className="text-[10px] uppercase font-bold tracking-widest text-[#B99A65] block mb-1">
+                                    Fitur Khusus Akun Customer
+                                </span>
+                                <h3 className="font-heading text-2xl font-bold text-[#32151F]">
+                                    Simpan Hidangan Favorit Anda
+                                </h3>
+                                <p className="text-xs text-[#211D1B]/70 mt-2 leading-relaxed">
+                                    Sebagai <strong>Akun Tamu Meja</strong>, hidangan favorit tidak disimpan secara permanen. Masuk ke Akun Customer Anda agar daftar hidangan favorit, re-order cepat, dan preferensi koki Anda selalu tersimpan.
+                                </p>
+                                <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+                                    <Link
+                                        href="/login"
+                                        className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-wider shadow-md hover:scale-105 transition-all"
+                                    >
+                                        Masuk ke Akun Customer
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('menu')}
+                                        className="w-full sm:w-auto px-5 py-3 rounded-xl border border-stone-300 text-stone-700 text-xs font-semibold hover:bg-stone-50"
+                                    >
+                                        Jelajahi Menu
+                                    </button>
+                                </div>
+                            </div>
+                        ) : displayedMenus.length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {displayedMenus.map(menu => {
                                     const isOutOfStock = !menu.is_available || menu.stock_quantity <= 0;
@@ -697,6 +778,52 @@ export default function OrderApp({
                                         </div>
                                     );
                                 })}
+                                {isGuest && initialOrders.length > 0 && (
+                                    <div className="p-4 rounded-2xl bg-amber-950/20 border border-amber-500/30 text-amber-900 text-xs flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Info className="w-4 h-4 text-[#B99A65] flex-shrink-0" />
+                                            <span>
+                                                Pesanan di atas adalah pesanan aktif sesi meja Anda saat ini.
+                                            </span>
+                                        </div>
+                                        <Link 
+                                            href="/login" 
+                                            className="px-3 py-1.5 rounded-lg bg-[#32151F] text-[#D4B886] font-bold text-[11px] whitespace-nowrap hover:bg-[#B99A65] hover:text-[#211D1B] transition-all"
+                                        >
+                                            Simpan ke Akun Customer
+                                        </Link>
+                                    </div>
+                                )}
+                            </div>
+                        ) : isGuest ? (
+                            <div className="text-center py-16 px-6 bg-white rounded-3xl border border-[#B99A65]/40 shadow-sm max-w-lg mx-auto">
+                                <div className="w-16 h-16 rounded-full bg-amber-50 border border-amber-200 text-[#B99A65] mx-auto flex items-center justify-center mb-4">
+                                    <Clock className="w-8 h-8" />
+                                </div>
+                                <span className="text-[10px] uppercase font-bold tracking-widest text-[#B99A65] block mb-1">
+                                    Sesi Akun Tamu Meja
+                                </span>
+                                <h3 className="font-heading text-2xl font-bold text-[#32151F]">
+                                    Belum Ada Riwayat Pesanan
+                                </h3>
+                                <p className="text-xs text-[#211D1B]/70 mt-2 leading-relaxed">
+                                    Saat Anda memesan sebagai Tamu Meja, pesanan aktif sesi ini akan tampil di sini. Namun untuk menyimpan seluruh arsip struk digital dan melihat riwayat pembelian sebelumnya secara permanen, silakan masuk ke Akun Customer.
+                                </p>
+                                <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+                                    <Link
+                                        href="/login"
+                                        className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-wider shadow-md hover:scale-105 transition-all"
+                                    >
+                                        Masuk ke Akun Customer
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('menu')}
+                                        className="w-full sm:w-auto px-5 py-3 rounded-xl border border-stone-300 text-stone-700 text-xs font-semibold hover:bg-stone-50"
+                                    >
+                                        Pesan Menu Sekarang
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <div className="text-center py-16 bg-white rounded-3xl border border-stone-300">
@@ -722,7 +849,38 @@ export default function OrderApp({
                     TAB 4: CHAT WITH ADMIN / CONCIERGE
                 ---------------------------------------------------- */}
                 {activeTab === 'chat' && (
-                    <div className="rounded-3xl bg-white border border-[#B99A65]/40 shadow-xl overflow-hidden flex flex-col h-[600px]">
+                    isGuest ? (
+                        <div className="text-center py-16 px-6 bg-white rounded-3xl border border-[#B99A65]/40 shadow-sm max-w-lg mx-auto">
+                            <div className="w-16 h-16 rounded-full bg-[#32151F] border border-[#B99A65] text-[#D4B886] mx-auto flex items-center justify-center mb-4 shadow">
+                                <MessageSquare className="w-8 h-8" />
+                            </div>
+                            <span className="text-[10px] uppercase font-bold tracking-widest text-[#B99A65] block mb-1">
+                                Fitur Khusus Akun Customer
+                            </span>
+                            <h3 className="font-heading text-2xl font-bold text-[#32151F]">
+                                Live Concierge & Bantuan Staf
+                            </h3>
+                            <p className="text-xs text-[#211D1B]/70 mt-2 leading-relaxed">
+                                Fitur interaktif obrolan langsung dengan kasir dan concierge restoran memerlukan identitas Akun Customer terdaftar.
+                            </p>
+                            <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+                                <Link
+                                    href="/login"
+                                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-wider shadow-md hover:scale-105 transition-all"
+                                >
+                                    Masuk ke Akun Customer
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('menu')}
+                                    className="w-full sm:w-auto px-5 py-3 rounded-xl border border-stone-300 text-stone-700 text-xs font-semibold hover:bg-stone-50"
+                                >
+                                    Kembali ke Menu
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="rounded-3xl bg-white border border-[#B99A65]/40 shadow-xl overflow-hidden flex flex-col h-[600px]">
                         {/* Chat Header */}
                         <div className="p-4 bg-[#32151F] text-[#F4EFE6] flex items-center justify-between border-b border-[#B99A65]/30">
                             <div className="flex items-center gap-3">
@@ -814,6 +972,7 @@ export default function OrderApp({
                             </button>
                         </form>
                     </div>
+                    )
                 )}
             </main>
 
@@ -1008,6 +1167,63 @@ export default function OrderApp({
                                     {orderType === 'dine_in' ? `Dine-in (${selectedTable})` : 'Takeaway (Self-Pickup)'}
                                 </span>
                             </div>
+
+                            {/* Input Nama Pemesan / Tamu */}
+                            <div className="mb-4">
+                                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#B99A65] mb-1.5 flex items-center justify-between">
+                                    <span>Nama Pemesan / Pelanggan:</span>
+                                    <span className="text-[10px] text-amber-300 font-normal">*Wajib diisi</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={customerName}
+                                    onChange={(e) => setCustomerName(e.target.value)}
+                                    placeholder="Masukkan Nama Anda (contoh: Pak Budi)"
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#32151F]/70 border border-[#B99A65]/40 text-xs text-[#F4EFE6] placeholder-[#F4EFE6]/30 focus:outline-none focus:border-[#D4B886]"
+                                />
+                            </div>
+
+                            {/* Pilihan Nomor Meja (Khusus Dine-in): Dropdown + Ketik Manual */}
+                            {orderType === 'dine_in' && (
+                                <div className="mb-4 space-y-2">
+                                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#B99A65]">
+                                        Nomor Meja Dine-In:
+                                    </label>
+                                    
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={selectedTable}
+                                            onChange={(e) => setSelectedTable(e.target.value)}
+                                            placeholder="Ketik manual meja (contoh: Meja 03)..."
+                                            className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#32151F]/70 border border-[#B99A65]/40 text-xs text-[#F4EFE6] placeholder-[#F4EFE6]/30 focus:outline-none focus:border-[#D4B886]"
+                                        />
+                                        <select
+                                            value={tables.some(t => t.table_number === selectedTable) ? selectedTable : ''}
+                                            onChange={(e) => {
+                                                if (e.target.value) setSelectedTable(e.target.value);
+                                            }}
+                                            className="px-3 py-2.5 rounded-xl bg-[#32151F] border border-[#B99A65]/40 text-xs text-[#D4B886] font-semibold focus:outline-none"
+                                        >
+                                            <option value="">Pilih List Meja</option>
+                                            {tables.map(t => (
+                                                <option key={t.id} value={t.table_number}>
+                                                    {t.table_number} ({t.capacity || 5} Kursi)
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Catatan Wajib: Sesuai meja fisik */}
+                                    <div className="p-2.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-[11px] flex items-start gap-2">
+                                        <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                                        <span>
+                                            <strong>Penting:</strong> Harus sesuai dengan nomor meja yang sedang ditempati saat ini agar hidangan diantar pelayan ke meja yang tepat.
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Item List */}
                             <div className="space-y-3 mb-6">
@@ -1211,11 +1427,11 @@ export default function OrderApp({
             )}
 
             {/* ========================================================
-                MODAL 4: SELECT TABLE FOR DINE-IN
+                MODAL 4: SELECT TABLE FOR DINE-IN (10 MEJA DENGAN 5 KURSI)
             ======================================================== */}
             {isTableModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-                    <div className="relative w-full max-w-sm bg-[#211D1B] border border-[#B99A65]/40 rounded-3xl p-6 shadow-2xl text-[#F4EFE6]">
+                    <div className="relative w-full max-w-md bg-[#211D1B] border border-[#B99A65]/40 rounded-3xl p-6 shadow-2xl text-[#F4EFE6]">
                         <button
                             onClick={() => setIsTableModalOpen(false)}
                             className="absolute top-4 right-4 p-2 rounded-full text-stone-400 hover:text-white"
@@ -1227,11 +1443,46 @@ export default function OrderApp({
                             <QrCode className="w-4 h-4" />
                             <span>Dine-in Table Selector</span>
                         </div>
-                        <h3 className="font-heading text-2xl font-bold text-[#F4EFE6] mb-4">
+                        <h3 className="font-heading text-2xl font-bold text-[#F4EFE6] mb-1">
                             Pilih Nomor Meja Anda
                         </h3>
+                        <p className="text-xs text-[#F4EFE6]/70 mb-4">
+                            Tersedia 10 Meja (kapasitas masing-masing 5 kursi) di Main Dining Hall.
+                        </p>
 
-                        <div className="grid grid-cols-2 gap-2 mb-6">
+                        {/* Ketik Manual Nomor Meja */}
+                        <div className="mb-4">
+                            <label className="block text-[11px] font-semibold text-[#B99A65] uppercase tracking-wider mb-1.5">
+                                Ketik Nomor Meja Manual:
+                            </label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={selectedTable}
+                                    onChange={(e) => setSelectedTable(e.target.value)}
+                                    placeholder="Contoh: Meja 03 atau ketik 3..."
+                                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#32151F] border border-[#B99A65]/40 text-xs text-[#F4EFE6] placeholder-[#F4EFE6]/30 focus:outline-none focus:border-[#D4B886]"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setIsTableModalOpen(false)}
+                                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs hover:scale-105 transition-all"
+                                >
+                                    Pilih
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Catatan Wajib: Sesuai meja fisik */}
+                        <div className="p-2.5 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-[11px] flex items-start gap-2 mb-4">
+                            <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                            <span>
+                                <strong>Penting:</strong> Harus sesuai dengan nomor meja yang sedang Anda tempati saat ini agar hidangan diantar pelayan ke meja yang tepat.
+                            </span>
+                        </div>
+
+                        {/* Grid 10 Meja (5 Kursi per Meja) */}
+                        <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
                             {tables.map(table => (
                                 <button
                                     key={table.id}
@@ -1247,7 +1498,7 @@ export default function OrderApp({
                                     }`}
                                 >
                                     <div className="text-sm font-bold">{table.table_number}</div>
-                                    <div className="text-[10px] opacity-75">{table.location} ({table.capacity} org)</div>
+                                    <div className="text-[10px] opacity-75">{table.location} ({table.capacity || 5} Kursi)</div>
                                 </button>
                             ))}
                         </div>

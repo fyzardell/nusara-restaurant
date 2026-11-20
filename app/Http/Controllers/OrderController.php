@@ -13,11 +13,7 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        if (!$user) {
-            return redirect()->route('login');
-        }
-
-        $customer = DB::table('customers')->where('user_id', $user->id)->first();
+        $customer = $user ? DB::table('customers')->where('user_id', $user->id)->first() : null;
 
         // 1. Categories
         $categories = DB::table('categories')
@@ -58,21 +54,28 @@ class OrderController extends Controller
                 return $menu;
             });
 
-        // 3. User Favorites
-        $favorites = DB::table('favorites')
-            ->where('user_id', $user->id)
-            ->pluck('menu_id')
-            ->toArray();
+        // 3. User Favorites (Hanya untuk member terdaftar)
+        $favorites = [];
+        if ($user) {
+            $favorites = DB::table('favorites')
+                ->where('user_id', $user->id)
+                ->pluck('menu_id')
+                ->toArray();
+        }
 
-        // 4. User Order History
-        $ordersQuery = DB::table('orders')
-            ->orderBy('id', 'desc');
+        // 4. Order History
+        $ordersQuery = DB::table('orders')->orderBy('id', 'desc');
 
-        if ($customer) {
+        if ($user && $customer) {
             $ordersQuery->where('customer_id', $customer->id);
         } else {
-            // fallback if customer record is being created
-            $ordersQuery->whereRaw('1 = 0');
+            // Tamu meja hanya bisa melihat pesanan sesi saat ini (jika baru pesan)
+            $guestOrderIds = session('guest_order_ids', []);
+            if (!empty($guestOrderIds)) {
+                $ordersQuery->whereIn('id', $guestOrderIds);
+            } else {
+                $ordersQuery->whereRaw('1 = 0');
+            }
         }
 
         $orders = $ordersQuery->get()->map(function ($order) {
@@ -89,17 +92,38 @@ class OrderController extends Controller
         });
 
         // 5. Chat History
-        $chatMessages = DB::table('chat_messages')
-            ->where('user_id', $user->id)
+        $chatMessages = [];
+        if ($user) {
+            $chatMessages = DB::table('chat_messages')
+                ->where('user_id', $user->id)
+                ->orderBy('id', 'asc')
+                ->get();
+        }
+
+        // 6. 10 Meja Dine-in (Kapasitas masing-masing 5 orang)
+        $tables = DB::table('restaurant_tables')
+            ->where('is_active', true)
             ->orderBy('id', 'asc')
             ->get();
 
-        // 6. Available Tables for Dine-in
-        $tables = DB::table('restaurant_tables')
-            ->where('is_active', true)
-            ->get();
-
         $settings = DB::table('restaurant_settings')->first();
+
+        // Deteksi QR Meja otomatis dari query param (misal: ?table=3 atau ?table=03 atau ?table=Meja 03)
+        $rawTable = $request->query('table');
+        $initialTable = null;
+        if ($rawTable) {
+            if (is_numeric($rawTable)) {
+                $initialTable = 'Meja ' . sprintf('%02d', (int)$rawTable);
+            } else {
+                $clean = trim($rawTable);
+                // jika user mengetik "3" atau "meja 3"
+                if (preg_match('/(\d+)/', $clean, $matches)) {
+                    $initialTable = 'Meja ' . sprintf('%02d', (int)$matches[1]);
+                } else {
+                    $initialTable = $clean;
+                }
+            }
+        }
 
         return Inertia::render('Customer/OrderApp', [
             'categories' => $categories,
@@ -110,19 +134,19 @@ class OrderController extends Controller
             'tables' => $tables,
             'settings' => $settings,
             'customer' => $customer,
+            'initialTable' => $initialTable,
+            'isGuest' => !$user,
         ]);
     }
 
     public function checkout(Request $request)
     {
         $user = Auth::user();
-        if (!$user) {
-            return redirect()->route('login');
-        }
 
         $request->validate([
             'order_type' => 'required|in:dine_in,takeaway',
             'table_number' => 'nullable|string',
+            'customer_name' => 'required|string|max:100',
             'customer_notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.menu_id' => 'required|integer',
@@ -131,18 +155,39 @@ class OrderController extends Controller
             'payment_method' => 'required|in:qris,bank_transfer,cash',
         ]);
 
-        $customer = DB::table('customers')->where('user_id', $user->id)->first();
-        if (!$customer) {
-            $customerId = DB::table('customers')->insertGetId([
-                'user_id' => $user->id,
-                'name' => $user->name,
-                'phone_normalized' => '+62812' . rand(1000000, 9999999),
-                'email' => $user->email,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        } else {
-            $customerId = $customer->id;
+        // Proteksi Takeaway: Wajib Login
+        if ($request->order_type === 'takeaway' && !$user) {
+            return redirect()->route('login')->with('error', 'Pesanan Bawa Pulang (Takeaway) mewajibkan Anda masuk ke Akun Customer agar staf kami dapat menghubungi Anda saat pesanan siap diambil.');
+        }
+
+        // Proteksi Dine In: Wajib pilih / input nomor meja
+        if ($request->order_type === 'dine_in' && !$request->table_number) {
+            return redirect()->back()->with('error', 'Silakan pilih atau ketik nomor meja yang sedang Anda tempati.');
+        }
+
+        $customerName = trim($request->customer_name);
+        $customerId = null;
+
+        if ($user) {
+            $customer = DB::table('customers')->where('user_id', $user->id)->first();
+            if (!$customer) {
+                $customerId = DB::table('customers')->insertGetId([
+                    'user_id' => $user->id,
+                    'name' => $customerName ?: $user->name,
+                    'phone_normalized' => '+62812' . rand(1000000, 9999999),
+                    'email' => $user->email,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                $customerId = $customer->id;
+                if ($customerName && $customerName !== $customer->name) {
+                    DB::table('customers')->where('id', $customer->id)->update([
+                        'name' => $customerName,
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
         }
 
         DB::beginTransaction();
@@ -177,8 +222,9 @@ class OrderController extends Controller
 
             // Table session if dine_in
             $tableSessionId = null;
-            if ($request->order_type === 'dine_in' && $request->table_number) {
-                $table = DB::table('restaurant_tables')->where('table_number', $request->table_number)->first();
+            $finalTableNumber = $request->table_number ? trim($request->table_number) : null;
+            if ($request->order_type === 'dine_in' && $finalTableNumber) {
+                $table = DB::table('restaurant_tables')->where('table_number', $finalTableNumber)->first();
                 if ($table) {
                     $tableSessionId = DB::table('table_sessions')->insertGetId([
                         'table_id' => $table->id,
@@ -195,9 +241,11 @@ class OrderController extends Controller
                 'order_code' => $orderCode,
                 'access_token_hash' => hash('sha256', Str::random(32)),
                 'customer_id' => $customerId,
+                'customer_name' => $customerName,
                 'table_session_id' => $tableSessionId,
+                'table_number' => $finalTableNumber,
                 'order_type' => $request->order_type,
-                'order_status' => 'Preparing', // simulated order confirmation
+                'order_status' => 'Preparing',
                 'subtotal' => $subtotal,
                 'tax' => $tax,
                 'discount' => 0,
@@ -224,11 +272,19 @@ class OrderController extends Controller
 
             DB::commit();
 
-            return redirect()->back()->with('success', "Pesanan #{$orderCode} berhasil dibuat dan diteruskan ke dapur!");
+            // Simpan ke session untuk tracking tamu meja
+            if (!$user) {
+                $guestOrderIds = session('guest_order_ids', []);
+                $guestOrderIds[] = $orderId;
+                session(['guest_order_ids' => $guestOrderIds]);
+            }
+
+            return redirect()->back()->with('success', "Pesanan #{$orderCode} untuk {$customerName} ({$finalTableNumber}) berhasil dibuat dan diteruskan ke dapur!");
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', $e->getMessage());
         }
+    }
     }
 
     public function submitRating(Request $request, $orderId)
