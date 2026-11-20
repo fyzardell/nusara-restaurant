@@ -155,6 +155,31 @@ export default function OrderApp({
         }
     };
 
+    const getStatusBadgeText = (status: string | any) => {
+        const s = String(status || '');
+        if (s === 'Pending' || s === 'Awaiting Payment') return 'Menunggu ACC Kasir';
+        if (s === 'Preparing' || s === 'Paid' || s === 'Confirmed') return 'Proses Dapur';
+        if (s === 'Ready') return 'Siap Saji';
+        if (s === 'Served' || s === 'Picked Up' || s === 'Completed') return 'Selesai Terhidang';
+        if (s === 'Cancelled') return 'Dibatalkan';
+        return s;
+    };
+
+    const getStatusTrackerText = (status: string | any) => {
+        const s = String(status || '');
+        if (s === 'Pending' || s === 'Awaiting Payment') return '1/4 - Menunggu ACC Kasir';
+        if (s === 'Preparing' || s === 'Paid' || s === 'Confirmed') return '2/4 - Sedang Dimasak Dapur';
+        if (s === 'Ready') return '3/4 - Siap Disajikan';
+        return '4/4 - Selesai Terhidang';
+    };
+
+    const getActiveOrderStatusText = (status: string | any) => {
+        const s = String(status || '');
+        if (s === 'Pending' || s === 'Awaiting Payment') return '⏳ Menunggu Konfirmasi / ACC Kasir';
+        if (s === 'Preparing' || s === 'Paid' || s === 'Confirmed') return '🔥 Sedang Dimasak Dapur';
+        return '✨ Pesanan Siap Disajikan / Diambil';
+    };
+
     // Cart calculations
     const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
     const cartSubtotal = cart.reduce((sum, item) => sum + (item.menu.price * item.quantity), 0);
@@ -509,7 +534,7 @@ export default function OrderApp({
                                 </div>
                                 <p className="text-xs font-semibold text-[#F4EFE6] mt-0.5">
                                     Status: <span className="text-[#D4B886]">
-                                        {(activeOrder.order_status as string) === 'Pending' ? '⏳ Menunggu Konfirmasi / ACC Kasir' : (activeOrder.order_status as string) === 'Preparing' ? '🔥 Sedang Dimasak Dapur' : '✨ Pesanan Siap Disajikan / Diambil'}
+                                        {getActiveOrderStatusText(activeOrder.order_status)}
                                     </span>
                                 </p>
                             </div>
@@ -777,13 +802,13 @@ export default function OrderApp({
                                                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                                                         isServedOrDone
                                                             ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                                            : (order.order_status as string) === 'Preparing'
+                                                            : getStatusStep(order.order_status) === 2
                                                             ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
-                                                            : (order.order_status as string) === 'Pending'
+                                                            : getStatusStep(order.order_status) === 1
                                                             ? 'bg-yellow-100 text-yellow-800 border border-yellow-300 animate-pulse'
                                                             : 'bg-sky-100 text-sky-800 border border-sky-300'
                                                     }`}>
-                                                        {(order.order_status as string) === 'Pending' ? 'Menunggu ACC Kasir' : (order.order_status as string) === 'Preparing' ? 'Proses Dapur' : (order.order_status as string) === 'Ready' ? 'Siap Saji' : order.order_status}
+                                                        {getStatusBadgeText(order.order_status)}
                                                     </span>
                                                 </div>
                                             </div>
@@ -796,7 +821,7 @@ export default function OrderApp({
                                                         <span>Status Live Tracking:</span>
                                                     </span>
                                                     <span className="text-[11px] font-semibold text-[#B99A65]">
-                                                        {(order.order_status as string) === 'Pending' ? '1/4 - Menunggu ACC Kasir' : (order.order_status as string) === 'Preparing' ? '2/4 - Sedang Dimasak Dapur' : (order.order_status as string) === 'Ready' ? '3/4 - Siap Disajikan' : '4/4 - Selesai Terhidang'}
+                                                        {getStatusTrackerText(order.order_status)}
                                                     </span>
                                                 </div>
 

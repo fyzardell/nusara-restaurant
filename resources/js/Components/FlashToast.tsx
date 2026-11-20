@@ -14,13 +14,22 @@ export default function FlashToast({ flash, durationMs = 3000 }: Props) {
     const [message, setMessage] = useState<string | null>(null);
     const [type, setType] = useState<'success' | 'error'>('success');
 
+    const sanitizeMessage = (msg: string | null | undefined): string | null => {
+        if (!msg) return null;
+        // Bersihkan duplikasi role seperti (Admin) (Admin) atau spasi berulang
+        return msg
+            .replace(/\(([^)]+)\)\s*\(\1\)/gi, '($1)')
+            .replace(/\s+/g, ' ')
+            .trim();
+    };
+
     useEffect(() => {
         if (flash?.success) {
-            setMessage(flash.success);
+            setMessage(sanitizeMessage(flash.success));
             setType('success');
             setVisible(true);
         } else if (flash?.error) {
-            setMessage(flash.error);
+            setMessage(sanitizeMessage(flash.error));
             setType('error');
             setVisible(true);
         } else {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -53,10 +54,13 @@ class AuthController extends Controller
             ],
         ];
 
+        $initialMode = $request->query('tab') === 'register' || $request->is('register*') ? 'register' : 'login';
+
         return Inertia::render('Auth/Login', [
             'demoAccounts' => $demoAccounts,
             'defaultRole' => $request->query('role', 'customer'),
             'status' => session('status'),
+            'initialMode' => $initialMode,
         ]);
     }
 
@@ -139,6 +143,80 @@ class AuthController extends Controller
         }
 
         return redirect()->intended(route('home'));
+    }
+
+    public function register(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'email' => 'required|email|unique:users,email|max:150',
+            'phone' => 'required|string|max:20',
+            'password' => 'required|string|min:8|confirmed',
+            'agree_terms' => 'accepted',
+        ], [
+            'name.required' => 'Nama lengkap wajib diisi.',
+            'email.required' => 'Alamat email wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.unique' => 'Email ini sudah terdaftar sebagai akun NUSARA.',
+            'phone.required' => 'Nomor WhatsApp / telepon wajib diisi.',
+            'password.required' => 'Kata sandi wajib diisi.',
+            'password.min' => 'Kata sandi minimal 8 karakter.',
+            'password.confirmed' => 'Konfirmasi kata sandi tidak cocok.',
+            'agree_terms.accepted' => 'Anda harus menyetujui syarat & kebijakan privasi NUSARA.',
+        ]);
+
+        $phone = trim($request->input('phone'));
+        $digits = preg_replace('/[^0-9]/', '', $phone);
+        if (str_starts_with($digits, '0')) {
+            $normalizedPhone = '+62' . substr($digits, 1);
+        } elseif (str_starts_with($digits, '62')) {
+            $normalizedPhone = '+' . $digits;
+        } else {
+            $normalizedPhone = '+' . $digits;
+        }
+
+        // Cek nomor telepon unik di tabel customers
+        $existingCustomer = DB::table('customers')->where('phone_normalized', $normalizedPhone)->first();
+        if ($existingCustomer) {
+            throw ValidationException::withMessages([
+                'phone' => ['Nomor telepon ini sudah terdaftar sebagai anggota NUSARA.'],
+            ]);
+        }
+
+        $customerRole = DB::table('roles')->where('name', 'customer')->first();
+        $customerRoleId = $customerRole ? $customerRole->id : 1;
+
+        $userId = DB::table('users')->insertGetId([
+            'role_id' => $customerRoleId,
+            'name' => $request->input('name'),
+            'email' => strtolower($request->input('email')),
+            'password' => Hash::make($request->input('password')),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('customers')->insert([
+            'user_id' => $userId,
+            'name' => $request->input('name'),
+            'phone_normalized' => $normalizedPhone,
+            'email' => strtolower($request->input('email')),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $user = \App\Models\User::find($userId);
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        session()->flash('success', "Selamat datang di NUSARA, {$user->name}! Akun anggota eksklusif Anda telah aktif.");
+
+        $redirectUrl = $request->input('redirect');
+        if ($redirectUrl && is_string($redirectUrl) && str_starts_with($redirectUrl, '/')) {
+            return redirect($redirectUrl);
+        }
+
+        return redirect()->intended(route('order.app'));
     }
 
     public function logout(Request $request)
