@@ -65,7 +65,23 @@ class OrderController extends Controller
                 ->toArray();
         }
 
-        // 4. Order History
+        // 4. Deteksi QR Meja otomatis dari query param (misal: ?table=3 atau ?table=03 atau ?table=Meja 03)
+        $rawTable = $request->query('table');
+        $initialTable = null;
+        if ($rawTable) {
+            if (is_numeric($rawTable)) {
+                $initialTable = 'Meja ' . sprintf('%02d', (int)$rawTable);
+            } else {
+                $clean = trim($rawTable);
+                if (preg_match('/(\d+)/', $clean, $matches)) {
+                    $initialTable = 'Meja ' . sprintf('%02d', (int)$matches[1]);
+                } else {
+                    $initialTable = $clean;
+                }
+            }
+        }
+
+        // 5. Order History
         $ordersQuery = DB::table('orders')->orderBy('id', 'desc');
 
         if ($user && $customer) {
@@ -112,23 +128,6 @@ class OrderController extends Controller
             ->get();
 
         $settings = DB::table('restaurant_settings')->first();
-
-        // Deteksi QR Meja otomatis dari query param (misal: ?table=3 atau ?table=03 atau ?table=Meja 03)
-        $rawTable = $request->query('table');
-        $initialTable = null;
-        if ($rawTable) {
-            if (is_numeric($rawTable)) {
-                $initialTable = 'Meja ' . sprintf('%02d', (int)$rawTable);
-            } else {
-                $clean = trim($rawTable);
-                // jika user mengetik "3" atau "meja 3"
-                if (preg_match('/(\d+)/', $clean, $matches)) {
-                    $initialTable = 'Meja ' . sprintf('%02d', (int)$matches[1]);
-                } else {
-                    $initialTable = $clean;
-                }
-            }
-        }
 
         $rawType = $request->query('type');
         $initialType = ($rawType === 'takeaway') ? 'takeaway' : 'dine_in';
