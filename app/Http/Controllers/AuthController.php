@@ -138,6 +138,10 @@ class AuthController extends Controller
             return redirect()->intended(route('cashier.dashboard'));
         }
 
+        if ($roleName === 'waiter') {
+            return redirect()->intended(route('waiter.dashboard'));
+        }
+
         if ($roleName === 'customer') {
             return redirect()->intended(route('order.app'));
         }

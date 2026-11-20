@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CashierController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\WaiterController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -52,4 +53,14 @@ Route::middleware('auth')->prefix('cashier')->group(function () {
     Route::post('/order/{id}/payment', [CashierController::class, 'confirmCashPayment'])->name('cashier.order.payment');
     Route::post('/table/{id}/status', [CashierController::class, 'updateTableStatus'])->name('cashier.table.status');
     Route::post('/reservation/{id}/status', [CashierController::class, 'updateReservationStatus'])->name('cashier.reservation.status');
+});
+
+// Waiter Operational Dashboard (PRD Section 2, 6.1, 6.2 & 8.2)
+Route::middleware('auth')->prefix('waiter')->group(function () {
+    Route::get('/', [WaiterController::class, 'index'])->name('waiter.dashboard');
+    Route::post('/table/{id}/validate', [WaiterController::class, 'validateTable'])->name('waiter.table.validate');
+    Route::post('/order/{id}/serve', [WaiterController::class, 'markServed'])->name('waiter.order.serve');
+    Route::post('/table/{id}/cleaning', [WaiterController::class, 'startCleaning'])->name('waiter.table.cleaning');
+    Route::post('/table/{id}/available', [WaiterController::class, 'finishCleaning'])->name('waiter.table.available');
+    Route::post('/table/{id}/request-occupancy', [WaiterController::class, 'requestOccupancy'])->name('waiter.table.request-occupancy');
 });
