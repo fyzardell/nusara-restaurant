@@ -18,7 +18,8 @@ import {
     ArrowRight, 
     ChevronRight,
     UtensilsCrossed,
-    CheckCircle2
+    CheckCircle2,
+    Eye
 } from 'lucide-react';
 
 interface Props {

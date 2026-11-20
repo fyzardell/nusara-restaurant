@@ -93,11 +93,13 @@ export interface OrderRating {
     created_at: string;
 }
 
+export type OrderStatus = 'Pending' | 'Awaiting Payment' | 'Paid' | 'Confirmed' | 'Preparing' | 'Ready' | 'Served' | 'Picked Up' | 'Cancelled' | string;
+
 export interface Order {
     id: number;
     order_code: string;
     order_type: 'dine_in' | 'takeaway';
-    order_status: 'Awaiting Payment' | 'Paid' | 'Confirmed' | 'Preparing' | 'Ready' | 'Served' | 'Picked Up' | 'Cancelled';
+    order_status: OrderStatus;
     subtotal: number;
     tax: number;
     discount: number;
