@@ -178,22 +178,11 @@ export default function LandingPage({ settings, categories, menus, experiences, 
                 </div>
 
                 <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 mt-12 md:mt-6">
-                    {/* Brand Pill */}
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#32151F]/90 border border-[#B99A65]/40 text-[#D4B886] text-xs font-semibold uppercase tracking-[0.2em] shadow-lg">
-                        <Sparkles className="w-3.5 h-3.5 fill-current" />
-                        <span>Modern Casual Dining · Indonesian Cuisine</span>
-                    </div>
-
                     {/* Majestic Headline */}
                     <h1 className="font-heading text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-[#F4EFE6] leading-[1.08]">
                         Harmoni Rasa Nusantara <br className="hidden sm:inline" />
                         <span className="italic font-normal text-[#D4B886]">Dalam Kemewahan Kontemporer</span>
                     </h1>
-
-                    {/* Subtitle */}
-                    <p className="max-w-2xl mx-auto text-sm sm:text-base md:text-lg text-[#F4EFE6]/80 font-light leading-relaxed">
-                        Menghadirkan pusaka kuliner 17.000 pulau Indonesia dengan teknik pengolahan lambat <em className="italic text-[#D4B886]">slow-cooked 48 jam</em>, bahan lokal terkurasi, dan keramahtamahan luhur.
-                    </p>
 
                     {/* Hero CTAs */}
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-4 flex-wrap">
