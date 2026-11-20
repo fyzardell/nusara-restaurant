@@ -135,7 +135,7 @@ export interface RestaurantTable {
     table_number: string;
     capacity: number;
     location: string;
-    status: 'Available' | 'Occupied' | 'Reserved' | 'Cleaning' | 'Inactive';
+    status: 'Available' | 'Occupied' | 'Reserved' | 'Cleaning' | 'Pending Validation' | 'Inactive' | (string & {});
     is_active: boolean;
     active_session?: {
         id: number;
@@ -143,6 +143,15 @@ export interface RestaurantTable {
         status: string;
         started_at?: string;
     } | null;
+}
+
+export interface WaiterMetrics {
+    occupiedTables: number;
+    pendingValidationTables: number;
+    readyToServeOrders: number;
+    cleaningTables: number;
+    availableTables: number;
+    servedToday: number;
 }
 
 export type Table = RestaurantTable;

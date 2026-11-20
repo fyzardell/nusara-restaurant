@@ -61,26 +61,53 @@ export default function LandingPage({
     const [selectedExperience, setSelectedExperience] = useState<DiningExperience | null>(null);
     const [sidePanelOpen, setSidePanelOpen] = useState<boolean>(false);
     const [splashFading, setSplashFading] = useState<boolean>(false);
-    // Tampilkan splashscreen selamat datang di beranda HANYA SEKALI pada kunjungan pertama.
-    // Jika kembali ke beranda dari dashboard (admin/kasir), order, atau login, tidak akan pernah muncul lagi.
+    
+    // Splash screen animation:
+    // SELALU muncul setiap kali halaman landing page di-refresh (F5, reload, dll) atau saat kunjungan pertama.
+    // Jika hanya navigasi internal SPA (misal dari dashboard/login/order kembali ke beranda tanpa refresh browser),
+    // splash screen tidak akan mengganggu pengguna.
     const [showSplash, setShowSplash] = useState<boolean>(() => {
-        if (typeof window !== 'undefined') {
-            const alreadySeen = sessionStorage.getItem('nusara_home_splash_seen') || localStorage.getItem('nusara_home_splash_seen');
-            if (alreadySeen === 'true') {
-                return false;
+        if (typeof window === 'undefined') return true;
+
+        // Cek apakah halaman dimuat via browser reload / refresh (F5 atau tombol reload browser)
+        let isReload = false;
+        try {
+            const navEntries = performance.getEntriesByType('navigation');
+            if (navEntries.length > 0 && (navEntries[0] as PerformanceNavigationTiming).type === 'reload') {
+                isReload = true;
+            } else if (typeof performance.navigation !== 'undefined' && performance.navigation.type === 1) {
+                isReload = true;
             }
-            // Segera tandai agar tidak pernah muncul lagi jika user navigasi ke halaman lain
-            sessionStorage.setItem('nusara_home_splash_seen', 'true');
+        } catch (e) {
+            // fallback
         }
+
+        // Jika ini adalah REFRESH halaman landing page: SELALU TAMPILKAN SPLASHSCREEN!
+        if (isReload) {
+            sessionStorage.removeItem('nusara_home_splash_seen');
+            return true;
+        }
+
+        // Jika navigasi internal SPA (misal dari dashboard / order / login kembali ke beranda)
+        const spaNavigated = (window as any).__nusaraSpaNavigated;
+        const alreadySeen = sessionStorage.getItem('nusara_home_splash_seen');
+        if (spaNavigated || alreadySeen === 'true') {
+            return false;
+        }
+
         return true;
     });
     const [isPageReady, setIsPageReady] = useState<boolean>(false);
 
-    // Tandai segera bahwa splashscreen sudah pernah dilihat di beranda
+    // Tandai navigasi internal SPA saat user berpindah halaman via Inertia
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            sessionStorage.setItem('nusara_home_splash_seen', 'true');
-        }
+        const unregister = router.on('navigate', () => {
+            if (typeof window !== 'undefined') {
+                (window as any).__nusaraSpaNavigated = true;
+                sessionStorage.setItem('nusara_home_splash_seen', 'true');
+            }
+        });
+        return () => unregister();
     }, []);
 
     // Deteksi kesiapan render landing page:
@@ -103,6 +130,7 @@ export default function LandingPage({
 
     const handleSplashFinish = () => {
         if (typeof window !== 'undefined') {
+            (window as any).__nusaraSpaNavigated = true;
             sessionStorage.setItem('nusara_home_splash_seen', 'true');
         }
         setSplashFading(true);

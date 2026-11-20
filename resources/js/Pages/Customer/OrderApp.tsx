@@ -23,6 +23,7 @@ import {
     Star, 
     Send, 
     X, 
+    Users, 
     Plus, 
     Minus, 
     CheckCircle2, 
@@ -261,9 +262,9 @@ export default function OrderApp({
 
     const getActiveOrderStatusText = (status: string | any) => {
         const s = String(status || '');
-        if (s === 'Pending' || s === 'Awaiting Payment') return '⏳ Menunggu Konfirmasi / ACC Kasir';
-        if (s === 'Preparing' || s === 'Paid' || s === 'Confirmed') return '🔥 Sedang Dimasak Dapur';
-        return '✨ Pesanan Siap Disajikan / Diambil';
+        if (s === 'Pending' || s === 'Awaiting Payment') return 'Menunggu Konfirmasi Kasir';
+        if (s === 'Preparing' || s === 'Paid' || s === 'Confirmed') return 'Sedang Dimasak Dapur';
+        return 'Pesanan Siap Disajikan / Diambil';
     };
 
     // Cart calculations
@@ -757,10 +758,24 @@ export default function OrderApp({
                         <section className="min-h-[82vh] lg:min-h-[86vh] flex flex-col justify-between pt-2 pb-10 mb-8 border-b border-[#E5DDCF]">
                             {/* Top: Editorial Greeting & Ambient Tag */}
                             <div className="space-y-3 max-w-4xl">
-                                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#EAE2D3] border border-[#D5CBB9] text-[11px] font-bold uppercase tracking-wider text-[#946E2D] shadow-xs">
-                                    <Sparkles className="w-3.5 h-3.5 text-[#946E2D]" />
-                                    <span>Penawaran Terbatas · Promo Kuliner Nusantara Hari Ini</span>
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsTableModalOpen(true)}
+                                    className="group inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-gradient-to-r from-[#32151F] to-[#211D1B] border border-[#B99A65]/50 text-xs font-semibold text-[#F4EFE6] shadow-md hover:border-[#D4B886] hover:shadow-lg transition-all active:scale-95"
+                                    title="Pilih atau ganti nomor meja makan Anda"
+                                >
+                                    <span className="relative flex h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D4B886] opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#B99A65]"></span>
+                                    </span>
+                                    <UtensilsCrossed className="w-3.5 h-3.5 text-[#D4B886]" />
+                                    <span className="font-heading tracking-wide text-xs sm:text-sm font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
+                                        {orderType === 'dine_in' 
+                                            ? `Makan di ${selectedTable?.match(/\d+/)?.[0] ? `Meja ${selectedTable.match(/\d+/)![0].padStart(2, '0')}` : 'Meja 01'}` 
+                                            : 'Pesan Bawa Pulang (Klik untuk Makan di Meja)'}
+                                    </span>
+                                    <ChevronRight className="w-3.5 h-3.5 text-[#B99A65] group-hover:translate-x-0.5 transition-transform" />
+                                </button>
 
                                 <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
                                     <div className="space-y-2 max-w-2xl">
@@ -777,11 +792,11 @@ export default function OrderApp({
                                         <button
                                             type="button"
                                             onClick={() => setIsTableModalOpen(true)}
-                                            className="px-4 py-2 rounded-2xl bg-white border border-[#D5CBB9] shadow-xs hover:border-[#B99A65] flex items-center gap-2 text-xs transition-all"
+                                            className="px-3.5 py-1.5 rounded-2xl bg-white border border-[#D5CBB9] shadow-xs hover:border-[#B99A65] flex items-center gap-2 text-xs transition-all text-[#63574F]"
                                         >
-                                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                                            <span className="font-semibold text-[#211D1B]">
-                                                {orderType === 'dine_in' ? `Makan di ${selectedTable}` : 'Bawa Pulang (Takeaway)'}
+                                            <Users className="w-3.5 h-3.5 text-[#946E2D]" />
+                                            <span className="font-medium text-[#211D1B]">
+                                                {orderType === 'dine_in' ? `${selectedTable || 'Meja 01'} · 5 Kursi` : 'Bawa Pulang (Takeaway)'}
                                             </span>
                                         </button>
                                     </div>
@@ -1233,7 +1248,7 @@ export default function OrderApp({
                                                                 ? getStatusStep(order.order_status) === 1 ? 'bg-amber-500 text-white animate-pulse' : 'bg-emerald-600 text-white'
                                                                 : 'bg-stone-200 text-stone-500'
                                                         }`}>
-                                                            {getStatusStep(order.order_status) > 1 ? '✓' : '1'}
+                                                            {getStatusStep(order.order_status) > 1 ? <Check className="w-3.5 h-3.5" /> : '1'}
                                                         </div>
                                                         <p className={`font-semibold ${getStatusStep(order.order_status) === 1 ? 'text-amber-700 font-bold' : 'text-stone-600'}`}>
                                                             ACC Kasir
@@ -1246,7 +1261,7 @@ export default function OrderApp({
                                                                 ? getStatusStep(order.order_status) === 2 ? 'bg-orange-500 text-white animate-pulse' : 'bg-emerald-600 text-white'
                                                                 : 'bg-stone-200 text-stone-500'
                                                         }`}>
-                                                            {getStatusStep(order.order_status) > 2 ? '✓' : '2'}
+                                                            {getStatusStep(order.order_status) > 2 ? <Check className="w-3.5 h-3.5" /> : '2'}
                                                         </div>
                                                         <p className={`font-semibold ${getStatusStep(order.order_status) === 2 ? 'text-orange-700 font-bold' : 'text-stone-600'}`}>
                                                             Proses Dapur
@@ -1259,7 +1274,7 @@ export default function OrderApp({
                                                                 ? getStatusStep(order.order_status) === 3 ? 'bg-sky-500 text-white animate-pulse' : 'bg-emerald-600 text-white'
                                                                 : 'bg-stone-200 text-stone-500'
                                                         }`}>
-                                                            {getStatusStep(order.order_status) > 3 ? '✓' : '3'}
+                                                            {getStatusStep(order.order_status) > 3 ? <Check className="w-3.5 h-3.5" /> : '3'}
                                                         </div>
                                                         <p className={`font-semibold ${getStatusStep(order.order_status) === 3 ? 'text-sky-700 font-bold' : 'text-stone-600'}`}>
                                                             Siap Saji
@@ -1272,7 +1287,7 @@ export default function OrderApp({
                                                                 ? 'bg-emerald-600 text-white'
                                                                 : 'bg-stone-200 text-stone-500'
                                                         }`}>
-                                                            {getStatusStep(order.order_status) >= 4 ? '✓' : '4'}
+                                                            {getStatusStep(order.order_status) >= 4 ? <Check className="w-3.5 h-3.5" /> : '4'}
                                                         </div>
                                                         <p className={`font-semibold ${getStatusStep(order.order_status) >= 4 ? 'text-emerald-700 font-bold' : 'text-stone-600'}`}>
                                                             Selesai

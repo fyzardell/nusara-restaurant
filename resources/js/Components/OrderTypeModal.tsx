@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, QrCode, ShoppingBag, CheckCircle, Info, ArrowRight } from 'lucide-react';
+import { X, QrCode, ShoppingBag, CheckCircle, Info, ArrowRight, Check } from 'lucide-react';
 
 interface Props {
     isOpen: boolean;
@@ -125,10 +125,19 @@ export default function OrderTypeModal({ isOpen, onClose, onSelectDineIn, onSele
                             </div>
                         </div>
 
-                        <div className="p-3 rounded-xl bg-[#211D1B] border border-stone-800 text-[11px] text-[#F4EFE6]/70 space-y-1">
-                            <p>✓ Tidak dikenakan biaya layanan meja (table charge)</p>
-                            <p>✓ Kemasan daun pisang & box ramah lingkungan kedap panas</p>
-                            <p>✓ Notifikasi status pesanan saat makanan siap diambil (Ready)</p>
+                        <div className="p-3 rounded-xl bg-[#211D1B] border border-stone-800 text-[11px] text-[#F4EFE6]/70 space-y-2">
+                            <p className="flex items-center gap-2">
+                                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <span>Tidak dikenakan biaya layanan meja (table charge)</span>
+                            </p>
+                            <p className="flex items-center gap-2">
+                                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <span>Kemasan daun pisang & box ramah lingkungan kedap panas</span>
+                            </p>
+                            <p className="flex items-center gap-2">
+                                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <span>Notifikasi status pesanan saat makanan siap diambil (Ready)</span>
+                            </p>
                         </div>
 
                         <button

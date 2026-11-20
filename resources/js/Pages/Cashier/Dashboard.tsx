@@ -27,6 +27,7 @@ import {
     Wallet, 
     Receipt,
     CheckCircle2,
+    XCircle,
     SlidersHorizontal,
     Bell,
     TrendingUp
@@ -587,28 +588,32 @@ export default function CashierDashboard({
                         {/* Sub Status Filter Pills */}
                         <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
                             {[
-                                { id: 'all', label: 'Semua Status', count: orders.length },
-                                { id: 'pending', label: '⏳ Perlu ACC Kasir', count: metrics.pendingOrders },
-                                { id: 'preparing', label: '🔥 Sedang Dimasak', count: metrics.preparingOrders },
-                                { id: 'ready', label: '✨ Siap Saji / Ambil', count: metrics.readyOrders },
-                                { id: 'completed', label: '✓ Selesai', count: metrics.completedToday },
-                                { id: 'cancelled', label: '✕ Dibatalkan', count: orders.filter(o => o.order_status === 'Cancelled').length }
-                            ].map(st => (
-                                <button
-                                    key={st.id}
-                                    onClick={() => setSelectedStatus(st.id)}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
-                                        selectedStatus === st.id
-                                            ? 'bg-[#B99A65]/20 border-[#D4B886] text-[#D4B886] shadow-sm'
-                                            : 'bg-[#1C1716] border-stone-800 text-stone-400 hover:text-stone-200 hover:border-stone-700'
-                                    }`}
-                                >
-                                    <span>{st.label}</span>
-                                    <span className="ml-1.5 px-1.5 py-0.2 rounded-full bg-black/40 text-[10px] font-mono">
-                                        {st.count}
-                                    </span>
-                                </button>
-                            ))}
+                                { id: 'all', label: 'Semua Status', count: orders.length, icon: Filter },
+                                { id: 'pending', label: 'Perlu ACC Kasir', count: metrics.pendingOrders, icon: Clock },
+                                { id: 'preparing', label: 'Sedang Dimasak', count: metrics.preparingOrders, icon: Flame },
+                                { id: 'ready', label: 'Siap Saji / Ambil', count: metrics.readyOrders, icon: Sparkles },
+                                { id: 'completed', label: 'Selesai', count: metrics.completedToday, icon: CheckCircle2 },
+                                { id: 'cancelled', label: 'Dibatalkan', count: orders.filter(o => o.order_status === 'Cancelled').length, icon: XCircle }
+                            ].map(st => {
+                                const IconComp = st.icon;
+                                return (
+                                    <button
+                                        key={st.id}
+                                        onClick={() => setSelectedStatus(st.id)}
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
+                                            selectedStatus === st.id
+                                                ? 'bg-[#B99A65]/20 border-[#D4B886] text-[#D4B886] shadow-sm'
+                                                : 'bg-[#1C1716] border-stone-800 text-stone-400 hover:text-stone-200 hover:border-stone-700'
+                                        }`}
+                                    >
+                                        <IconComp className="w-3.5 h-3.5" />
+                                        <span>{st.label}</span>
+                                        <span className="ml-1 px-1.5 py-0.2 rounded-full bg-black/40 text-[10px] font-mono">
+                                            {st.count}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         {/* List of Orders */}
