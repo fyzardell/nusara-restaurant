@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use App\Models\User;
 
 class AdminController extends Controller
 {
@@ -410,5 +411,57 @@ class AdminController extends Controller
         ]);
 
         return redirect()->back()->with('success', "Status reservasi #{$reservation->reservation_code} berhasil diubah ke {$newStatus}!");
+    }
+
+        private function ensureAdmin(): void
+    {
+        $user = Auth::user();
+        $role = $user ? DB::table('roles')->where('id', $user->role_id)->first() : null;
+        abort_unless($role && $role->name === 'admin', 403);
+    }
+
+    public function chats(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $q = $request->input('q');
+
+        $conversations = User::whereHas('chatMessages')
+            ->with('latestChatMessage')
+            ->withCount('chatMessages')
+            ->when($q, fn ($query) => $query->where('name', 'like', "%{$q}%"))
+            ->get()
+            ->sortByDesc(fn ($u) => $u->latestChatMessage->created_at)
+            ->values()
+            ->map(fn ($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'total' => $u->chat_messages_count,
+                'last_message' => $u->latestChatMessage->message,
+                'last_at' => $u->latestChatMessage->created_at->diffForHumans(),
+            ]);
+
+        return Inertia::render('Admin/Chats', [
+            'conversations' => $conversations,
+            'filters' => ['q' => $q],
+            'adminUser' => Auth::user(),
+        ]);
+    }
+
+    public function chatShow(User $user)
+    {
+        $this->ensureAdmin();
+
+        return Inertia::render('Admin/ChatShow', [
+            'customer' => $user->only('id', 'name'),
+            'messages' => $user->chatMessages()->orderBy('created_at')->get()
+                ->map(fn ($m) => [
+                    'id' => $m->id,
+                    'sender' => $m->sender_type,
+                    'message' => $m->message,
+                    'time' => $m->created_at->format('d M Y H:i'),
+                ]),
+            'adminUser' => Auth::user(),
+        ]);
     }
 }
