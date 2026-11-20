@@ -44,9 +44,9 @@ const HERO_SLIDES = [
     },
     {
         image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1600&q=85',
-        title: 'Suasana Intim Senopati',
+        title: 'Suasana Intim & Hangat',
         subtitle: 'Ruang santap beraroma melati segar dan kayu jati hangat, cocok untuk momen istimewa dan jamuan privat.',
-        tag: 'Single Branch Senopati'
+        tag: 'Cita Rasa Nusantara'
     }
 ];
 
@@ -71,11 +71,11 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
         ? (new URLSearchParams(window.location.search).get('redirect') || '') 
         : '';
 
-    // Auto advance carousel slides every 5.5s
+    // Auto advance carousel slides every 3s (dipercepat sesuai arahan)
     useEffect(() => {
         const timer = setInterval(() => {
             setActiveSlide(prev => (prev + 1) % HERO_SLIDES.length);
-        }, 5500);
+        }, 3000);
         return () => clearInterval(timer);
     }, []);
 
@@ -159,20 +159,20 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                 <div className="absolute -bottom-40 left-1/3 w-[500px] h-[500px] rounded-full bg-[#211D1B] blur-[120px]" />
             </div>
 
-            {/* Top Navigation */}
-            <header className="relative z-20 px-6 py-5 max-w-7xl mx-auto w-full flex items-center justify-between">
-                <Link
-                    href="/"
-                    className="inline-flex items-center gap-2 text-xs font-semibold text-[#F4EFE6]/70 hover:text-[#D4B886] transition-all group"
-                >
-                    <ArrowLeft className="w-4 h-4 text-[#B99A65] group-hover:-translate-x-1 transition-transform" />
-                    <span>Kembali ke Beranda</span>
+            {/* Top Navigation Minimalist */}
+            <header className="relative z-20 px-6 sm:px-10 py-4 w-full flex items-center justify-between">
+                <Link href="/" className="inline-flex items-center gap-2 group">
+                    <img 
+                        src="/images/nusara-logo.png" 
+                        alt="NUSARA" 
+                        className="h-9 w-auto object-contain drop-shadow group-hover:scale-105 transition-transform" 
+                    />
                 </Link>
 
                 <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-[#B99A65] animate-ping" />
                     <span className="text-[11px] uppercase tracking-widest font-semibold text-[#D4B886] hidden sm:inline">
-                        Senopati · Jakarta Selatan
+                        Layanan Resto Aktif
                     </span>
                 </div>
             </header>
@@ -180,24 +180,27 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
             {/* Flash Toast Feedback */}
             <FlashToast flash={flash?.success || flash?.error ? flash : (status ? { success: status } : undefined)} durationMs={3000} />
 
-            {/* Main Interactive Dual Sliding Card Container */}
-            <main className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 py-2 sm:py-6 flex-1 flex items-center justify-center">
-                <div className="relative w-full rounded-[32px] sm:rounded-[36px] overflow-hidden bg-[#1C1816]/95 border border-[#B99A65]/35 shadow-2xl backdrop-blur-2xl grid grid-cols-1 lg:grid-cols-2 min-h-[680px]">
+            {/* Main Interactive Dual Sliding Page Layout (Halaman Penuh, Bukan Card) */}
+            <main className="relative z-10 w-full flex-1 flex flex-col justify-center min-h-[calc(100vh-140px)]">
+                <div className="relative w-full h-full flex-1 grid grid-cols-1 lg:grid-cols-2">
                     
                     {/* ========================================================
                         KOLOM 1 (KIRI): FORMULIR MASUK (LOGIN)
                         Terlihat saat mode === 'login' (gambar geser ke kanan)
                     ======================================================== */}
-                    <div className={`p-6 sm:p-10 lg:p-12 flex flex-col justify-between transition-opacity duration-500 ${
+                    <div className={`px-6 sm:px-12 lg:px-16 py-8 flex flex-col justify-center transition-opacity duration-500 ${
                         mode === 'login' ? 'opacity-100' : 'opacity-0 lg:pointer-events-none'
                     } ${mode === 'register' ? 'hidden lg:flex' : 'flex'}`}>
-                        <div>
+                        <div className="max-w-md w-full mx-auto">
                             {/* Brand Header */}
                             <div className="mb-6">
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886] text-[10px] font-bold uppercase tracking-wider mb-3">
-                                    <Crown className="w-3.5 h-3.5" />
-                                    <span>Selamat Datang Kembali</span>
-                                </div>
+                                <Link
+                                    href="/"
+                                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#211D1B] hover:bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886] hover:text-[#F4EFE6] text-xs font-semibold tracking-wide transition-all mb-4 group shadow-sm w-fit"
+                                >
+                                    <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform text-[#B99A65]" />
+                                    <span>Kembali ke Beranda</span>
+                                </Link>
                                 <h1 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-[#F4EFE6] leading-tight">
                                     Masuk ke Akun Anda
                                 </h1>
@@ -389,16 +392,19 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                         KOLOM 2 (KANAN): FORMULIR DAFTAR (REGISTER)
                         Terlihat saat mode === 'register' (gambar geser ke kiri)
                     ======================================================== */}
-                    <div className={`p-6 sm:p-10 lg:p-12 flex flex-col justify-between transition-opacity duration-500 ${
+                    <div className={`px-6 sm:px-12 lg:px-16 py-8 flex flex-col justify-center transition-opacity duration-500 ${
                         mode === 'register' ? 'opacity-100' : 'opacity-0 lg:pointer-events-none'
                     } ${mode === 'login' ? 'hidden lg:flex' : 'flex'}`}>
-                        <div>
+                        <div className="max-w-md w-full mx-auto">
                             {/* Brand Header */}
                             <div className="mb-5">
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886] text-[10px] font-bold uppercase tracking-wider mb-2.5">
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    <span>Keanggotaan Eksklusif</span>
-                                </div>
+                                <Link
+                                    href="/"
+                                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#211D1B] hover:bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886] hover:text-[#F4EFE6] text-xs font-semibold tracking-wide transition-all mb-3.5 group shadow-sm w-fit"
+                                >
+                                    <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform text-[#B99A65]" />
+                                    <span>Kembali ke Beranda</span>
+                                </Link>
                                 <h1 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-[#F4EFE6] leading-tight">
                                     Daftar Akun Member
                                 </h1>

@@ -2,6 +2,7 @@ import '../css/app.css';
 import { createRoot } from 'react-dom/client';
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import NusaraAssembleTransition from './Components/NusaraAssembleTransition';
 
 const appName = import.meta.env.VITE_APP_NAME || 'NUSARA';
 
@@ -15,7 +16,12 @@ createInertiaApp({
     setup({ el, App, props }) {
         if (el) {
             const root = createRoot(el);
-            root.render(<App {...props} />);
+            root.render(
+                <>
+                    <App {...props} />
+                    <NusaraAssembleTransition />
+                </>
+            );
         }
     },
     progress: {
