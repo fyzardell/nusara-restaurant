@@ -36,35 +36,46 @@ import {
     LogOut,
     Coffee,
     User as UserIcon,
-    RefreshCw
+    RefreshCw,
+    PanelLeft
 } from 'lucide-react';
 
 function TypingGreeting({ name }: { name: string }) {
-    const greetingText = name ? `Selamat datang, ${name}` : 'Selamat datang di NUSARA';
-    const [displayed, setDisplayed] = useState('');
+    const rawName = name?.trim() || 'Tamu Terhormat';
+    const prefix = 'Selamat datang, ';
+    const fullText = prefix + rawName;
+    const [charCount, setCharCount] = useState(0);
     const [isDone, setIsDone] = useState(false);
 
     React.useEffect(() => {
         let idx = 0;
-        setDisplayed('');
+        setCharCount(0);
         setIsDone(false);
         const timer = setInterval(() => {
-            if (idx <= greetingText.length) {
-                setDisplayed(greetingText.slice(0, idx));
+            if (idx <= fullText.length) {
+                setCharCount(idx);
                 idx++;
             } else {
                 setIsDone(true);
                 clearInterval(timer);
             }
-        }, 65);
+        }, 55);
         return () => clearInterval(timer);
-    }, [greetingText]);
+    }, [fullText]);
+
+    const prefixPart = fullText.slice(0, Math.min(charCount, prefix.length));
+    const namePart = charCount > prefix.length ? fullText.slice(prefix.length, charCount) : '';
 
     return (
-        <span className="inline-flex items-center">
-            <span>{displayed}</span>
+        <span className="inline-flex items-baseline flex-wrap">
+            <span className="text-[#211D1B]">{prefixPart}</span>
+            {namePart && (
+                <span className="text-[#946E2D] ml-1.5 font-black drop-shadow-xs">
+                    {namePart}
+                </span>
+            )}
             {!isDone && (
-                <span className="inline-block w-1.5 h-6 ml-1.5 bg-[#D4B886] animate-pulse rounded-full" />
+                <span className="inline-block w-1.5 h-6 ml-1.5 bg-[#946E2D] animate-pulse rounded-full self-center" />
             )}
         </span>
     );
@@ -474,14 +485,18 @@ export default function OrderApp({
                             </button>
                         </div>
 
-                        {/* Poin Pembeli: Tombol Sidebar Vertikal (Chrome-Style Side Panel Trigger) */}
+                        {/* Poin Pembeli: Tombol Sidebar Vertikal ala Chrome Side Panel */}
                         <button
                             type="button"
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="px-3 sm:px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#B99A65]/25 via-[#D4B886]/35 to-[#B99A65]/25 hover:from-[#B99A65] hover:to-[#D4B886] hover:text-[#211D1B] text-[#D4B886] font-bold text-xs border border-[#B99A65]/60 flex items-center gap-2 shadow-lg shadow-[#B99A65]/10 active:scale-95 transition-all group"
-                            title="Buka Sidebar Navigasi & Keranjang"
+                            onClick={() => setIsSidebarOpen(prev => !prev)}
+                            className={`px-3 sm:px-3.5 py-1.5 rounded-full font-bold text-xs border flex items-center gap-2 transition-all active:scale-95 group ${
+                                isSidebarOpen
+                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] border-[#D4B886] shadow-md'
+                                    : 'bg-[#211D1B] text-[#D4B886] border-[#B99A65]/40 hover:border-[#D4B886] hover:bg-[#2A2320]'
+                            }`}
+                            title={isSidebarOpen ? "Tutup Sidebar Menu (Chrome Style)" : "Buka Sidebar Menu (Chrome Style)"}
                         >
-                            <UtensilsCrossed className="w-4 h-4 text-[#D4B886] group-hover:text-[#211D1B] transition-colors" />
+                            <PanelLeft className="w-4 h-4 transition-transform group-hover:scale-110" />
                             <span className="hidden sm:inline font-semibold">Sidebar Menu</span>
                             {cartCount > 0 && (
                                 <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-bold shadow animate-pulse">
@@ -513,46 +528,249 @@ export default function OrderApp({
             </header>
 
             {/* ========================================================
-                HALAMAN UTAMA (ORDER)
+                CHROME-STYLE FLEX LAYOUT (LEFT PUSH SIDEBAR + MAIN CANVAS)
             ======================================================== */}
-            <main className="max-w-5xl mx-auto px-4 py-6">
-                {/* Desain Elegan: Selamat Datang dengan Animasi Typing di Halaman Utama */}
-                <div className="mb-6 p-5 sm:p-7 rounded-3xl bg-gradient-to-r from-[#211D1B] via-[#32151F] to-[#211D1B] border border-[#B99A65]/35 text-[#F4EFE6] shadow-xl relative overflow-hidden">
-                    <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[#B99A65]/15 blur-3xl pointer-events-none" />
-                    <div className="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-[#32151F] blur-2xl pointer-events-none" />
-
-                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="space-y-1.5">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#141110]/80 border border-[#B99A65]/30 text-[#D4B886] text-[10px] font-mono tracking-widest uppercase">
-                                <Sparkles className="w-3 h-3 text-[#D4B886]" />
-                                <span>Pusaka Gastronomi Nusantara</span>
+            <div className="flex w-full min-h-[calc(100vh-65px)] relative">
+                {/* 
+                    LEFT PUSH SIDEBAR ALA CHROME VERTICAL SIDE PANEL 
+                    Background: Terang (#FAF7F2 / #F5F1E8)
+                    Hover: Berubah lebih gelap (#E5DDCF / #D8CDBB)
+                */}
+                <aside 
+                    className={`transition-all duration-300 ease-in-out flex-shrink-0 bg-[#FAF7F2] border-r border-[#E5DDCF] flex flex-col justify-between overflow-hidden ${
+                        isSidebarOpen ? 'w-72 sm:w-80 opacity-100 shadow-lg' : 'w-0 opacity-0 pointer-events-none border-none'
+                    }`}
+                >
+                    <div className="w-72 sm:w-80 h-full flex flex-col justify-between overflow-y-auto scrollbar-thin scrollbar-thumb-stone-300 p-4 space-y-4">
+                        <div>
+                            {/* Panel Header */}
+                            <div className="flex items-center justify-between pb-3 border-b border-[#E5DDCF]">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-[#211D1B] text-[#D4B886] flex items-center justify-center">
+                                        <PanelLeft className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <h2 className="font-heading font-bold text-sm text-[#211D1B]">
+                                            Menu & Layanan
+                                        </h2>
+                                        <p className="text-[10px] text-[#7C6E65]">
+                                            Sidebar Vertikal Nusara
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    className="p-1.5 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-[#EAE2D3] transition-colors"
+                                    title="Tutup Panel"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
-                            <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#F4EFE6]">
-                                <TypingGreeting name={auth?.user?.name || customerName} />
-                            </h1>
-                            <p className="text-xs sm:text-sm text-[#F4EFE6]/75 max-w-xl leading-relaxed">
-                                Nikmati kelezatan racikan bumbu autentik kepulauan Nusantara. Pilih sajian favorit Anda, atur pesanan, dan konfirmasi langsung ke kasir & dapur.
-                            </p>
+
+                            {/* User & Table Summary Box */}
+                            <div className="p-3 my-3 rounded-2xl bg-[#F0E9DC] border border-[#E0D5C3] text-xs">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[#695E57]">Pelanggan:</span>
+                                    <span className="font-bold text-[#946E2D]">{auth?.user?.name || customerName || 'Tamu Restoran'}</span>
+                                </div>
+                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#DFD4C0]">
+                                    <span className="text-[#695E57]">Layanan:</span>
+                                    <button 
+                                        type="button"
+                                        onClick={() => setIsTableModalOpen(true)}
+                                        className="font-bold text-[#211D1B] hover:text-[#946E2D] flex items-center gap-1 transition-colors"
+                                    >
+                                        <span>{orderType === 'dine_in' ? `Dine-in (${selectedTable})` : 'Takeaway (Self-Pickup)'}</span>
+                                        <ChevronRight className="w-3.5 h-3.5 text-[#946E2D]" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Navigation Menu List */}
+                            <nav className="space-y-2">
+                                {/* 1. Katalog Menu */}
+                                <button
+                                    onClick={() => setActiveTab('menu')}
+                                    className={`w-full p-3 rounded-xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all ${
+                                        activeTab === 'menu'
+                                            ? 'bg-[#211D1B] text-[#F4EFE6] shadow-sm'
+                                            : 'bg-white/80 text-[#211D1B] border border-[#E5DDCF] hover:bg-[#E4DCCA] hover:border-[#D0C5B3]'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <Utensils className="w-4 h-4 text-[#946E2D]" />
+                                        <span>Katalog Menu</span>
+                                    </div>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                                        activeTab === 'menu' ? 'bg-[#3A3330] text-[#D4B886]' : 'bg-[#EAE2D3] text-[#211D1B]'
+                                    }`}>
+                                        {menus.length}
+                                    </span>
+                                </button>
+
+                                {/* 2. Keranjang Belanja */}
+                                <button
+                                    onClick={() => setIsCartOpen(true)}
+                                    className="w-full p-3 rounded-xl flex items-center justify-between text-xs font-bold uppercase tracking-wider bg-white/80 text-[#211D1B] border border-[#E5DDCF] hover:bg-[#E4DCCA] hover:border-[#D0C5B3] transition-all group"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <ShoppingBag className="w-4 h-4 text-[#946E2D]" />
+                                        <span>Keranjang Pesanan</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        {cartCount > 0 && (
+                                            <span className="text-[10px] font-mono font-bold text-[#946E2D]">
+                                                {formatRupiah(cartTotal)}
+                                            </span>
+                                        )}
+                                        <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-bold shadow">
+                                            {cartCount}
+                                        </span>
+                                    </div>
+                                </button>
+
+                                {/* 3. Favorit Saya */}
+                                {!isGuest ? (
+                                    <button
+                                        onClick={() => setActiveTab('favorites')}
+                                        className={`w-full p-3 rounded-xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all ${
+                                            activeTab === 'favorites'
+                                                ? 'bg-[#211D1B] text-[#F4EFE6] shadow-sm'
+                                                : 'bg-white/80 text-[#211D1B] border border-[#E5DDCF] hover:bg-[#E4DCCA] hover:border-[#D0C5B3]'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2.5">
+                                            <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
+                                            <span>Favorit Saya</span>
+                                        </div>
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                                            activeTab === 'favorites' ? 'bg-[#3A3330] text-[#D4B886]' : 'bg-[#EAE2D3] text-[#211D1B]'
+                                        }`}>
+                                            {favorites.length}
+                                        </span>
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => {
+                                            alert('Fitur favorit hidangan memerlukan Akun Customer. Silakan masuk untuk menyimpan menu favorit Anda.');
+                                            router.visit('/login');
+                                        }}
+                                        className="w-full p-3 rounded-xl flex items-center justify-between text-xs font-bold uppercase tracking-wider bg-white/40 text-stone-500 border border-[#E5DDCF] hover:bg-[#E4DCCA] transition-all"
+                                    >
+                                        <div className="flex items-center gap-2.5">
+                                            <Heart className="w-4 h-4 text-stone-400" />
+                                            <span>Favorit (Login)</span>
+                                        </div>
+                                        <span className="text-[10px] text-[#946E2D]">Masuk</span>
+                                    </button>
+                                )}
+
+                                {/* 4. Riwayat / Pelacakan Pesanan */}
+                                <button
+                                    onClick={() => setActiveTab('history')}
+                                    className={`w-full p-3 rounded-xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all ${
+                                        activeTab === 'history'
+                                            ? 'bg-[#211D1B] text-[#F4EFE6] shadow-sm'
+                                            : 'bg-white/80 text-[#211D1B] border border-[#E5DDCF] hover:bg-[#E4DCCA] hover:border-[#D0C5B3]'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <Clock className="w-4 h-4 text-[#946E2D]" />
+                                        <span>{isGuest ? 'Pelacakan Pesanan' : 'Riwayat Pembelian'}</span>
+                                    </div>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                                        activeTab === 'history' ? 'bg-[#3A3330] text-[#D4B886]' : 'bg-[#EAE2D3] text-[#211D1B]'
+                                    }`}>
+                                        {initialOrders.length}
+                                    </span>
+                                </button>
+
+                                {/* 5. Konsierge / Chat Admin */}
+                                <button
+                                    onClick={() => setActiveTab('chat')}
+                                    className={`w-full p-3 rounded-xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all ${
+                                        activeTab === 'chat'
+                                            ? 'bg-[#211D1B] text-[#F4EFE6] shadow-sm'
+                                            : 'bg-white/80 text-[#211D1B] border border-[#E5DDCF] hover:bg-[#E4DCCA] hover:border-[#D0C5B3]'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <MessageSquare className="w-4 h-4 text-[#946E2D]" />
+                                        <span>Konsierge / Chat Admin</span>
+                                    </div>
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                </button>
+                            </nav>
                         </div>
 
-                        {/* Indikator Layanan Meja & Tombol Sidebar Cepat */}
-                        <div className="flex flex-row md:flex-col items-start md:items-end justify-between gap-2.5 pt-2 md:pt-0 border-t md:border-t-0 border-[#B99A65]/20">
-                            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-[#141110]/80 border border-[#B99A65]/30 text-xs">
-                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                                <span className="font-semibold text-[#D4B886]">
-                                    {orderType === 'dine_in' ? `Makan di ${selectedTable}` : 'Bawa Pulang (Takeaway)'}
-                                </span>
-                            </div>
-                            <button
-                                onClick={() => setIsSidebarOpen(true)}
-                                className="text-xs text-[#D4B886] hover:text-[#FFF] font-semibold underline flex items-center gap-1 transition-colors"
-                            >
-                                <span>Buka Sidebar Menu ({menus.length})</span>
-                                <ChevronRight className="w-3.5 h-3.5" />
-                            </button>
+                        {/* Sidebar Footer: Keluar / Logout */}
+                        <div className="pt-3 border-t border-[#E5DDCF]">
+                            {auth?.user ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsLogoutModalOpen(true)}
+                                    className="w-full py-2.5 px-3 rounded-xl border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    <span>Keluar dari Akun</span>
+                                </button>
+                            ) : (
+                                <Link
+                                    href="/login"
+                                    className="w-full py-2.5 px-3 rounded-xl bg-[#211D1B] text-[#D4B886] hover:bg-[#32151F] text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
+                                >
+                                    <UserIcon className="w-4 h-4" />
+                                    <span>Masuk ke Akun Customer</span>
+                                </Link>
+                            )}
                         </div>
                     </div>
-                </div>
+                </aside>
+
+                {/* 
+                    MAIN CONTENT AREA (SMOOTHLY SHIFTS RIGHT WHEN SIDEBAR OPENS)
+                */}
+                <main className="flex-1 min-w-0 transition-all duration-300 ease-in-out px-4 sm:px-6 lg:px-8 py-6 max-w-5xl mx-auto w-full">
+                    {/* 
+                        Selamat Datang Langsung di Halaman (Tanpa Card, Background Terang, Nama Gold, Badge Dihapus)
+                    */}
+                    <div className="mb-8 pt-1">
+                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                            <div className="space-y-1.5 max-w-2xl">
+                                <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#211D1B] leading-tight">
+                                    <TypingGreeting name={auth?.user?.name || customerName} />
+                                </h1>
+                                <p className="text-xs sm:text-sm text-[#63574F] leading-relaxed">
+                                    Nikmati kelezatan racikan bumbu autentik kepulauan Nusantara. Pilih sajian favorit Anda, atur pesanan, dan konfirmasi langsung ke kasir & dapur.
+                                </p>
+                            </div>
+
+                            {/* Indikator Layanan Meja & Tombol Buka Sidebar Cepat */}
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsTableModalOpen(true)}
+                                    className="px-3.5 py-1.5 rounded-xl bg-white border border-[#D5CBB9] shadow-xs hover:border-[#B99A65] flex items-center gap-2 text-xs transition-all"
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                                    <span className="font-semibold text-[#211D1B]">
+                                        {orderType === 'dine_in' ? `Makan di ${selectedTable}` : 'Bawa Pulang (Takeaway)'}
+                                    </span>
+                                </button>
+                                {!isSidebarOpen && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsSidebarOpen(true)}
+                                        className="text-xs text-[#946E2D] hover:underline font-semibold flex items-center gap-1 transition-colors px-2 py-1"
+                                    >
+                                        <PanelLeft className="w-3.5 h-3.5" />
+                                        <span>Buka Menu</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
 
                 {/* Sub-Header Breadcrumb saat melihat tab selain menu (Favorit / Riwayat / Chat) */}
                 {activeTab !== 'menu' && (
@@ -1202,6 +1420,7 @@ export default function OrderApp({
                     )
                 )}
             </main>
+        </div>
 
             {/* ========================================================
                 BOTTOM FLOATING CART PILL (KOPKEN STYLE)
@@ -1733,252 +1952,6 @@ export default function OrderApp({
                         </div>
                     </div>
                 </div>
-            )}
-
-            {/* ========================================================
-                SIDEBAR VERTIKAL ALA CHROME SIDE PANEL (SLIDE-OVER)
-            ======================================================== */}
-            {isSidebarOpen && (
-                <div className="fixed inset-0 z-50 overflow-hidden">
-                    {/* Backdrop */}
-                    <div 
-                        onClick={() => setIsSidebarOpen(false)}
-                        className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity duration-300"
-                    />
-
-                    {/* Vertical Side Panel (Slide from Right) */}
-                    <aside className="fixed inset-y-0 right-0 max-w-full flex pl-10 z-50">
-                        <div className="w-screen max-w-md bg-[#1C1816] text-[#F4EFE6] border-l border-[#B99A65]/35 shadow-2xl flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300">
-                            
-                            {/* Panel Header */}
-                            <div>
-                                <div className="p-5 border-b border-[#32151F] flex items-center justify-between bg-[#211D1B]">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-xl bg-[#32151F] border border-[#B99A65]/40 flex items-center justify-center text-[#D4B886]">
-                                            <UtensilsCrossed className="w-4 h-4" />
-                                        </div>
-                                        <div>
-                                            <h2 className="font-heading text-lg font-bold text-[#F4EFE6]">
-                                                Panel Navigasi & Layanan
-                                            </h2>
-                                            <p className="text-[10px] text-[#D4B886] font-mono">
-                                                Sidebar Vertikal NUSARA
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsSidebarOpen(false)}
-                                        className="p-2 rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
-                                    >
-                                        <X className="w-5 h-5" />
-                                    </button>
-                                </div>
-
-                                {/* User & Table Summary Box */}
-                                <div className="p-4 mx-4 mt-4 rounded-2xl bg-[#32151F]/60 border border-[#B99A65]/30">
-                                    <div className="flex items-center justify-between text-xs">
-                                        <span className="text-[#F4EFE6]/70">Pelanggan:</span>
-                                        <span className="font-bold text-[#D4B886]">{auth?.user?.name || customerName || 'Tamu Restoran'}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-xs mt-1.5 pt-1.5 border-t border-[#B99A65]/20">
-                                        <span className="text-[#F4EFE6]/70">Layanan Meja:</span>
-                                        <button 
-                                            onClick={() => {
-                                                setIsSidebarOpen(false);
-                                                setIsTableModalOpen(true);
-                                            }}
-                                            className="font-bold text-amber-300 hover:underline flex items-center gap-1"
-                                        >
-                                            <span>{orderType === 'dine_in' ? `Dine-in (${selectedTable})` : 'Takeaway (Self-Pickup)'}</span>
-                                            <ChevronRight className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Navigation Menu List */}
-                                <nav className="p-4 space-y-2">
-                                    {/* 1. Katalog Menu */}
-                                    <button
-                                        onClick={() => {
-                                            setActiveTab('menu');
-                                            setIsSidebarOpen(false);
-                                        }}
-                                        className={`w-full p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all ${
-                                            activeTab === 'menu'
-                                                ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-lg'
-                                                : 'bg-[#211D1B] text-[#F4EFE6] border border-[#B99A65]/20 hover:border-[#D4B886] hover:bg-[#32151F]'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Utensils className="w-4 h-4" />
-                                            <span>Katalog Menu</span>
-                                        </div>
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                                            activeTab === 'menu' ? 'bg-[#211D1B] text-[#D4B886]' : 'bg-[#32151F] text-[#D4B886]'
-                                        }`}>
-                                            {menus.length}
-                                        </span>
-                                    </button>
-
-                                    {/* 2. Keranjang Belanja (Ditambahkan di Sidebar sesuai permintaan) */}
-                                    <button
-                                        onClick={() => {
-                                            setIsSidebarOpen(false);
-                                            setIsCartOpen(true);
-                                        }}
-                                        className="w-full p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold uppercase tracking-wider bg-[#211D1B] text-[#F4EFE6] border border-[#B99A65]/35 hover:border-[#D4B886] hover:bg-[#32151F] transition-all group"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <ShoppingBag className="w-4 h-4 text-[#D4B886]" />
-                                            <span>Keranjang Pesanan</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {cartCount > 0 && (
-                                                <span className="text-[11px] font-mono text-[#D4B886]">
-                                                    {formatRupiah(cartTotal)}
-                                                </span>
-                                            )}
-                                            <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-bold shadow">
-                                                {cartCount} item
-                                            </span>
-                                        </div>
-                                    </button>
-
-                                    {/* 3. Favorit Saya */}
-                                    {!isGuest ? (
-                                        <button
-                                            onClick={() => {
-                                                setActiveTab('favorites');
-                                                setIsSidebarOpen(false);
-                                            }}
-                                            className={`w-full p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all ${
-                                                activeTab === 'favorites'
-                                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-lg'
-                                                    : 'bg-[#211D1B] text-[#F4EFE6] border border-[#B99A65]/20 hover:border-[#D4B886] hover:bg-[#32151F]'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
-                                                <span>Favorit Saya</span>
-                                            </div>
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                                                activeTab === 'favorites' ? 'bg-[#211D1B] text-[#D4B886]' : 'bg-[#32151F] text-[#D4B886]'
-                                            }`}>
-                                                {favorites.length}
-                                            </span>
-                                        </button>
-                                    ) : (
-                                        <button
-                                            onClick={() => {
-                                                alert('Fitur favorit hidangan memerlukan Akun Customer. Silakan masuk untuk menyimpan menu favorit Anda.');
-                                                router.visit('/login');
-                                            }}
-                                            className="w-full p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold uppercase tracking-wider bg-[#211D1B]/50 text-[#F4EFE6]/50 border border-stone-800 hover:border-[#B99A65]/40 transition-all"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <Heart className="w-4 h-4 text-stone-500" />
-                                                <span>Favorit (Butuh Login)</span>
-                                            </div>
-                                            <span className="text-[10px] text-amber-400">Masuk Akun</span>
-                                        </button>
-                                    )}
-
-                                    {/* 4. Riwayat / Pelacakan Pesanan */}
-                                    <button
-                                        onClick={() => {
-                                            setActiveTab('history');
-                                            setIsSidebarOpen(false);
-                                        }}
-                                        className={`w-full p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all ${
-                                            activeTab === 'history'
-                                                ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-lg'
-                                                : 'bg-[#211D1B] text-[#F4EFE6] border border-[#B99A65]/20 hover:border-[#D4B886] hover:bg-[#32151F]'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Clock className="w-4 h-4" />
-                                            <span>{isGuest ? 'Pelacakan Pesanan' : 'Riwayat Pembelian'}</span>
-                                        </div>
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                                            activeTab === 'history' ? 'bg-[#211D1B] text-[#D4B886]' : 'bg-[#32151F] text-[#D4B886]'
-                                        }`}>
-                                            {initialOrders.length}
-                                        </span>
-                                    </button>
-
-                                    {/* 5. Konsierge / Chat Admin */}
-                                    <button
-                                        onClick={() => {
-                                            setActiveTab('chat');
-                                            setIsSidebarOpen(false);
-                                        }}
-                                        className={`w-full p-3.5 rounded-2xl flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-all ${
-                                            activeTab === 'chat'
-                                                ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-lg'
-                                                : 'bg-[#211D1B] text-[#F4EFE6] border border-[#B99A65]/20 hover:border-[#D4B886] hover:bg-[#32151F]'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <MessageSquare className="w-4 h-4" />
-                                            <span>Konsierge / Chat Admin</span>
-                                        </div>
-                                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                                    </button>
-                                </nav>
-                            </div>
-
-                            {/* Sidebar Footer: Keluar / Logout */}
-                            <div className="p-4 border-t border-[#32151F] bg-[#141110]">
-                                {auth?.user ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setIsSidebarOpen(false);
-                                            setIsLogoutModalOpen(true);
-                                        }}
-                                        className="w-full py-3 px-4 rounded-xl border border-rose-500/40 bg-rose-950/30 text-rose-300 hover:bg-rose-900/50 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-                                    >
-                                        <LogOut className="w-4 h-4" />
-                                        <span>Keluar dari Akun</span>
-                                    </button>
-                                ) : (
-                                    <Link
-                                        href="/login"
-                                        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md"
-                                    >
-                                        <UserIcon className="w-4 h-4" />
-                                        <span>Masuk ke Akun Customer</span>
-                                    </Link>
-                                )}
-                            </div>
-
-                        </div>
-                    </aside>
-                </div>
-            )}
-
-            {/* ========================================================
-                POIN PEMBELI: FLOATING SIDEBAR TAB BUTTON (DESKTOP & MOBILE)
-            ======================================================== */}
-            {!isSidebarOpen && (
-                <button
-                    type="button"
-                    onClick={() => setIsSidebarOpen(true)}
-                    className="fixed top-1/2 -translate-y-1/2 right-0 z-40 py-3.5 px-2 rounded-l-2xl bg-gradient-to-b from-[#32151F] to-[#211D1B] border-y border-l border-[#B99A65] text-[#D4B886] shadow-2xl flex flex-col items-center gap-1.5 hover:translate-x-[-4px] active:scale-95 transition-all cursor-pointer group"
-                    title="Buka Sidebar Navigasi, Menu & Keranjang"
-                >
-                    <span className="w-2 h-2 rounded-full bg-[#B99A65] animate-ping mb-0.5" />
-                    <UtensilsCrossed className="w-4 h-4 text-[#D4B886] group-hover:scale-110 transition-transform" />
-                    <span className="text-[9px] font-bold uppercase tracking-widest [writing-mode:vertical-lr] text-[#F4EFE6]/90 group-hover:text-[#D4B886]">
-                        Sidebar Menu
-                    </span>
-                    {cartCount > 0 && (
-                        <span className="w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center shadow mt-1 animate-pulse">
-                            {cartCount}
-                        </span>
-                    )}
-                </button>
             )}
 
             {/* ========================================================
