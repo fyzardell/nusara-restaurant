@@ -91,6 +91,28 @@ class ReservationController extends Controller
             ->orderByDesc('reservations.created_at')
             ->get();
 
+        // Restaurant Menus (for optional menu pre-order preview)
+        $menus = DB::table('menus')
+            ->join('categories', 'menus.category_id', '=', 'categories.id')
+            ->leftJoin('menu_images', function ($join) {
+                $join->on('menus.id', '=', 'menu_images.menu_id')
+                    ->where('menu_images.is_primary', true);
+            })
+            ->where('menus.is_available', true)
+            ->whereNull('menus.deleted_at')
+            ->select(
+                'menus.id',
+                'menus.category_id',
+                'categories.name as category_name',
+                'menus.name',
+                'menus.slug',
+                'menus.description',
+                'menus.price',
+                'menus.is_featured',
+                'menu_images.image_path'
+            )
+            ->get();
+
         // Jakarta Current Time
         $nowJakarta = Carbon::now('Asia/Jakarta');
 
@@ -101,6 +123,7 @@ class ReservationController extends Controller
             'customer' => $customer,
             'tables' => $tables,
             'experiences' => $experiences,
+            'menus' => $menus,
             'operatingHours' => $operatingHours,
             'settings' => $settings,
             'reservations' => $reservations,
