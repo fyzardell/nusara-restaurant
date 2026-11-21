@@ -286,10 +286,14 @@ export default function Reservation({
         tables.forEach(t => {
             const conflict = reservations.find(r => {
                 if (Number(r.table_id) !== t.id) return false;
-                const rDateStr = r.reservation_datetime.split('T')[0] || r.reservation_datetime.split(' ')[0];
+                const rDateStr = (r.reservation_datetime.includes('T')
+                    ? r.reservation_datetime.split('T')[0]
+                    : r.reservation_datetime.split(' ')[0]).trim();
                 if (rDateStr !== data.date) return false;
 
-                const rTimeStr = (r.reservation_datetime.split('T')[1] || r.reservation_datetime.split(' ')[1] || '').substring(0, 5);
+                const rTimeStr = (r.reservation_datetime.includes('T')
+                    ? r.reservation_datetime.split('T')[1]
+                    : r.reservation_datetime.split(' ')[1] || '').substring(0, 5);
                 const [rH, rM] = rTimeStr.split(':').map(Number);
                 const rTotalMin = rH * 60 + rM;
 
@@ -297,7 +301,9 @@ export default function Reservation({
             });
 
             if (conflict) {
-                const confTime = (conflict.reservation_datetime.split('T')[1] || conflict.reservation_datetime.split(' ')[1] || '').substring(0, 5);
+                const confTime = (conflict.reservation_datetime.includes('T')
+                    ? conflict.reservation_datetime.split('T')[1]
+                    : conflict.reservation_datetime.split(' ')[1] || '').substring(0, 5);
                 map.set(t.id, {
                     isAvailable: false,
                     bookedByCode: conflict.reservation_code,
