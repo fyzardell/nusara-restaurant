@@ -6,10 +6,13 @@ import { User } from '../../types';
 
 interface Message {
     id: number;
-    user_id: number;
+    user_id?: number;
     message: string;
-    is_admin: boolean;
-    created_at: string;
+    sender?: string;
+    sender_type?: string;
+    is_admin?: boolean;
+    created_at?: string;
+    time?: string;
     user?: {
         id: number;
         name: string;
@@ -56,7 +59,7 @@ export default function ChatShow({ customer, messages, adminUser }: Props) {
         e.preventDefault();
         if (!data.message.trim() || processing) return;
 
-        post(`/admin/chats/${customer.id}`, {
+        post(`/admin/chats/${customer.id}/send`, {
             preserveScroll: true,
             onSuccess: () => {
                 reset('message');
@@ -72,11 +75,17 @@ export default function ChatShow({ customer, messages, adminUser }: Props) {
         }
     };
 
-    const formatTime = (dateStr: string) => {
-        return new Date(dateStr).toLocaleTimeString('id-ID', {
-            hour: '2-digit',
-            minute: '2-digit',
-        });
+    const formatTime = (msg: Message) => {
+        if (msg.time) return msg.time;
+        if (!msg.created_at) return '';
+        try {
+            return new Date(msg.created_at).toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        } catch {
+            return msg.created_at;
+        }
     };
 
     const getRoleBadge = (role?: string) => {
@@ -169,7 +178,7 @@ export default function ChatShow({ customer, messages, adminUser }: Props) {
                             </div>
                         ) : (
                             messages.map((msg) => {
-                                const isAdmin = msg.is_admin || msg.user?.role === 'admin';
+                                const isAdmin = msg.is_admin || msg.sender === 'admin' || msg.sender_type === 'admin' || msg.user?.role === 'admin';
                                 return (
                                     <div
                                         key={msg.id}
@@ -180,7 +189,7 @@ export default function ChatShow({ customer, messages, adminUser }: Props) {
                                                 {isAdmin ? 'Anda (Admin)' : (msg.user?.name || customer.name)}
                                             </span>
                                             <span>·</span>
-                                            <span>{formatTime(msg.created_at)}</span>
+                                            <span>{formatTime(msg)}</span>
                                         </div>
 
                                         <div

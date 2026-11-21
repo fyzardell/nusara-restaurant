@@ -492,34 +492,48 @@ class AdminController extends Controller
                 ->get()
                 ->map(fn ($m) => [
                     'id' => $m->id,
+                    'user_id' => $m->user_id,
                     'sender' => $m->sender_type,
+                    'sender_type' => $m->sender_type,
+                    'is_admin' => $m->sender_type === 'admin',
                     'message' => $m->message,
-                    'time' => Carbon::parse($m->created_at)->format('d M Y H:i'),
+                    'created_at' => $m->created_at,
+                    'time' => Carbon::parse($m->created_at)->format('H:i'),
                 ]),
             'adminUser' => Auth::user(),
         ]);
     }
+
     public function sendChatMessage(Request $request, User $user)
-{
-    $this->ensureAdmin();
+    {
+        $this->ensureAdmin();
 
-    $validated = $request->validate([
-        'message' => 'required|string|max:5000',
-    ]);
+        $validated = $request->validate([
+            'message' => 'required|string|max:5000',
+        ]);
 
-    $message = $user->chatMessages()->create([
-        'sender_type' => 'admin',
-        'message' => $validated['message'],
-    ]);
+        $messageId = DB::table('chat_messages')->insertGetId([
+            'user_id' => $user->id,
+            'sender_type' => 'admin',
+            'message' => $validated['message'],
+            'is_read' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-    return response()->json([
-        'success' => true,
-        'message' => [
-            'id' => $message->id,
-            'sender' => $message->sender_type,
-            'message' => $message->message,
-            'time' => $message->created_at->format('d M Y H:i'),
-        ],
-    ]);
-}
+        if ($request->wantsJson() && ! $request->header('X-Inertia')) {
+            return response()->json([
+                'success' => true,
+                'message' => [
+                    'id' => $messageId,
+                    'sender' => 'admin',
+                    'sender_type' => 'admin',
+                    'message' => $validated['message'],
+                    'time' => now()->format('H:i'),
+                ],
+            ]);
+        }
+
+        return redirect()->back();
+    }
 }
