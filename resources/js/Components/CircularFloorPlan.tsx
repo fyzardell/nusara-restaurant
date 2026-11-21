@@ -46,6 +46,8 @@ interface Props {
     reservations?: ReservationData[];
     selectedDate: Date;
     role: 'waiter' | 'cashier' | 'admin';
+    statusFilter?: string;
+    onFilterChange?: (filter: string) => void;
     onValidateTable?: (tableId: number) => void;
     onStartCleaning?: (tableId: number) => void;
     onFinishCleaning?: (tableId: number) => void;
@@ -57,6 +59,8 @@ export default function CircularFloorPlan({
     reservations = [],
     selectedDate,
     role,
+    statusFilter = 'all',
+    onFilterChange,
     onValidateTable,
     onStartCleaning,
     onFinishCleaning,
@@ -215,6 +219,62 @@ export default function CircularFloorPlan({
         };
     };
 
+    // Helper normalisasi status
+    const normalizeStatus = (s?: string) => (s || '').toLowerCase().replace(/[\s_-]+/g, '');
+
+    const isTableMatchingFilter = (tbl: TableWithSessionInfo, displayStatus: string, filter: string) => {
+        if (!filter || filter === 'all') return true;
+        const normFilter = normalizeStatus(filter);
+        const normDisplay = normalizeStatus(displayStatus);
+        const normRaw = normalizeStatus(tbl.status);
+        return normDisplay === normFilter || normRaw === normFilter;
+    };
+
+    // Hitung jumlah meja per status
+    const counts = useMemo(() => {
+        let cleaning = 0;
+        let occupied = 0;
+        let pending = 0;
+        let available = 0;
+        let reserved = 0;
+
+        tenTables.forEach(t => {
+            const d = getTableDisplayStatus(t);
+            const norm = normalizeStatus(d.status);
+            if (norm === 'cleaning') cleaning++;
+            else if (norm === 'occupied') occupied++;
+            else if (norm === 'pendingvalidation') pending++;
+            else if (norm === 'reserved') reserved++;
+            else available++;
+        });
+
+        return {
+            all: tenTables.length,
+            cleaning,
+            occupied,
+            pending,
+            available,
+            reserved
+        };
+    }, [tenTables, tableReservationsMap, isToday]);
+
+    // Daftar nomor meja yang sesuai filter aktif
+    const matchingTableNumbers = useMemo(() => {
+        if (statusFilter === 'all') return [];
+        return tenTables
+            .filter(tbl => isTableMatchingFilter(tbl, getTableDisplayStatus(tbl).status, statusFilter))
+            .map(tbl => tbl.table_number);
+    }, [tenTables, statusFilter, tableReservationsMap, isToday]);
+
+    const filterLabelMap: Record<string, string> = {
+        all: 'Keseluruhan',
+        cleaning: 'Pembersihan',
+        occupied: 'Terisi',
+        pending_validation: 'Perlu Validasi',
+        available: 'Kosong / Available',
+        reserved: 'Reservasi'
+    };
+
     return (
         <div className="space-y-4">
             {/* Floor Plan Header & Legend */}
@@ -272,6 +332,128 @@ export default function CircularFloorPlan({
                 </div>
             </div>
 
+            {/* Mode Switch: Keseluruhan vs Filter Status (Hanya untuk Waiter / Admin, Cashier tetap Keseluruhan saja) */}
+            {role !== 'cashier' && onFilterChange && (
+                <div className="p-3 rounded-2xl bg-[#161312] border border-[#241F1D] flex flex-col md:flex-row md:items-center justify-between gap-3 shadow">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#D4B886] whitespace-nowrap">
+                            Mode Denah:
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => onFilterChange('all')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                statusFilter === 'all'
+                                    ? 'bg-[#B99A65] text-[#110F0E] shadow-sm'
+                                    : 'bg-[#211D1B] text-[#9E938B] hover:text-[#F4EFE6] border border-[#342D2A]'
+                            }`}
+                        >
+                            Keseluruhan ({counts.all} Meja)
+                        </button>
+                    </div>
+
+                    {/* Filter Pills */}
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <button
+                            type="button"
+                            onClick={() => onFilterChange('cleaning')}
+                            className={`px-2.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                                statusFilter === 'cleaning'
+                                    ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400/50'
+                                    : 'bg-[#211D1B] text-blue-300 hover:bg-blue-950/60 border border-blue-900/60'
+                            }`}
+                        >
+                            <span className="w-2 h-2 rounded-full bg-blue-400" />
+                            <span>Pembersihan ({counts.cleaning})</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onFilterChange('occupied')}
+                            className={`px-2.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                                statusFilter === 'occupied'
+                                    ? 'bg-rose-600 text-white shadow-md ring-2 ring-rose-400/50'
+                                    : 'bg-[#211D1B] text-rose-300 hover:bg-rose-950/60 border border-rose-900/60'
+                            }`}
+                        >
+                            <span className="w-2 h-2 rounded-full bg-rose-400" />
+                            <span>Terisi ({counts.occupied})</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onFilterChange('pending_validation')}
+                            className={`px-2.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                                statusFilter === 'pending_validation'
+                                    ? 'bg-amber-500 text-stone-950 shadow-md ring-2 ring-amber-400/50'
+                                    : 'bg-[#211D1B] text-amber-300 hover:bg-amber-950/60 border border-amber-900/60'
+                            }`}
+                        >
+                            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                            <span>Perlu Validasi ({counts.pending})</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onFilterChange('available')}
+                            className={`px-2.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                                statusFilter === 'available'
+                                    ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-400/50'
+                                    : 'bg-[#211D1B] text-emerald-300 hover:bg-emerald-950/60 border border-emerald-900/60'
+                            }`}
+                        >
+                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                            <span>Kosong ({counts.available})</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onFilterChange('reserved')}
+                            className={`px-2.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                                statusFilter === 'reserved'
+                                    ? 'bg-[#B99A65] text-[#110F0E] shadow-md ring-2 ring-[#D4B886]/50'
+                                    : 'bg-[#211D1B] text-[#D4B886] hover:bg-[#32151F] border border-[#B99A65]/40'
+                            }`}
+                        >
+                            <span className="w-2 h-2 rounded-full bg-[#D4B886]" />
+                            <span>Reservasi ({counts.reserved})</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Filter Active Alert Banner */}
+            {statusFilter !== 'all' && (
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#211a19] via-[#1b1514] to-[#211a19] border border-[#B99A65]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl animate-fade-in">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#32151F] border border-[#B99A65]/40 flex items-center justify-center text-[#D4B886] shrink-0">
+                            <Sparkles className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold text-white">
+                                Filter Aktif: <span className="text-[#D4B886] uppercase font-mono">{filterLabelMap[statusFilter] || statusFilter}</span>
+                                {' — '}
+                                {matchingTableNumbers.length > 0 ? (
+                                    <span className="text-amber-300 font-mono font-bold">
+                                        {matchingTableNumbers.join(', ')} ({matchingTableNumbers.length} Meja)
+                                    </span>
+                                ) : (
+                                    <span className="text-stone-400 font-normal">Tidak ada meja dengan status ini</span>
+                                )}
+                            </p>
+                            <p className="text-[11px] text-[#9E938B] mt-0.5">
+                                Meja yang sesuai disorot terang dengan ring emas. Meja lainnya diredupkan agar posisi meja mudah dipantau.
+                            </p>
+                        </div>
+                    </div>
+                    {onFilterChange && (
+                        <button
+                            type="button"
+                            onClick={() => onFilterChange('all')}
+                            className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl bg-[#241F1D] hover:bg-[#32151F] text-xs font-bold text-[#D4B886] border border-[#B99A65]/40 hover:border-[#D4B886] transition-all shrink-0"
+                        >
+                            Tampilkan Keseluruhan (10 Meja)
+                        </button>
+                    )}
+                </div>
+            )}
+
             {/* 10 Circular Tables Blueprint Grid */}
             <div className="p-6 rounded-3xl bg-gradient-to-b from-[#161312] to-[#120F0E] border border-[#241F1D] shadow-2xl relative overflow-hidden">
                 {/* Dining Hall Floor Grid Ambient Lines */}
@@ -286,11 +468,16 @@ export default function CircularFloorPlan({
                 <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 sm:gap-8 justify-items-center py-4">
                     {tenTables.map((tbl) => {
                         const display = getTableDisplayStatus(tbl);
+                        const isMatch = statusFilter === 'all' || isTableMatchingFilter(tbl, display.status, statusFilter);
 
                         return (
                             <div 
                                 key={tbl.id} 
-                                className="flex flex-col items-center group cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                                className={`flex flex-col items-center group cursor-pointer transition-all duration-300 ${
+                                    isMatch 
+                                        ? 'scale-100 opacity-100 z-10' 
+                                        : 'opacity-20 grayscale hover:opacity-60 hover:grayscale-0 scale-95'
+                                }`}
                                 onClick={() => setSelectedTable(tbl)}
                             >
                                 {/* Outer Blueprint Circle with Surrounding Satellite Chairs */}
@@ -303,7 +490,9 @@ export default function CircularFloorPlan({
                                     <span className="absolute top-4 -left-1 w-4 h-4 rounded-full bg-[#211D1B] border border-[#3D332D] shadow" title="Kursi 5" />
 
                                     {/* Main Circular Table Surface */}
-                                    <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 flex flex-col items-center justify-center p-2 text-center transition-all shadow-xl backdrop-blur-sm ${display.bgClass}`}>
+                                    <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 flex flex-col items-center justify-center p-2 text-center transition-all shadow-xl backdrop-blur-sm ${display.bgClass} ${
+                                        isMatch && statusFilter !== 'all' ? 'ring-4 ring-[#D4B886] shadow-[0_0_25px_rgba(212,184,134,0.45)]' : ''
+                                    }`}>
                                         {/* Table Number */}
                                         <span className="font-heading font-bold text-sm sm:text-base text-white tracking-wide">
                                             {tbl.table_number}
