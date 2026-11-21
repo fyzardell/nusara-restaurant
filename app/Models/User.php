@@ -30,7 +30,12 @@ class User extends Authenticatable
         ];
     }
 
-        public function chatMessages()
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    public function chatMessages()
     {
         return $this->hasMany(ChatMessage::class);
     }

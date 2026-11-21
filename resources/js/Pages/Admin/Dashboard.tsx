@@ -41,6 +41,7 @@ import {
     CreditCard,
     ArrowRight
 } from 'lucide-react';
+import CircularFloorPlan from '../../Components/CircularFloorPlan';
 
 /* ============================================================
    ADMIN HEADER (dipakai juga oleh halaman Chats & ChatShow)
@@ -64,7 +65,7 @@ export function AdminHeader({ adminUser, active, onSelect, metrics }: {
     adminUser?: User;
     active?: AdminTab | string;
     onSelect?: (tab: DashboardTab) => void;
-    metrics?: { activeOrders: number; pendingReservations: number };
+    metrics?: { activeOrders: number; pendingReservations: number; unreadChatCount?: number };
 }) {
     const current = active ?? 'overview';
 
@@ -80,6 +81,13 @@ export function AdminHeader({ adminUser, active, onSelect, metrics }: {
             return (
                 <span className="px-1.5 rounded-full text-[10px] bg-rose-500 text-white font-extrabold">
                     {metrics.pendingReservations}
+                </span>
+            );
+        }
+        if (key === 'chats' && metrics && (metrics.unreadChatCount ?? 0) > 0) {
+            return (
+                <span className="px-1.5 rounded-full text-[10px] bg-rose-500 text-white font-extrabold animate-pulse">
+                    {metrics.unreadChatCount}
                 </span>
             );
         }
@@ -623,7 +631,14 @@ export default function AdminDashboard({
                                         <MessageSquare className="w-4 h-4 text-[#B99A65]" />
                                         <span>Konsierge / Chat</span>
                                     </div>
-                                    <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                                    <div className="flex items-center gap-1.5">
+                                        {(metrics.unreadChatCount ?? 0) > 0 && (
+                                            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white animate-pulse">
+                                                {metrics.unreadChatCount} baru
+                                            </span>
+                                        )}
+                                        <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                                    </div>
                                 </Link>
 
                                 <button onClick={() => goTab('audit')} className={navCls('audit')}>
@@ -1432,11 +1447,23 @@ export default function AdminDashboard({
                         TAB 4: STATUS MEJA & SESI QR
                     ==================================================== */}
                     {activeTab === 'tables' && (
-                        <div className="space-y-4 animate-fade-in">
+                        <div className="space-y-6 animate-fade-in">
+                            {/* Interactive Circular Floor Plan Meja 01 s/d Meja 10 (Full Control) */}
+                            <CircularFloorPlan
+                                tables={initialTables}
+                                reservations={initialReservations}
+                                selectedDate={selectedCalDate}
+                                role="admin"
+                                onValidateTable={(id) => handleUpdateTableStatus(id, 'Occupied')}
+                                onStartCleaning={(id) => handleUpdateTableStatus(id, 'Cleaning')}
+                                onFinishCleaning={(id) => handleUpdateTableStatus(id, 'Available')}
+                                onUpdateStatus={handleUpdateTableStatus}
+                            />
+
                             <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
                                 <div>
                                     <h3 className="font-heading text-base font-bold text-white">
-                                        Denah {metrics.totalTables} Meja Makan Nusara
+                                        Daftar Detail {metrics.totalTables} Meja Makan Nusara
                                     </h3>
                                     <p className="text-xs text-[#9E938B]">
                                         Kelola ketersediaan meja restoran Senopati Flagship. Pastikan meja berstatus Available setelah dibersihkan oleh waiter.

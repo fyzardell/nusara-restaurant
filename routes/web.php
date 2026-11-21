@@ -32,6 +32,7 @@ Route::post('/order/checkout', [OrderController::class, 'checkout'])->name('orde
 Route::middleware('auth')->group(function () {
     Route::post('/order/{id}/rating', [OrderController::class, 'submitRating'])->name('order.rating');
     Route::post('/chat/send', [OrderController::class, 'sendMessage'])->name('chat.send');
+    Route::post('/chat/read', [OrderController::class, 'markAsRead'])->name('chat.read');
     Route::post('/favorites/toggle', [OrderController::class, 'toggleFavorite'])->name('favorites.toggle');
 });
 
@@ -42,8 +43,9 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     Route::post('/menu/{id}/stock', [AdminController::class, 'updateMenuStock'])->name('admin.menu.stock');
     Route::post('/table/{id}/status', [AdminController::class, 'updateTableStatus'])->name('admin.table.status');
     Route::post('/reservation/{id}/status', [AdminController::class, 'updateReservationStatus'])->name('admin.reservation.status');
-    Route::get('/chats', [AdminController::class, 'chats'])->name('admin.chats');                  // ← tambahkan
+    Route::get('/chats', [AdminController::class, 'chats'])->name('admin.chats');
     Route::get('/chats/{user}', [AdminController::class, 'chatShow'])->name('admin.chats.show');
+    Route::post('/chats/{user}/send', [AdminController::class, 'chatReply'])->name('admin.chats.send');
 });
 
 // Cashier Operational Dashboard (PRD Section 8.1 & REQ-FE-003)

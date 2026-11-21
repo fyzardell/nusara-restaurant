@@ -126,7 +126,7 @@ export interface Order {
 export interface ChatMessage {
     id: number;
     user_id: number;
-    sender_type: 'customer' | 'admin';
+    sender_type: 'customer' | 'admin' | 'waiter' | 'cashier' | string;
     message: string;
     is_read: boolean;
     created_at: string;
@@ -215,4 +215,5 @@ export interface AdminMetrics {
     occupiedTables: number;
     totalTables: number;
     pendingReservations: number;
+    unreadChatCount?: number;
 }

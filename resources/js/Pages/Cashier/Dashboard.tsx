@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
+import CircularFloorPlan from '../../Components/CircularFloorPlan';
+import OperationalChatModal from '../../Components/OperationalChatModal';
 import { 
     Clock, 
     Search, 
@@ -34,7 +36,8 @@ import {
     PanelRight,
     Menu as MenuIcon,
     ExternalLink,
-    MapPin
+    MapPin,
+    MessageSquare
 } from 'lucide-react';
 import { Order, OrderStatus, RestaurantSettings } from '../../types';
 
@@ -89,6 +92,8 @@ interface ReservationItem {
     status: 'Pending' | 'Confirmed' | 'Seated' | 'Completed' | 'Cancelled';
     special_request: string | null;
     experience_name?: string;
+    table_number?: string;
+    table_id?: number;
 }
 
 interface Props {
@@ -108,6 +113,8 @@ interface Props {
     orders: OrderWithDetails[];
     tables: TableWithSession[];
     reservations: ReservationItem[];
+    chatMessages?: any[];
+    unreadChatCount?: number;
     settings?: RestaurantSettings;
     filters: {
         status?: string;
@@ -124,6 +131,8 @@ export default function CashierDashboard({
     orders = [],
     tables = [],
     reservations = [],
+    chatMessages = [],
+    unreadChatCount = 0,
     settings,
     filters = {}
 }: Props) {
@@ -133,6 +142,7 @@ export default function CashierDashboard({
     const [mainTab, setMainTab] = useState<CashierTab>('orders');
     const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+    const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
 
     // Filters for Orders
     const [selectedStatus, setSelectedStatus] = useState<string>(filters.status || 'all');
@@ -384,7 +394,7 @@ export default function CashierDashboard({
                                 <button onClick={() => goTab('tables')} className={navCls('tables')}>
                                     <div className="flex items-center gap-2.5">
                                         <TableIcon className="w-4 h-4 text-[#B99A65]" />
-                                        <span>Denah Meja & Sesi</span>
+                                        <span>Denah Meja (1-10)</span>
                                     </div>
                                     <span className="text-[10px] text-[#9E938B] font-mono">
                                         {tables.length}
@@ -403,7 +413,32 @@ export default function CashierDashboard({
                             </div>
                         </div>
 
-                        {/* Group 2: Status Pesanan Kasir */}
+                        {/* Group 2: Koordinasi & Notifikasi Chat Admin */}
+                        <div>
+                            <span className="px-3 text-[10px] font-semibold tracking-wider text-[#9E938B] uppercase">
+                                Koordinasi Staf
+                            </span>
+                            <div className="mt-1.5 space-y-1">
+                                <button
+                                    onClick={() => setIsChatOpen(true)}
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18] transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <MessageSquare className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Chat Admin HQ</span>
+                                    </div>
+                                    {unreadChatCount > 0 ? (
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-stone-950 animate-pulse">
+                                            {unreadChatCount} baru
+                                        </span>
+                                    ) : (
+                                        <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Group 3: Status Pesanan Kasir */}
                         <div>
                             <span className="px-3 text-[10px] font-semibold tracking-wider text-[#9E938B] uppercase">
                                 Status Kasir
@@ -455,7 +490,7 @@ export default function CashierDashboard({
                             </div>
                         </div>
 
-                        {/* Group 3: Navigasi Cepat */}
+                        {/* Group 4: Navigasi Cepat */}
                         <div>
                             <span className="px-3 text-[10px] font-semibold tracking-wider text-[#9E938B] uppercase">
                                 Navigasi Cepat
@@ -557,7 +592,7 @@ export default function CashierDashboard({
                             <span className="text-[#4D443E]">/</span>
                             <span className="font-semibold text-[#F4EFE6]">
                                 {mainTab === 'orders' && 'Antrean Pesanan & Kasir POS'}
-                                {mainTab === 'tables' && 'Denah & Status Meja'}
+                                {mainTab === 'tables' && 'Denah Meja Restoran (Meja 01 - 10)'}
                                 {mainTab === 'reservations' && 'Buku Reservasi Tamu'}
                             </span>
                         </div>
@@ -565,6 +600,22 @@ export default function CashierDashboard({
 
                     {/* Top Right Controls */}
                     <div className="flex items-center gap-2">
+                        {/* Button Notifikasi & Chat Admin */}
+                        <button
+                            type="button"
+                            onClick={() => setIsChatOpen(true)}
+                            className="relative px-3 py-1.5 rounded-lg bg-[#241F1D] border border-[#342D2A] text-xs font-semibold text-[#F4EFE6] hover:bg-[#2D2622] flex items-center gap-1.5 transition-colors"
+                            title="Buka Chat Koordinasi dengan Admin"
+                        >
+                            <Bell className={`w-3.5 h-3.5 ${unreadChatCount > 0 ? 'text-amber-400' : 'text-[#B99A65]'}`} />
+                            <span className="hidden sm:inline">Chat Admin</span>
+                            {unreadChatCount > 0 && (
+                                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-stone-950 animate-pulse">
+                                    {unreadChatCount}
+                                </span>
+                            )}
+                        </button>
+
                         <button
                             onClick={() => router.reload()}
                             className="px-3 py-1.5 rounded-lg bg-[#241F1D] border border-[#342D2A] text-xs font-semibold text-[#F4EFE6] hover:bg-[#2D2622] flex items-center gap-1.5 transition-colors"
@@ -623,7 +674,7 @@ export default function CashierDashboard({
                                     mainTab === 'tables' ? 'bg-white text-[#110F0E]' : 'text-[#9E938B] hover:text-white bg-[#1E1A18] border border-[#241F1D]'
                                 }`}
                             >
-                                Denah Meja ({tables.length})
+                                Denah Meja (1-10)
                             </button>
                             <button
                                 onClick={() => setMainTab('reservations')}
@@ -881,69 +932,62 @@ export default function CashierDashboard({
                         </div>
                     )}
 
-                    {/* VIEW 2: TABLES MANAGEMENT */}
+                    {/* VIEW 2: TABLES FLOOR PLAN & SESSIONS (READ-ONLY FOR CASHIER) */}
                     {mainTab === 'tables' && (
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
-                                <div>
-                                    <h3 className="font-heading font-bold text-base text-white flex items-center gap-2">
-                                        <TableIcon className="w-4 h-4 text-[#B99A65]" />
-                                        <span>Denah Meja & Sesi ({tables.length})</span>
-                                    </h3>
-                                    <p className="text-xs text-[#9E938B] mt-0.5">
-                                        Pantau okupansi meja makan, status sesi tamu, dan alokasikan meja tamu walk-in / reservasi.
-                                    </p>
-                                </div>
-                            </div>
+                        <div className="space-y-6">
+                            {/* Circular Floor Plan Component (Read-Only: cuma bisa lihat saja) */}
+                            <CircularFloorPlan
+                                tables={tables}
+                                reservations={reservations}
+                                selectedDate={selectedCalDate}
+                                role="cashier"
+                            />
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {tables.map((t) => (
-                                    <div key={t.id} className="p-4 rounded-2xl bg-[#161312] border border-[#241F1D] space-y-3">
-                                        <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
-                                            <div>
-                                                <h4 className="font-heading font-bold text-base text-white">{t.table_number}</h4>
-                                                <span className="text-[10px] text-[#9E938B]">
-                                                    Kapasitas {t.capacity} Kursi · {t.location}
+                            {/* Tables Information Grid */}
+                            <div className="space-y-3 pt-2">
+                                <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
+                                    <h4 className="font-heading font-bold text-sm text-[#F4EFE6]">
+                                        Daftar Status & Sesi Meja ({tables.length} Meja)
+                                    </h4>
+                                    <span className="text-[11px] text-[#9E938B]">
+                                        Akses Kasir: Pemantauan Sesi Aktif
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {tables.map((t) => (
+                                        <div key={t.id} className="p-4 rounded-2xl bg-[#161312] border border-[#241F1D] space-y-3">
+                                            <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
+                                                <div>
+                                                    <h4 className="font-heading font-bold text-base text-white">{t.table_number}</h4>
+                                                    <span className="text-[10px] text-[#9E938B]">
+                                                        Kapasitas {t.capacity} Kursi · {t.location}
+                                                    </span>
+                                                </div>
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                                    t.status === 'Available' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' :
+                                                    t.status === 'Occupied' ? 'bg-rose-950 text-rose-300 border border-rose-800' :
+                                                    t.status === 'Cleaning' ? 'bg-blue-950 text-blue-300 border border-blue-800' :
+                                                    t.status === 'Reserved' ? 'bg-amber-950 text-amber-300 border border-amber-800' :
+                                                    'bg-stone-800 text-stone-300'
+                                                }`}>
+                                                    {t.status}
                                                 </span>
                                             </div>
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                                t.status === 'Available' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' :
-                                                t.status === 'Occupied' ? 'bg-rose-950 text-rose-300 border border-rose-800' :
-                                                t.status === 'Cleaning' ? 'bg-blue-950 text-blue-300 border border-blue-800' :
-                                                t.status === 'Reserved' ? 'bg-amber-950 text-amber-300 border border-amber-800' :
-                                                'bg-stone-800 text-stone-300'
-                                            }`}>
-                                                {t.status}
-                                            </span>
-                                        </div>
 
-                                        <div className="space-y-1 text-xs text-[#9E938B]">
-                                            {t.active_session ? (
-                                                <div className="p-2 rounded-xl bg-[#141110] border border-[#241F1D] text-[11px]">
-                                                    <span className="font-mono text-stone-300 block">Sesi: {t.active_session.session_code}</span>
-                                                    <span className="text-emerald-400 font-bold text-[10px] uppercase">{t.active_session.status}</span>
-                                                </div>
-                                            ) : (
-                                                <p className="text-[11px] italic text-[#665C54]">Tidak ada sesi aktif</p>
-                                            )}
+                                            <div className="space-y-1 text-xs text-[#9E938B]">
+                                                {t.active_session ? (
+                                                    <div className="p-2 rounded-xl bg-[#141110] border border-[#241F1D] text-[11px]">
+                                                        <span className="font-mono text-stone-300 block">Sesi: {t.active_session.session_code}</span>
+                                                        <span className="text-emerald-400 font-bold text-[10px] uppercase">{t.active_session.status}</span>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-[11px] italic text-[#665C54]">Tidak ada sesi aktif</p>
+                                                )}
+                                            </div>
                                         </div>
-
-                                        {/* Status Changer */}
-                                        <div className="pt-2 border-t border-[#241F1D]">
-                                            <select
-                                                value={t.status}
-                                                onChange={(e) => handleTableStatusChange(t.id, e.target.value)}
-                                                className="w-full px-2.5 py-1.5 rounded-lg bg-[#141110] border border-[#2D2622] text-xs text-[#F4EFE6] focus:outline-none focus:border-[#B99A65]"
-                                            >
-                                                <option value="Available">Available (Kosong)</option>
-                                                <option value="Occupied">Occupied (Terisi)</option>
-                                                <option value="Reserved">Reserved (Dipesan)</option>
-                                                <option value="Cleaning">Cleaning (Pembersihan)</option>
-                                                <option value="Inactive">Inactive (Tutup)</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -1234,6 +1278,17 @@ export default function CashierDashboard({
                     </div>
                 </aside>
             )}
+
+            {/* ========================================================
+                OPERATIONAL CHAT MODAL WITH ADMIN HQ
+            ======================================================== */}
+            <OperationalChatModal
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+                role="cashier"
+                userName={cashierUser.name}
+                messages={chatMessages}
+            />
 
             {/* ========================================================
                 MODAL 1: CASH PAYMENT CONFIRMATION
