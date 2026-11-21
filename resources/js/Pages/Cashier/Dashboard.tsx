@@ -295,7 +295,10 @@ export default function CashierDashboard({
     const reservationsByDate = useMemo(() => {
         const map = new Map<string, ReservationItem[]>();
         reservations.forEach(res => {
-            const dateStr = res.reservation_datetime.split('T')[0] || res.reservation_datetime.split(' ')[0];
+            if (!res.reservation_datetime) return;
+            const dateStr = (res.reservation_datetime.includes('T')
+                ? res.reservation_datetime.split('T')[0]
+                : res.reservation_datetime.split(' ')[0]).trim();
             if (!map.has(dateStr)) {
                 map.set(dateStr, []);
             }
@@ -1224,7 +1227,7 @@ export default function CashierDashboard({
                                         <div key={res.id} className="p-2.5 rounded-xl bg-[#141110] border border-[#241F1D] text-xs space-y-1">
                                             <div className="flex items-center justify-between text-[11px] text-[#9E938B]">
                                                 <span>
-                                                    {new Date(res.reservation_datetime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                                                    {new Date(res.reservation_datetime.replace(' ', 'T')).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                                                 </span>
                                                 <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
                                                     res.status === 'Confirmed' ? 'text-emerald-400 bg-emerald-950/60' : 'text-amber-400 bg-amber-950/60'

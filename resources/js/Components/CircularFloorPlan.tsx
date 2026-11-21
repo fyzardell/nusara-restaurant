@@ -115,7 +115,10 @@ export default function CircularFloorPlan({
     const tableReservationsMap = useMemo(() => {
         const map = new Map<string, ReservationData[]>();
         reservations.forEach(r => {
-            const dateStr = r.reservation_datetime.split('T')[0] || r.reservation_datetime.split(' ')[0];
+            if (!r.reservation_datetime) return;
+            const dateStr = (r.reservation_datetime.includes('T')
+                ? r.reservation_datetime.split('T')[0]
+                : r.reservation_datetime.split(' ')[0]).trim();
             if (dateStr === selectedDateStr && ['Pending', 'Confirmed', 'Seated'].includes(r.status)) {
                 const key = r.table_number || (r.table_id ? `Meja ${String(r.table_id).padStart(2, '0')}` : '');
                 if (key) {
