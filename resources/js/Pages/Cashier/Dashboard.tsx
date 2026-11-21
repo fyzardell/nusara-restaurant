@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
+import CircularFloorPlan from '../../Components/CircularFloorPlan';
+import OperationalChatModal from '../../Components/OperationalChatModal';
 import { 
     Clock, 
     Search, 
@@ -10,8 +12,8 @@ import {
     Printer, 
     DollarSign, 
     AlertCircle, 
-    Eye, 
     ChevronRight, 
+    ChevronLeft,
     X, 
     Phone, 
     User as UserIcon, 
@@ -20,7 +22,6 @@ import {
     ArrowRight, 
     Flame, 
     Sparkles, 
-    Filter, 
     Store, 
     LogOut, 
     CheckCheck, 
@@ -28,11 +29,17 @@ import {
     Receipt,
     CheckCircle2,
     XCircle,
-    SlidersHorizontal,
     Bell,
-    TrendingUp
+    TrendingUp,
+    Table as TableIcon,
+    PanelRightClose,
+    PanelRight,
+    Menu as MenuIcon,
+    ExternalLink,
+    MapPin,
+    MessageSquare
 } from 'lucide-react';
-import { Order, OrderStatus, RestaurantSettings, Table } from '../../types';
+import { Order, OrderStatus, RestaurantSettings } from '../../types';
 
 interface OrderItemWithMenu {
     id: number;
@@ -85,6 +92,8 @@ interface ReservationItem {
     status: 'Pending' | 'Confirmed' | 'Seated' | 'Completed' | 'Cancelled';
     special_request: string | null;
     experience_name?: string;
+    table_number?: string;
+    table_id?: number;
 }
 
 interface Props {
@@ -104,6 +113,8 @@ interface Props {
     orders: OrderWithDetails[];
     tables: TableWithSession[];
     reservations: ReservationItem[];
+    chatMessages?: any[];
+    unreadChatCount?: number;
     settings?: RestaurantSettings;
     filters: {
         status?: string;
@@ -112,40 +123,62 @@ interface Props {
     };
 }
 
+export type CashierTab = 'orders' | 'tables' | 'reservations';
+
 export default function CashierDashboard({
     cashierUser,
     metrics,
     orders = [],
     tables = [],
     reservations = [],
+    chatMessages = [],
+    unreadChatCount = 0,
     settings,
     filters = {}
 }: Props) {
     const { flash } = usePage<{ flash: { success?: string; error?: string } }>().props;
 
-    // View Tabs: 'orders' | 'tables' | 'reservations'
-    const [mainTab, setMainTab] = useState<'orders' | 'tables' | 'reservations'>('orders');
+    // App Shell 4 Layout State
+    const [mainTab, setMainTab] = useState<CashierTab>('orders');
+    const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(true);
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+    const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
 
-    // Order status filter: 'all' | 'pending' | 'preparing' | 'ready' | 'completed' | 'cancelled'
+    // Filters for Orders
     const [selectedStatus, setSelectedStatus] = useState<string>(filters.status || 'all');
-    
-    // Order type filter: 'all' | 'dine_in' | 'takeaway'
     const [selectedType, setSelectedType] = useState<string>(filters.type || 'all');
-
-    // Search query
     const [searchQuery, setSearchQuery] = useState<string>(filters.search || '');
 
-    // State modal cetak struk
+    // Modals
     const [receiptOrder, setReceiptOrder] = useState<OrderWithDetails | null>(null);
-
-    // State modal bayar tunai
     const [cashPaymentOrder, setCashPaymentOrder] = useState<OrderWithDetails | null>(null);
     const [cashReceived, setCashReceived] = useState<number>(0);
 
-    // Quick filter orders client-side for ultra-fast instant UI responsiveness
+    // Calendar state for Right Schedule
+    const today = useMemo(() => new Date(), []);
+    const [currentCalMonth, setCurrentCalMonth] = useState<number>(today.getMonth());
+    const [currentCalYear, setCurrentCalYear] = useState<number>(today.getFullYear());
+    const [selectedCalDate, setSelectedCalDate] = useState<Date>(today);
+
+    // Logout with confirmation alert
+    const handleLogout = () => {
+        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin mengakhiri sesi Kasir? Pastikan seluruh transaksi aktif telah diverifikasi.')) {
+            router.post('/logout');
+        }
+    };
+
+    // Format currency IDR
+    const formatIDR = (val: number) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            maximumFractionDigits: 0
+        }).format(val || 0);
+    };
+
+    // Filter orders
     const filteredOrders = useMemo(() => {
         return orders.filter(order => {
-            // Filter status
             if (selectedStatus === 'pending') {
                 if (!['Pending', 'Awaiting Payment', 'Paid'].includes(order.order_status)) return false;
             } else if (selectedStatus === 'preparing') {
@@ -158,12 +191,10 @@ export default function CashierDashboard({
                 if (order.order_status !== 'Cancelled') return false;
             }
 
-            // Filter type
             if (selectedType !== 'all' && order.order_type !== selectedType) {
                 return false;
             }
 
-            // Filter search
             if (searchQuery.trim() !== '') {
                 const q = searchQuery.toLowerCase();
                 const matchCode = order.order_code.toLowerCase().includes(q);
@@ -189,7 +220,7 @@ export default function CashierDashboard({
     // Handle Open Cash Payment Modal
     const handleOpenCashModal = (order: OrderWithDetails) => {
         setCashPaymentOrder(order);
-        setCashReceived(Math.ceil(order.total / 10000) * 10000); // Default ke pecahan terdekat
+        setCashReceived(Math.ceil(order.total / 10000) * 10000);
     };
 
     // Handle Confirm Cash Payment Submit
@@ -223,856 +254,1097 @@ export default function CashierDashboard({
         });
     };
 
-    // Format currency IDR
-    const formatIDR = (val: number) => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            maximumFractionDigits: 0
-        }).format(val);
+    // Calendar generation for App Shell 4 right schedule
+    const calendarDays = useMemo(() => {
+        const firstDay = new Date(currentCalYear, currentCalMonth, 1).getDay();
+        const daysInMonth = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
+        const daysInPrevMonth = new Date(currentCalYear, currentCalMonth, 0).getDate();
+
+        const days = [];
+        for (let i = firstDay - 1; i >= 0; i--) {
+            days.push({
+                day: daysInPrevMonth - i,
+                isCurrentMonth: false,
+                date: new Date(currentCalYear, currentCalMonth - 1, daysInPrevMonth - i)
+            });
+        }
+        for (let i = 1; i <= daysInMonth; i++) {
+            days.push({
+                day: i,
+                isCurrentMonth: true,
+                date: new Date(currentCalYear, currentCalMonth, i)
+            });
+        }
+        const remaining = 35 - days.length > 0 ? 35 - days.length : (42 - days.length);
+        for (let i = 1; i <= remaining; i++) {
+            days.push({
+                day: i,
+                isCurrentMonth: false,
+                date: new Date(currentCalYear, currentCalMonth + 1, i)
+            });
+        }
+        return days;
+    }, [currentCalYear, currentCalMonth]);
+
+    const monthNames = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    // Reservations by date map
+    const reservationsByDate = useMemo(() => {
+        const map = new Map<string, ReservationItem[]>();
+        reservations.forEach(res => {
+            const dateStr = res.reservation_datetime.split('T')[0] || res.reservation_datetime.split(' ')[0];
+            if (!map.has(dateStr)) {
+                map.set(dateStr, []);
+            }
+            map.get(dateStr)!.push(res);
+        });
+        return map;
+    }, [reservations]);
+
+    const getDateKey = (d: Date) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     };
 
-    // Get Status Badge Color
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'Pending':
-            case 'Awaiting Payment':
-                return {
-                    label: 'Menunggu ACC Kasir',
-                    bg: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-                    dot: 'bg-amber-400 animate-ping'
-                };
-            case 'Paid':
-            case 'Confirmed':
-                return {
-                    label: 'Terkonfirmasi Kasir',
-                    bg: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
-                    dot: 'bg-sky-400'
-                };
-            case 'Preparing':
-                return {
-                    label: 'Sedang Dimasak Dapur',
-                    bg: 'bg-orange-500/20 text-orange-300 border-orange-500/40',
-                    dot: 'bg-orange-400 animate-pulse'
-                };
-            case 'Ready':
-                return {
-                    label: 'Siap Disajikan / Diambil',
-                    bg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-                    dot: 'bg-emerald-400 animate-bounce'
-                };
-            case 'Served':
-                return {
-                    label: 'Telah Terhidang di Meja',
-                    bg: 'bg-teal-500/20 text-teal-300 border-teal-500/40',
-                    dot: 'bg-teal-400'
-                };
-            case 'Picked Up':
-                return {
-                    label: 'Pesanan Telah Diambil',
-                    bg: 'bg-emerald-600/20 text-emerald-300 border-emerald-600/40',
-                    dot: 'bg-emerald-400'
-                };
-            case 'Cancelled':
-                return {
-                    label: 'Dibatalkan',
-                    bg: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
-                    dot: 'bg-rose-400'
-                };
-            default:
-                return {
-                    label: status,
-                    bg: 'bg-stone-500/20 text-stone-300 border-stone-500/40',
-                    dot: 'bg-stone-400'
-                };
-        }
+    const selectedDateKey = getDateKey(selectedCalDate);
+    const dayReservations = reservationsByDate.get(selectedDateKey) || [];
+
+    // Pending orders needing Cashier ACC
+    const pendingOrdersForAgenda = useMemo(() => {
+        return orders.filter(o => ['Pending', 'Awaiting Payment', 'Paid'].includes(o.order_status)).slice(0, 4);
+    }, [orders]);
+
+    // Navigation tab button styling
+    const navCls = (tab: CashierTab) =>
+        `w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+            mainTab === tab
+                ? 'bg-[#241F1D] text-white font-semibold shadow-inner'
+                : 'text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18]'
+        }`;
+
+    const goTab = (tab: CashierTab) => {
+        setMainTab(tab);
+        setIsMobileSidebarOpen(false);
     };
 
     return (
-        <div className="min-h-screen bg-[#141211] text-[#F4EFE6] font-sans selection:bg-[#B99A65] selection:text-[#211D1B]">
-            <Head title="Dashboard Kasir & POS Antrean Terpusat — NUSARA" />
-
-            {/* Flash notification banner (3 detik) */}
+        <div className="h-screen w-screen bg-[#110F0E] text-[#F4EFE6] font-dashboard selection:bg-[#B99A65] selection:text-[#110F0E] flex overflow-hidden">
+            <Head title="Terminal Kasir Operasional — NUSARA Cashier Desk" />
             <FlashToast flash={flash} durationMs={3000} />
 
             {/* ========================================================
-                1. TOPBAR HEADER OPERASIONAL KASIR
+                APP SHELL 4: COLUMN 1 — LEFT NAVIGATION SIDEBAR
             ======================================================== */}
-            <header className="sticky top-0 z-40 bg-[#1C1716]/95 backdrop-blur-md border-b border-[#B99A65]/20 px-4 sm:px-6 lg:px-8 py-3.5 shadow-xl">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    {/* Brand & Badge Kasir */}
-                    <div className="flex items-center gap-3">
-                        <Link href="/" className="flex items-center gap-2.5 group">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#32151F] to-[#211D1B] border border-[#B99A65]/40 flex items-center justify-center shadow-md group-hover:border-[#D4B886] transition-all">
-                                <span className="font-heading text-lg font-bold text-[#D4B886] tracking-widest">N</span>
-                            </div>
-                            <div>
-                                <h1 className="font-heading text-base font-bold tracking-wider text-[#D4B886] uppercase leading-tight">
-                                    NUSARA
-                                </h1>
-                                <p className="text-[10px] tracking-[0.2em] uppercase text-stone-400">
-                                    Nusantara & Rasa
-                                </p>
+            <aside className={`
+                fixed inset-y-0 left-0 z-50 w-64 bg-[#161312] border-r border-[#241F1D] flex flex-col justify-between transition-transform duration-300 md:static md:translate-x-0
+                ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+            `}>
+                <div className="flex flex-col h-full overflow-y-auto scrollbar-none">
+                    {/* Top Identity Block */}
+                    <div className="p-4 border-b border-[#241F1D] flex items-center justify-between">
+                        <Link href="/cashier" className="flex items-center gap-2.5">
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA — Nusantara & Rasa" 
+                                className="h-8 w-auto object-contain drop-shadow" 
+                            />
+                            <div className="leading-tight">
+                                <span className="px-2 py-0.5 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[9px] font-bold text-[#D4B886] tracking-wider uppercase block">
+                                    Stasiun Kasir
+                                </span>
                             </div>
                         </Link>
 
-                        <div className="h-6 w-px bg-stone-700/60 hidden sm:block mx-1" />
+                        {/* Mobile close */}
+                        <button
+                            onClick={() => setIsMobileSidebarOpen(false)}
+                            className="md:hidden p-1.5 rounded-lg text-[#9E938B] hover:text-white hover:bg-[#241F1D]"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
 
-                        {/* Kasir Operational Badge */}
-                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#32151F] border border-[#B99A65]/50 shadow-inner">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-[#D4B886]">
-                                Pos Kasir Operasional
+                    {/* Navigation Groups */}
+                    <div className="p-3 space-y-6">
+                        {/* Group 1: Transaksi & Kasir */}
+                        <div>
+                            <span className="px-3 text-[10px] font-semibold tracking-wider text-[#9E938B] uppercase">
+                                Transaksi & Kasir
+                            </span>
+                            <div className="mt-1.5 space-y-1">
+                                <button onClick={() => goTab('orders')} className={navCls('orders')}>
+                                    <div className="flex items-center gap-2.5">
+                                        <ShoppingBag className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Antrean Pesanan</span>
+                                    </div>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                        metrics.pendingOrders > 0
+                                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse'
+                                            : 'text-[#9E938B]'
+                                    }`}>
+                                        {orders.length}
+                                    </span>
+                                </button>
+
+                                <button onClick={() => goTab('tables')} className={navCls('tables')}>
+                                    <div className="flex items-center gap-2.5">
+                                        <TableIcon className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Denah Meja (1-10)</span>
+                                    </div>
+                                    <span className="text-[10px] text-[#9E938B] font-mono">
+                                        {tables.length}
+                                    </span>
+                                </button>
+
+                                <button onClick={() => goTab('reservations')} className={navCls('reservations')}>
+                                    <div className="flex items-center gap-2.5">
+                                        <Calendar className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Jadwal Reservasi</span>
+                                    </div>
+                                    <span className="text-[10px] text-[#9E938B] font-mono">
+                                        {reservations.length}
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Group 2: Koordinasi & Notifikasi Chat Admin */}
+                        <div>
+                            <span className="px-3 text-[10px] font-semibold tracking-wider text-[#9E938B] uppercase">
+                                Koordinasi Staf
+                            </span>
+                            <div className="mt-1.5 space-y-1">
+                                <button
+                                    onClick={() => setIsChatOpen(true)}
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18] transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <MessageSquare className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Chat Admin HQ</span>
+                                    </div>
+                                    {unreadChatCount > 0 ? (
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-stone-950 animate-pulse">
+                                            {unreadChatCount} baru
+                                        </span>
+                                    ) : (
+                                        <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Group 3: Status Pesanan Kasir */}
+                        <div>
+                            <span className="px-3 text-[10px] font-semibold tracking-wider text-[#9E938B] uppercase">
+                                Status Kasir
+                            </span>
+                            <div className="mt-1.5 space-y-1">
+                                <button
+                                    onClick={() => { goTab('orders'); setSelectedStatus('pending'); }}
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18] transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <Wallet className="w-4 h-4 text-amber-400" />
+                                        <span>Menunggu Bayar</span>
+                                    </div>
+                                    <span className="font-mono text-[10px] font-bold text-amber-400">{metrics.pendingOrders}</span>
+                                </button>
+
+                                <button
+                                    onClick={() => { goTab('orders'); setSelectedStatus('preparing'); }}
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18] transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <Flame className="w-4 h-4 text-orange-400" />
+                                        <span>Sedang Dimasak</span>
+                                    </div>
+                                    <span className="font-mono text-[10px] text-orange-400">{metrics.preparingOrders}</span>
+                                </button>
+
+                                <button
+                                    onClick={() => { goTab('orders'); setSelectedStatus('ready'); }}
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18] transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <Sparkles className="w-4 h-4 text-emerald-400" />
+                                        <span>Siap Saji</span>
+                                    </div>
+                                    <span className="font-mono text-[10px] text-emerald-400">{metrics.readyOrders}</span>
+                                </button>
+
+                                <button
+                                    onClick={() => { goTab('orders'); setSelectedStatus('completed'); }}
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18] transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <CheckCheck className="w-4 h-4 text-stone-400" />
+                                        <span>Selesai Hari Ini</span>
+                                    </div>
+                                    <span className="font-mono text-[10px] text-stone-400">{metrics.completedToday}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Group 4: Navigasi Cepat */}
+                        <div>
+                            <span className="px-3 text-[10px] font-semibold tracking-wider text-[#9E938B] uppercase">
+                                Navigasi Cepat
+                            </span>
+                            <div className="mt-1.5 space-y-1">
+                                <Link
+                                    href="/waiter"
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-white hover:bg-[#1E1A18] transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <UtensilsCrossed className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Stasiun Waiter</span>
+                                    </div>
+                                    <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                                </Link>
+
+                                <Link
+                                    href="/admin"
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-white hover:bg-[#1E1A18] transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <Store className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Admin Executive HQ</span>
+                                    </div>
+                                    <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                                </Link>
+
+                                <Link
+                                    href="/"
+                                    target="_blank"
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-white hover:bg-[#1E1A18] transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <MapPin className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Web Publik Nusara</span>
+                                    </div>
+                                    <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Bottom User Profile Card & Sign Out */}
+                <div className="p-3 border-t border-[#241F1D] bg-[#141110]">
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-[#1E1A18] border border-[#2D2622]">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-[#B99A65] text-[#110F0E] font-bold text-xs flex items-center justify-center flex-shrink-0">
+                                {cashierUser.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-xs font-semibold text-white truncate leading-tight">
+                                    {cashierUser.name}
+                                </p>
+                                <p className="text-[10px] text-[#B99A65] truncate font-mono">
+                                    Kasir Shift Aktif
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleLogout}
+                            title="Keluar"
+                            className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-950/60 transition-colors flex-shrink-0"
+                        >
+                            <LogOut className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            {/* Mobile backdrop */}
+            {isMobileSidebarOpen && (
+                <div
+                    onClick={() => setIsMobileSidebarOpen(false)}
+                    className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm md:hidden"
+                />
+            )}
+
+            {/* ========================================================
+                APP SHELL 4: COLUMN 2 — CENTER MAIN WORKSPACE
+            ======================================================== */}
+            <section className="flex-1 h-full overflow-hidden flex flex-col bg-[#110F0E]">
+                {/* Center Top Bar */}
+                <header className="h-14 px-4 sm:px-6 border-b border-[#241F1D] flex items-center justify-between bg-[#141110] flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setIsMobileSidebarOpen(true)}
+                            className="md:hidden p-1.5 rounded-lg text-[#9E938B] hover:text-white hover:bg-[#241F1D]"
+                        >
+                            <MenuIcon className="w-5 h-5" />
+                        </button>
+
+                        {/* Breadcrumbs */}
+                        <div className="flex items-center gap-2 text-xs">
+                            <span className="text-[#9E938B]">NUSARA</span>
+                            <span className="text-[#4D443E]">/</span>
+                            <span className="text-[#9E938B]">Stasiun Kasir</span>
+                            <span className="text-[#4D443E]">/</span>
+                            <span className="font-semibold text-[#F4EFE6]">
+                                {mainTab === 'orders' && 'Antrean Pesanan & Kasir POS'}
+                                {mainTab === 'tables' && 'Denah Meja Restoran (Meja 01 - 10)'}
+                                {mainTab === 'reservations' && 'Buku Reservasi Tamu'}
                             </span>
                         </div>
                     </div>
 
-                    {/* Quick Search & Control Buttons */}
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                        {/* Live Sync Status */}
-                        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/40 border border-stone-800 text-xs text-stone-400">
-                            <Clock className="w-3.5 h-3.5 text-[#B99A65]" />
-                            <span>Shift Aktif: {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}</span>
-                        </div>
-
-                        {/* Search Bar Input */}
-                        <div className="relative flex-1 sm:w-64">
-                            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Cari Kode / Meja / Tamu..."
-                                className="w-full pl-9 pr-3 py-1.5 bg-black/50 border border-[#B99A65]/30 rounded-xl text-xs text-[#F4EFE6] placeholder-stone-500 focus:outline-none focus:border-[#D4B886] transition-all"
-                            />
-                            {searchQuery && (
-                                <button 
-                                    onClick={() => setSearchQuery('')}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white"
-                                >
-                                    <X className="w-3.5 h-3.5" />
-                                </button>
+                    {/* Top Right Controls */}
+                    <div className="flex items-center gap-2">
+                        {/* Button Notifikasi & Chat Admin */}
+                        <button
+                            type="button"
+                            onClick={() => setIsChatOpen(true)}
+                            className="relative px-3 py-1.5 rounded-lg bg-[#241F1D] border border-[#342D2A] text-xs font-semibold text-[#F4EFE6] hover:bg-[#2D2622] flex items-center gap-1.5 transition-colors"
+                            title="Buka Chat Koordinasi dengan Admin"
+                        >
+                            <Bell className={`w-3.5 h-3.5 ${unreadChatCount > 0 ? 'text-amber-400' : 'text-[#B99A65]'}`} />
+                            <span className="hidden sm:inline">Chat Admin</span>
+                            {unreadChatCount > 0 && (
+                                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-stone-950 animate-pulse">
+                                    {unreadChatCount}
+                                </span>
                             )}
-                        </div>
+                        </button>
 
-                        {/* Refresh Button */}
                         <button
                             onClick={() => router.reload()}
-                            className="p-2 rounded-xl bg-black/40 hover:bg-black/70 border border-[#B99A65]/30 text-[#D4B886] transition-all hover:scale-105 active:scale-95"
-                            title="Segarkan Data Antrean"
+                            className="px-3 py-1.5 rounded-lg bg-[#241F1D] border border-[#342D2A] text-xs font-semibold text-[#F4EFE6] hover:bg-[#2D2622] flex items-center gap-1.5 transition-colors"
                         >
-                            <RefreshCw className="w-4 h-4" />
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Segarkan</span>
                         </button>
 
-                        {/* User Profile Kasir & Logout */}
-                        <div className="flex items-center gap-2 pl-2 border-l border-stone-800">
-                            <div className="text-right hidden sm:block">
-                                <p className="text-xs font-semibold text-[#F4EFE6] leading-tight">
-                                    {cashierUser.name}
-                                </p>
-                                <p className="text-[10px] text-[#B99A65] font-mono capitalize">
-                                    {cashierUser.role}
-                                </p>
-                            </div>
+                        <button
+                            onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+                            className="p-1.5 rounded-lg text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#241F1D] transition-colors"
+                            title={isRightPanelOpen ? 'Tutup Panel Agenda' : 'Buka Panel Agenda'}
+                        >
+                            {isRightPanelOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRight className="w-4 h-4" />}
+                        </button>
+                    </div>
+                </header>
+
+                {/* Subheader: App Shell 4 Pill Tabs & Search Filter */}
+                <div className="px-4 sm:px-6 py-2.5 border-b border-[#241F1D] bg-[#141110]/60 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+                    {/* Left: Pill tabs */}
+                    {mainTab === 'orders' ? (
+                        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+                            {[
+                                { key: 'all', label: `Semua (${orders.length})` },
+                                { key: 'pending', label: `Menunggu (${metrics.pendingOrders})` },
+                                { key: 'preparing', label: `Dimasak (${metrics.preparingOrders})` },
+                                { key: 'ready', label: `Siap Saji (${metrics.readyOrders})` },
+                                { key: 'completed', label: `Selesai (${metrics.completedToday})` },
+                                { key: 'cancelled', label: 'Dibatalkan' },
+                            ].map(({ key, label }) => (
+                                <button
+                                    key={key}
+                                    onClick={() => setSelectedStatus(key)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                                        selectedStatus === key
+                                            ? 'bg-white text-[#110F0E] shadow'
+                                            : 'text-[#9E938B] hover:text-white bg-[#1E1A18] border border-[#241F1D]'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-1.5">
                             <button
-                                onClick={() => router.post('/logout')}
-                                className="px-3 py-1.5 rounded-xl bg-[#32151F]/80 hover:bg-rose-950/80 border border-rose-500/30 text-rose-300 text-xs font-medium flex items-center gap-1.5 transition-all shadow-sm"
-                                title="Keluar dari Akun Kasir"
+                                onClick={() => setMainTab('orders')}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#9E938B] hover:text-white bg-[#1E1A18] border border-[#241F1D]"
                             >
-                                <LogOut className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Keluar</span>
+                                Antrean Pesanan ({orders.length})
+                            </button>
+                            <button
+                                onClick={() => setMainTab('tables')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                                    mainTab === 'tables' ? 'bg-white text-[#110F0E]' : 'text-[#9E938B] hover:text-white bg-[#1E1A18] border border-[#241F1D]'
+                                }`}
+                            >
+                                Denah Meja (1-10)
+                            </button>
+                            <button
+                                onClick={() => setMainTab('reservations')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                                    mainTab === 'reservations' ? 'bg-white text-[#110F0E]' : 'text-[#9E938B] hover:text-white bg-[#1E1A18] border border-[#241F1D]'
+                                }`}
+                            >
+                                Reservasi ({reservations.length})
                             </button>
                         </div>
-                    </div>
-                </div>
-            </header>
-
-            {/* ========================================================
-                2. OPERATIONAL SUMMARY METRICS (KARTU STATISTIK KASIR)
-            ======================================================== */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
-                    {/* 1. Menunggu ACC Kasir */}
-                    <div 
-                        onClick={() => { setMainTab('orders'); setSelectedStatus('pending'); }}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                            selectedStatus === 'pending' && mainTab === 'orders'
-                                ? 'bg-amber-950/40 border-amber-500 ring-2 ring-amber-500/30'
-                                : 'bg-[#1C1716] border-[#B99A65]/20 hover:border-amber-500/40 hover:bg-amber-950/20'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-stone-400">Perlu ACC Kasir</span>
-                            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-                                <Clock className="w-4 h-4 animate-pulse" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold font-mono text-amber-300 mt-2">
-                            {metrics.pendingOrders}
-                        </p>
-                        <p className="text-[10px] text-amber-400/80 mt-0.5">
-                            Menunggu verifikasi kasir
-                        </p>
-                    </div>
-
-                    {/* 2. Sedang Dimasak Dapur */}
-                    <div 
-                        onClick={() => { setMainTab('orders'); setSelectedStatus('preparing'); }}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                            selectedStatus === 'preparing' && mainTab === 'orders'
-                                ? 'bg-orange-950/40 border-orange-500 ring-2 ring-orange-500/30'
-                                : 'bg-[#1C1716] border-[#B99A65]/20 hover:border-orange-500/40 hover:bg-orange-950/20'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-stone-400">Sedang Dimasak</span>
-                            <div className="w-8 h-8 rounded-lg bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400">
-                                <Flame className="w-4 h-4" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold font-mono text-orange-300 mt-2">
-                            {metrics.preparingOrders}
-                        </p>
-                        <p className="text-[10px] text-orange-400/80 mt-0.5">
-                            Proses chef & dapur
-                        </p>
-                    </div>
-
-                    {/* 3. Siap Saji / Siap Diambil */}
-                    <div 
-                        onClick={() => { setMainTab('orders'); setSelectedStatus('ready'); }}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                            selectedStatus === 'ready' && mainTab === 'orders'
-                                ? 'bg-emerald-950/40 border-emerald-500 ring-2 ring-emerald-500/30'
-                                : 'bg-[#1C1716] border-[#B99A65]/20 hover:border-emerald-500/40 hover:bg-emerald-950/20'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-stone-400">Siap Saji / Ambil</span>
-                            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                                <Sparkles className="w-4 h-4 animate-bounce" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold font-mono text-emerald-300 mt-2">
-                            {metrics.readyOrders}
-                        </p>
-                        <p className="text-[10px] text-emerald-400/80 mt-0.5">
-                            Siap diantar / diserahkan
-                        </p>
-                    </div>
-
-                    {/* 4. Selesai Terhidang Hari Ini */}
-                    <div 
-                        onClick={() => { setMainTab('orders'); setSelectedStatus('completed'); }}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                            selectedStatus === 'completed' && mainTab === 'orders'
-                                ? 'bg-teal-950/40 border-teal-500 ring-2 ring-teal-500/30'
-                                : 'bg-[#1C1716] border-[#B99A65]/20 hover:border-teal-500/40 hover:bg-teal-950/20'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-stone-400">Selesai Hari Ini</span>
-                            <div className="w-8 h-8 rounded-lg bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-300">
-                                <CheckCheck className="w-4 h-4" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold font-mono text-teal-300 mt-2">
-                            {metrics.completedToday}
-                        </p>
-                        <p className="text-[10px] text-stone-400 mt-0.5">
-                            Served / Picked Up
-                        </p>
-                    </div>
-
-                    {/* 5. Total Pendapatan Terverifikasi Hari Ini */}
-                    <div className="col-span-2 lg:col-span-1 p-4 rounded-2xl bg-gradient-to-br from-[#32151F] to-[#211D1B] border border-[#B99A65]/40 shadow-lg">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-[#D4B886]">Omset Hari Ini</span>
-                            <div className="w-8 h-8 rounded-lg bg-[#B99A65]/20 border border-[#B99A65]/40 flex items-center justify-center text-[#D4B886]">
-                                <TrendingUp className="w-4 h-4" />
-                            </div>
-                        </div>
-                        <p className="text-xl font-bold font-mono text-[#F4EFE6] mt-2">
-                            {formatIDR(metrics.todayRevenue)}
-                        </p>
-                        <p className="text-[10px] text-stone-300 mt-0.5">
-                            Total transaksi lunas
-                        </p>
-                    </div>
-                </div>
-
-                {/* ========================================================
-                    3. NAVIGATION TABS: ORDERS / TABLES / RESERVATIONS
-                ======================================================== */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-800 pb-3">
-                    {/* Main Nav Segmented Control */}
-                    <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#1C1716] border border-[#B99A65]/30">
-                        <button
-                            onClick={() => setMainTab('orders')}
-                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-                                mainTab === 'orders'
-                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-md'
-                                    : 'text-stone-400 hover:text-white'
-                            }`}
-                        >
-                            <UtensilsCrossed className="w-3.5 h-3.5" />
-                            <span>Antrean Pesanan ({orders.length})</span>
-                        </button>
-
-                        <button
-                            onClick={() => setMainTab('tables')}
-                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-                                mainTab === 'tables'
-                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-md'
-                                    : 'text-stone-400 hover:text-white'
-                            }`}
-                        >
-                            <Store className="w-3.5 h-3.5" />
-                            <span>Denah Meja ({tables.length})</span>
-                        </button>
-
-                        <button
-                            onClick={() => setMainTab('reservations')}
-                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
-                                mainTab === 'reservations'
-                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] shadow-md'
-                                    : 'text-stone-400 hover:text-white'
-                            }`}
-                        >
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>Reservasi Tamu ({reservations.length})</span>
-                        </button>
-                    </div>
-
-                    {/* Secondary Filter Buttons (When Tab is Orders) */}
-                    {mainTab === 'orders' && (
-                        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-                            {/* Type filter pills */}
-                            <div className="flex items-center gap-1 p-1 rounded-xl bg-black/40 border border-stone-800">
-                                <button
-                                    onClick={() => setSelectedType('all')}
-                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                                        selectedType === 'all' ? 'bg-[#32151F] text-[#D4B886]' : 'text-stone-400 hover:text-white'
-                                    }`}
-                                >
-                                    Semua
-                                </button>
-                                <button
-                                    onClick={() => setSelectedType('dine_in')}
-                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 ${
-                                        selectedType === 'dine_in' ? 'bg-[#32151F] text-[#D4B886]' : 'text-stone-400 hover:text-white'
-                                    }`}
-                                >
-                                    <UtensilsCrossed className="w-3 h-3" />
-                                    <span>Dine-in</span>
-                                </button>
-                                <button
-                                    onClick={() => setSelectedType('takeaway')}
-                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all flex items-center gap-1 ${
-                                        selectedType === 'takeaway' ? 'bg-[#32151F] text-[#D4B886]' : 'text-stone-400 hover:text-white'
-                                    }`}
-                                >
-                                    <ShoppingBag className="w-3 h-3" />
-                                    <span>Takeaway</span>
-                                </button>
-                            </div>
-                        </div>
                     )}
+
+                    {/* Right: Search Box */}
+                    <div className="relative min-w-[200px] sm:min-w-[260px]">
+                        <Search className="w-3.5 h-3.5 text-[#9E938B] absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Cari kode pesanan, nama tamu, meja..."
+                            className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-[#161312] border border-[#2D2622] text-xs text-[#F4EFE6] placeholder-[#665C54] focus:outline-none focus:border-[#B99A65]"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#9E938B] hover:text-white text-xs"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                {/* ========================================================
-                    4. CONTENT TAB 1: CENTRALIZED ORDER QUEUE
-                ======================================================== */}
+                {/* Sub-bar for Order Types */}
                 {mainTab === 'orders' && (
-                    <div className="space-y-4">
-                        {/* Sub Status Filter Pills */}
-                        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
+                    <div className="px-4 sm:px-6 py-2 border-b border-[#241F1D] bg-[#110F0E] flex items-center justify-between gap-2 overflow-x-auto scrollbar-none flex-shrink-0">
+                        <div className="flex items-center gap-1.5">
                             {[
-                                { id: 'all', label: 'Semua Status', count: orders.length, icon: Filter },
-                                { id: 'pending', label: 'Perlu ACC Kasir', count: metrics.pendingOrders, icon: Clock },
-                                { id: 'preparing', label: 'Sedang Dimasak', count: metrics.preparingOrders, icon: Flame },
-                                { id: 'ready', label: 'Siap Saji / Ambil', count: metrics.readyOrders, icon: Sparkles },
-                                { id: 'completed', label: 'Selesai', count: metrics.completedToday, icon: CheckCircle2 },
-                                { id: 'cancelled', label: 'Dibatalkan', count: orders.filter(o => o.order_status === 'Cancelled').length, icon: XCircle }
-                            ].map(st => {
-                                const IconComp = st.icon;
-                                return (
-                                    <button
-                                        key={st.id}
-                                        onClick={() => setSelectedStatus(st.id)}
-                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
-                                            selectedStatus === st.id
-                                                ? 'bg-[#B99A65]/20 border-[#D4B886] text-[#D4B886] shadow-sm'
-                                                : 'bg-[#1C1716] border-stone-800 text-stone-400 hover:text-stone-200 hover:border-stone-700'
-                                        }`}
-                                    >
-                                        <IconComp className="w-3.5 h-3.5" />
-                                        <span>{st.label}</span>
-                                        <span className="ml-1 px-1.5 py-0.2 rounded-full bg-black/40 text-[10px] font-mono">
-                                            {st.count}
-                                        </span>
-                                    </button>
-                                );
-                            })}
+                                { key: 'all', label: 'Semua Tipe' },
+                                { key: 'dine_in', label: 'Dine-in (Makan di Tempat)' },
+                                { key: 'takeaway', label: 'Takeaway (Bungkus)' },
+                            ].map(({ key, label }) => (
+                                <button
+                                    key={key}
+                                    onClick={() => setSelectedType(key)}
+                                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${
+                                        selectedType === key
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40 font-bold'
+                                            : 'text-[#9E938B] hover:text-[#F4EFE6] bg-[#161312] border border-[#241F1D]'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
                         </div>
 
-                        {/* List of Orders */}
-                        {filteredOrders.length === 0 ? (
-                            <div className="py-16 text-center rounded-2xl bg-[#1C1716] border border-[#B99A65]/20 space-y-3">
-                                <div className="w-12 h-12 mx-auto rounded-full bg-stone-800/80 flex items-center justify-center text-stone-500">
-                                    <UtensilsCrossed className="w-6 h-6" />
+                        <div className="text-[11px] text-[#9E938B] font-mono shrink-0">
+                            Menampilkan <span className="text-[#F4EFE6] font-bold">{filteredOrders.length}</span> order
+                        </div>
+                    </div>
+                )}
+
+                {/* Main Scrollable Canvas */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scrollbar-none">
+                    
+                    {/* VIEW 1: ORDERS QUEUE */}
+                    {mainTab === 'orders' && (
+                        <div className="space-y-4">
+                            {filteredOrders.length === 0 ? (
+                                <div className="p-12 text-center rounded-2xl bg-[#161312] border border-[#241F1D]">
+                                    <ShoppingBag className="w-10 h-10 text-[#9E938B]/60 mx-auto mb-2" />
+                                    <h4 className="font-heading text-base font-bold text-[#F4EFE6]">
+                                        Tidak Ada Pesanan Ditemukan
+                                    </h4>
+                                    <p className="text-xs text-[#9E938B] max-w-md mx-auto mt-1">
+                                        Tidak ada pesanan yang sesuai dengan kriteria filter atau pencarian saat ini.
+                                    </p>
                                 </div>
-                                <h3 className="font-heading text-lg font-bold text-[#D4B886]">
-                                    Tidak Ada Pesanan Ditemukan
-                                </h3>
-                                <p className="text-xs text-stone-400 max-w-sm mx-auto">
-                                    Tidak ada antrean pesanan yang cocok dengan kriteria filter atau kata kunci pencarian Anda saat ini.
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {filteredOrders.map(order => {
-                                    const badge = getStatusBadge(order.order_status);
-                                    const isPaid = order.payment?.payment_status === 'Success' || ['Paid', 'Confirmed', 'Preparing', 'Ready', 'Served', 'Picked Up'].includes(order.order_status);
+                            ) : (
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                    {filteredOrders.map((order) => {
+                                        const isDineIn = order.order_type === 'dine_in';
+                                        const isPending = ['Pending', 'Awaiting Payment', 'Paid'].includes(order.order_status);
+                                        const isPreparing = order.order_status === 'Preparing';
+                                        const isReady = order.order_status === 'Ready';
+                                        const isCompleted = ['Served', 'Picked Up', 'Completed'].includes(order.order_status);
+                                        const isCancelled = order.order_status === 'Cancelled';
 
-                                    return (
-                                        <div 
-                                            key={order.id}
-                                            className="rounded-2xl bg-[#1C1716] border border-[#B99A65]/25 hover:border-[#D4B886]/60 transition-all shadow-md flex flex-col justify-between overflow-hidden"
-                                        >
-                                            {/* Card Top: Order Code, Type & Status */}
-                                            <div className="p-4 border-b border-stone-800/80 space-y-2.5">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-mono text-sm font-bold text-[#D4B886] tracking-wider">
-                                                            {order.order_code}
-                                                        </span>
-                                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 ${
-                                                            order.order_type === 'dine_in'
-                                                                ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40'
-                                                                : 'bg-amber-950/60 text-amber-300 border border-amber-600/40'
-                                                        }`}>
-                                                            {order.order_type === 'dine_in' ? (
-                                                                <>
-                                                                    <UtensilsCrossed className="w-2.5 h-2.5" />
-                                                                    <span>{order.table_number || 'Meja'}</span>
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <ShoppingBag className="w-2.5 h-2.5" />
-                                                                    <span>Takeaway</span>
-                                                                </>
-                                                            )}
-                                                        </span>
-                                                    </div>
-
-                                                    {/* Waktu Pesan */}
-                                                    <span className="text-[11px] text-stone-400 font-mono">
-                                                        {new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
-                                                    </span>
-                                                </div>
-
-                                                {/* Customer Name & Status Badge */}
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <div className="flex items-center gap-1.5 text-xs text-stone-300 truncate">
-                                                        <UserIcon className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                                                        <span className="font-semibold truncate">{order.customer_name || 'Tamu Restoran'}</span>
-                                                    </div>
-
-                                                    <div className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold tracking-wider flex items-center gap-1.5 ${badge.bg}`}>
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
-                                                        <span>{badge.label}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Card Middle: Ordered Items List */}
-                                            <div className="p-4 space-y-2 flex-1 text-xs">
-                                                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
-                                                    {(order.items || []).map((item, idx) => (
-                                                        <div key={idx} className="flex items-start justify-between gap-2 py-1 border-b border-stone-800/40 last:border-none">
-                                                            <div className="space-y-0.5 flex-1">
-                                                                <p className="font-medium text-[#F4EFE6] leading-tight">
-                                                                    <span className="font-bold text-[#D4B886] font-mono mr-1">{item.quantity}x</span>
-                                                                    <span>{item.menu_name_snapshot}</span>
-                                                                </p>
-                                                                {item.item_notes && (
-                                                                    <p className="text-[10px] text-amber-300/90 italic bg-amber-950/30 px-1.5 py-0.5 rounded border border-amber-500/20">
-                                                                        "{item.item_notes}"
-                                                                    </p>
-                                                                )}
+                                        return (
+                                            <div
+                                                key={order.id}
+                                                className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                                                    isPending
+                                                        ? 'bg-[#161312] border-amber-500/50 shadow-lg ring-1 ring-amber-500/30'
+                                                        : isPreparing
+                                                        ? 'bg-[#161312] border-orange-500/40'
+                                                        : isReady
+                                                        ? 'bg-[#161312] border-emerald-500/50 ring-1 ring-emerald-500/30'
+                                                        : 'bg-[#161312] border-[#241F1D]'
+                                                }`}
+                                            >
+                                                <div>
+                                                    {/* Header Card */}
+                                                    <div className="flex items-center justify-between pb-3 border-b border-[#241F1D]">
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-mono font-bold text-sm text-[#D4B886]">
+                                                                    #{order.order_code}
+                                                                </span>
+                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                                                    isDineIn ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40' : 'bg-[#1C1816] text-stone-300 border border-[#2C2421]'
+                                                                }`}>
+                                                                    {isDineIn ? (order.table_number || 'Dine-in') : 'Takeaway'}
+                                                                </span>
                                                             </div>
-                                                            <span className="font-mono text-stone-400 shrink-0 text-[11px]">
-                                                                {formatIDR(item.subtotal)}
+                                                            <div className="text-[11px] text-[#9E938B] mt-1 flex items-center gap-2">
+                                                                <span>{order.customer_name || 'Tamu Restoran'}</span>
+                                                                {order.customer_phone && <span>· {order.customer_phone}</span>}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Status Badge */}
+                                                        <div className="text-right">
+                                                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider block ${
+                                                                isPending ? 'bg-amber-950 text-amber-300 border border-amber-600 animate-pulse' :
+                                                                isPreparing ? 'bg-orange-950 text-orange-300 border border-orange-600 animate-pulse' :
+                                                                isReady ? 'bg-emerald-950 text-emerald-300 border border-emerald-600 font-extrabold' :
+                                                                isCompleted ? 'bg-stone-800 text-stone-300' :
+                                                                isCancelled ? 'bg-rose-950 text-rose-300 border border-rose-800' :
+                                                                'bg-stone-800 text-stone-300'
+                                                            }`}>
+                                                                {order.order_status}
+                                                            </span>
+                                                            <span className="text-[10px] text-[#9E938B] mt-0.5 block">
+                                                                {new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                                                             </span>
                                                         </div>
-                                                    ))}
+                                                    </div>
+
+                                                    {/* Items Summary */}
+                                                    <div className="py-2.5 space-y-1.5 text-xs">
+                                                        <div className="space-y-1">
+                                                            {order.items?.map((it, idx) => (
+                                                                <div key={idx} className="flex justify-between items-center text-[#F4EFE6]">
+                                                                    <span>
+                                                                        <strong className="text-[#D4B886] font-mono mr-1.5">{it.quantity}x</strong>
+                                                                        {it.menu_name_snapshot}
+                                                                    </span>
+                                                                    <span className="font-mono text-[#9E938B]">
+                                                                        {formatIDR(it.subtotal)}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        {order.customer_notes && (
+                                                            <div className="mt-2 p-2 rounded-lg bg-[#211D1B] border border-amber-900/40 text-[11px] text-amber-300">
+                                                                <strong>Catatan:</strong> {order.customer_notes}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
 
-                                                {/* Order General Notes if any */}
-                                                {order.customer_notes && (
-                                                    <div className="p-2 rounded-lg bg-black/40 border border-stone-800 text-[11px] text-stone-300">
-                                                        <span className="font-bold text-[#D4B886]">Catatan: </span>
-                                                        <span>{order.customer_notes}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Card Bottom: Financial & Action Buttons */}
-                                            <div className="p-4 bg-black/40 border-t border-stone-800/80 space-y-3">
-                                                {/* Payment Status & Total */}
-                                                <div className="flex items-center justify-between text-xs">
-                                                    <div>
-                                                        <span className="text-stone-400 block text-[10px]">Total Pembayaran:</span>
-                                                        <span className="font-mono text-base font-bold text-[#D4B886]">
+                                                {/* Bottom Footer & Actions */}
+                                                <div className="pt-3 border-t border-[#241F1D] space-y-3">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-xs text-[#9E938B]">Total Tagihan:</span>
+                                                        <span className="font-mono font-bold text-sm text-[#D4B886]">
                                                             {formatIDR(order.total)}
                                                         </span>
                                                     </div>
 
-                                                    <div className="text-right">
-                                                        <span className="text-stone-400 block text-[10px]">Status Bayar:</span>
-                                                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                                                            isPaid 
-                                                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                                                : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                                        }`}>
-                                                            {isPaid ? 'LUNAS' : 'BELUM DIBAYAR'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Cashier Workflow Action Buttons */}
-                                                <div className="space-y-1.5 pt-1">
-                                                    {/* 1. Status: PENDING / Awaiting Payment */}
-                                                    {['Pending', 'Awaiting Payment', 'Paid'].includes(order.order_status) && (
-                                                        <div className="grid grid-cols-2 gap-2">
-                                                            {!isPaid ? (
-                                                                <button
-                                                                    onClick={() => handleOpenCashModal(order)}
-                                                                    className="w-full py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-md transition-all active:scale-95"
-                                                                >
-                                                                    <Wallet className="w-3.5 h-3.5" />
-                                                                    <span>Bayar Tunai</span>
-                                                                </button>
-                                                            ) : null}
-
+                                                    {/* Action Buttons Row */}
+                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                        {/* Cash confirmation trigger */}
+                                                        {isPending && (
                                                             <button
-                                                                onClick={() => handleUpdateStatus(order.id, 'Preparing', 'Dikonfirmasi kasir, diteruskan ke dapur')}
-                                                                className={`${!isPaid ? 'col-span-1' : 'col-span-2'} py-2 px-2.5 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:brightness-110 text-[#211D1B] font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95`}
+                                                                type="button"
+                                                                onClick={() => handleOpenCashModal(order)}
+                                                                className="flex-1 py-1.5 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1 shadow"
                                                             >
-                                                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                                                                <span>ACC & Masak Dapur</span>
+                                                                <Wallet className="w-3.5 h-3.5" />
+                                                                <span>Bayar Tunai</span>
                                                             </button>
-                                                        </div>
-                                                    )}
+                                                        )}
 
-                                                    {/* 2. Status: PREPARING (Sedang Dimasak) */}
-                                                    {order.order_status === 'Preparing' && (
-                                                        <button
-                                                            onClick={() => handleUpdateStatus(order.id, 'Ready', 'Dapur selesai memasak, pesanan siap')}
-                                                            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
-                                                        >
-                                                            <Sparkles className="w-3.5 h-3.5" />
-                                                            <span>Tandai Siap Saji / Ambil (Ready)</span>
-                                                        </button>
-                                                    )}
-
-                                                    {/* 3. Status: READY (Siap Disajikan atau Diambil) */}
-                                                    {order.order_status === 'Ready' && (
-                                                        <div>
-                                                            {order.order_type === 'takeaway' ? (
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(order.id, 'Picked Up', 'Pesanan takeaway telah diserahkan ke pelanggan')}
-                                                                    className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
-                                                                >
-                                                                    <ShoppingBag className="w-3.5 h-3.5" />
-                                                                    <span>Konfirmasi Diambil (Picked Up)</span>
-                                                                </button>
-                                                            ) : (
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(order.id, 'Served', 'Pesanan dine-in selesai diantar ke meja')}
-                                                                    className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
-                                                                >
-                                                                    <UtensilsCrossed className="w-3.5 h-3.5" />
-                                                                    <span>Konfirmasi Terhidang (Served)</span>
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    )}
-
-                                                    {/* Secondary Buttons: Cetak Struk & Pembatalan */}
-                                                    <div className="flex items-center gap-2 pt-1">
-                                                        <button
-                                                            onClick={() => setReceiptOrder(order)}
-                                                            className="flex-1 py-1.5 rounded-lg bg-black/50 hover:bg-black/80 border border-stone-800 hover:border-[#B99A65]/40 text-stone-300 text-[11px] font-medium flex items-center justify-center gap-1 transition-all"
-                                                        >
-                                                            <Printer className="w-3 h-3 text-[#D4B886]" />
-                                                            <span>Cetak Struk</span>
-                                                        </button>
-
-                                                        {['Pending', 'Awaiting Payment'].includes(order.order_status) && (
+                                                        {/* Send to kitchen ACC */}
+                                                        {isPending && (
                                                             <button
+                                                                type="button"
+                                                                onClick={() => handleUpdateStatus(order.id, 'Preparing')}
+                                                                className="flex-1 py-1.5 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1 shadow"
+                                                            >
+                                                                <Flame className="w-3.5 h-3.5" />
+                                                                <span>ACC & Masak</span>
+                                                            </button>
+                                                        )}
+
+                                                        {/* Ready button */}
+                                                        {isPreparing && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleUpdateStatus(order.id, 'Ready')}
+                                                                className="flex-1 py-1.5 px-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1 shadow"
+                                                            >
+                                                                <Sparkles className="w-3.5 h-3.5" />
+                                                                <span>Tandai Siap Saji</span>
+                                                            </button>
+                                                        )}
+
+                                                        {/* Handover / Served button */}
+                                                        {isReady && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleUpdateStatus(order.id, isDineIn ? 'Served' : 'Picked Up')}
+                                                                className="flex-1 py-1.5 px-2.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1 shadow"
+                                                            >
+                                                                <Check className="w-3.5 h-3.5" />
+                                                                <span>{isDineIn ? 'Konfirmasi Tersaji' : 'Konfirmasi Diambil'}</span>
+                                                            </button>
+                                                        )}
+
+                                                        {/* Print Receipt button */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setReceiptOrder(order)}
+                                                            className="p-1.5 rounded-lg bg-[#241F1D] hover:bg-[#2D2622] text-[#F4EFE6] border border-[#342D2A] transition-colors"
+                                                            title="Cetak Struk Pembayaran"
+                                                        >
+                                                            <Printer className="w-4 h-4" />
+                                                        </button>
+
+                                                        {/* Cancel button if pending */}
+                                                        {isPending && (
+                                                            <button
+                                                                type="button"
                                                                 onClick={() => {
-                                                                    if (confirm(`Yakin ingin membatalkan pesanan #${order.order_code}?`)) {
-                                                                        handleUpdateStatus(order.id, 'Cancelled', 'Dibatalkan oleh kasir');
+                                                                    if (window.confirm(`Batalkan pesanan #${order.order_code}?`)) {
+                                                                        handleUpdateStatus(order.id, 'Cancelled');
                                                                     }
                                                                 }}
-                                                                className="px-2.5 py-1.5 rounded-lg bg-rose-950/30 hover:bg-rose-950/60 border border-rose-800/40 text-rose-400 text-[11px] font-medium transition-all"
+                                                                className="p-1.5 rounded-lg bg-[#241F1D] hover:bg-rose-950/60 text-rose-400 border border-rose-900/40 transition-colors"
                                                                 title="Batalkan Pesanan"
                                                             >
-                                                                Batalkan
+                                                                <XCircle className="w-4 h-4" />
                                                             </button>
                                                         )}
                                                     </div>
                                                 </div>
                                             </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* VIEW 2: TABLES FLOOR PLAN & SESSIONS (READ-ONLY FOR CASHIER) */}
+                    {mainTab === 'tables' && (
+                        <div className="space-y-6">
+                            {/* Circular Floor Plan Component (Read-Only: cuma bisa lihat saja) */}
+                            <CircularFloorPlan
+                                tables={tables}
+                                reservations={reservations}
+                                selectedDate={selectedCalDate}
+                                role="cashier"
+                            />
+
+                            {/* Tables Information Grid */}
+                            <div className="space-y-3 pt-2">
+                                <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
+                                    <h4 className="font-heading font-bold text-sm text-[#F4EFE6]">
+                                        Daftar Status & Sesi Meja ({tables.length} Meja)
+                                    </h4>
+                                    <span className="text-[11px] text-[#9E938B]">
+                                        Akses Kasir: Pemantauan Sesi Aktif
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {tables.map((t) => (
+                                        <div key={t.id} className="p-4 rounded-2xl bg-[#161312] border border-[#241F1D] space-y-3">
+                                            <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
+                                                <div>
+                                                    <h4 className="font-heading font-bold text-base text-white">{t.table_number}</h4>
+                                                    <span className="text-[10px] text-[#9E938B]">
+                                                        Kapasitas {t.capacity} Kursi · {t.location}
+                                                    </span>
+                                                </div>
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                                    t.status === 'Available' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' :
+                                                    t.status === 'Occupied' ? 'bg-rose-950 text-rose-300 border border-rose-800' :
+                                                    t.status === 'Cleaning' ? 'bg-blue-950 text-blue-300 border border-blue-800' :
+                                                    t.status === 'Reserved' ? 'bg-amber-950 text-amber-300 border border-amber-800' :
+                                                    'bg-stone-800 text-stone-300'
+                                                }`}>
+                                                    {t.status}
+                                                </span>
+                                            </div>
+
+                                            <div className="space-y-1 text-xs text-[#9E938B]">
+                                                {t.active_session ? (
+                                                    <div className="p-2 rounded-xl bg-[#141110] border border-[#241F1D] text-[11px]">
+                                                        <span className="font-mono text-stone-300 block">Sesi: {t.active_session.session_code}</span>
+                                                        <span className="text-emerald-400 font-bold text-[10px] uppercase">{t.active_session.status}</span>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-[11px] italic text-[#665C54]">Tidak ada sesi aktif</p>
+                                                )}
+                                            </div>
                                         </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* VIEW 3: RESERVATIONS BOOK */}
+                    {mainTab === 'reservations' && (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
+                                <div>
+                                    <h3 className="font-heading font-bold text-base text-white flex items-center gap-2">
+                                        <Calendar className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Buku Jadwal Reservasi Tamu ({reservations.length})</span>
+                                    </h3>
+                                    <p className="text-xs text-[#9E938B] mt-0.5">
+                                        Kelola jadwal kedatangan tamu restoran dan konfirmasi alokasi meja santap.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {reservations.length === 0 ? (
+                                <div className="p-12 text-center rounded-2xl bg-[#161312] border border-[#241F1D]">
+                                    <Calendar className="w-10 h-10 text-[#9E938B]/60 mx-auto mb-2" />
+                                    <h4 className="font-heading text-base font-bold text-[#F4EFE6]">
+                                        Belum Ada Jadwal Reservasi
+                                    </h4>
+                                    <p className="text-xs text-[#9E938B] max-w-md mx-auto mt-1">
+                                        Jadwal reservasi online dari tamu akan muncul di sini secara otomatis.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="rounded-2xl bg-[#161312] border border-[#241F1D] overflow-hidden shadow">
+                                    <div className="divide-y divide-[#241F1D]">
+                                        {reservations.map((r) => (
+                                            <div key={r.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-mono font-bold text-[#D4B886]">#{r.reservation_code}</span>
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                            r.status === 'Confirmed' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' :
+                                                            r.status === 'Seated' ? 'bg-teal-950 text-teal-300 border border-teal-800' :
+                                                            r.status === 'Completed' ? 'bg-stone-800 text-stone-300' :
+                                                            r.status === 'Cancelled' ? 'bg-rose-950 text-rose-300 border border-rose-800' :
+                                                            'bg-amber-950 text-amber-300 border border-amber-800'
+                                                        }`}>
+                                                            {r.status}
+                                                        </span>
+                                                        <span className="text-[#F4EFE6] font-semibold">{r.customer_name}</span>
+                                                        <span className="text-[#9E938B]">({r.guest_count} Pax)</span>
+                                                    </div>
+                                                    <div className="text-[11px] text-[#9E938B] mt-1 space-x-2">
+                                                        <span>Waktu: {new Date(r.reservation_datetime).toLocaleString('id-ID')}</span>
+                                                        {r.customer_phone && <span>· Telp: {r.customer_phone}</span>}
+                                                        {r.experience_name && <span className="text-[#D4B886]">· {r.experience_name}</span>}
+                                                    </div>
+                                                    {r.special_request && (
+                                                        <p className="text-[11px] text-amber-300 italic mt-1">
+                                                            Catatan: "{r.special_request}"
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    {r.status === 'Pending' && (
+                                                        <button
+                                                            onClick={() => handleReservationStatusChange(r.id, 'Confirmed')}
+                                                            className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition-colors"
+                                                        >
+                                                            Konfirmasi
+                                                        </button>
+                                                    )}
+                                                    {r.status === 'Confirmed' && (
+                                                        <button
+                                                            onClick={() => handleReservationStatusChange(r.id, 'Seated')}
+                                                            className="px-2.5 py-1 rounded bg-teal-600 hover:bg-teal-500 text-white font-bold text-[11px] transition-colors"
+                                                        >
+                                                            Tamu Hadir (Duduk)
+                                                        </button>
+                                                    )}
+                                                    {['Confirmed', 'Seated'].includes(r.status) && (
+                                                        <button
+                                                            onClick={() => handleReservationStatusChange(r.id, 'Completed')}
+                                                            className="px-2.5 py-1 rounded bg-stone-700 hover:bg-stone-600 text-white font-bold text-[11px] transition-colors"
+                                                        >
+                                                            Selesai
+                                                        </button>
+                                                    )}
+                                                    {r.status !== 'Cancelled' && (
+                                                        <button
+                                                            onClick={() => handleReservationStatusChange(r.id, 'Cancelled')}
+                                                            className="px-2.5 py-1 rounded bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 text-[11px] transition-colors"
+                                                        >
+                                                            Batal
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                </div>
+            </section>
+
+            {/* ========================================================
+                APP SHELL 4: COLUMN 3 — RIGHT SCHEDULE & INSPECTOR PANEL
+            ======================================================== */}
+            {isRightPanelOpen && (
+                <aside className="w-80 flex-shrink-0 bg-[#161312] border-l border-[#241F1D] flex flex-col h-full overflow-y-auto scrollbar-none hidden lg:flex">
+                    {/* Header */}
+                    <div className="p-4 border-b border-[#241F1D] flex items-center justify-between">
+                        <span className="font-bold text-xs uppercase tracking-wider text-[#9E938B]">
+                            Schedule & Kasir
+                        </span>
+                        <button
+                            onClick={() => setIsRightPanelOpen(false)}
+                            className="p-1 rounded-lg text-[#9E938B] hover:text-white hover:bg-[#241F1D]"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    <div className="p-4 space-y-6">
+                        {/* Daily Turnover Card */}
+                        <div className="p-3.5 rounded-2xl bg-[#141110] border border-[#B99A65]/40 space-y-1">
+                            <div className="flex items-center justify-between text-xs text-[#D4B886]">
+                                <span className="font-bold uppercase tracking-wider">Omzet Sesi Ini</span>
+                                <TrendingUp className="w-4 h-4" />
+                            </div>
+                            <p className="font-mono font-bold text-lg text-white">
+                                {formatIDR(metrics.todayRevenue)}
+                            </p>
+                            <p className="text-[11px] text-[#9E938B]">
+                                {metrics.completedToday} transaksi berhasil diselesaikan
+                            </p>
+                        </div>
+
+                        {/* Mini Calendar Widget */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-white">
+                                    {monthNames[currentCalMonth]} {currentCalYear}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => {
+                                            if (currentCalMonth === 0) {
+                                                setCurrentCalMonth(11);
+                                                setCurrentCalYear(currentCalYear - 1);
+                                            } else {
+                                                setCurrentCalMonth(currentCalMonth - 1);
+                                            }
+                                        }}
+                                        className="p-1 rounded hover:bg-[#241F1D] text-[#9E938B] hover:text-white"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (currentCalMonth === 11) {
+                                                setCurrentCalMonth(0);
+                                                setCurrentCalYear(currentCalYear + 1);
+                                            } else {
+                                                setCurrentCalMonth(currentCalMonth + 1);
+                                            }
+                                        }}
+                                        className="p-1 rounded hover:bg-[#241F1D] text-[#9E938B] hover:text-white"
+                                    >
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Calendar Days Header */}
+                            <div className="grid grid-cols-7 text-center text-[10px] text-[#9E938B] font-semibold">
+                                <span>S</span>
+                                <span>M</span>
+                                <span>T</span>
+                                <span>W</span>
+                                <span>T</span>
+                                <span>F</span>
+                                <span>S</span>
+                            </div>
+
+                            {/* Calendar Days Grid */}
+                            <div className="grid grid-cols-7 gap-1 text-center">
+                                {calendarDays.map((calDay, idx) => {
+                                    const isSelected = selectedCalDate.toDateString() === calDay.date.toDateString();
+                                    const dayKey = getDateKey(calDay.date);
+                                    const hasReservations = reservationsByDate.has(dayKey);
+
+                                    return (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setSelectedCalDate(calDay.date)}
+                                            className={`relative h-8 w-8 mx-auto rounded-lg flex flex-col items-center justify-center text-xs transition-all ${
+                                                isSelected
+                                                    ? 'bg-white text-[#110F0E] font-bold shadow-md'
+                                                    : calDay.isCurrentMonth
+                                                    ? 'text-[#F4EFE6] hover:bg-[#241F1D]'
+                                                    : 'text-[#4D443E] hover:text-[#9E938B]'
+                                            }`}
+                                        >
+                                            <span className="leading-none">{calDay.day}</span>
+                                            {hasReservations && (
+                                                <span className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? 'bg-[#110F0E]' : 'bg-[#D4B886]'}`}></span>
+                                            )}
+                                        </button>
                                     );
                                 })}
                             </div>
-                        )}
-                    </div>
-                )}
-
-                {/* ========================================================
-                    5. CONTENT TAB 2: RESTAURANT TABLE STATUS BOARD
-                ======================================================== */}
-                {mainTab === 'tables' && (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="font-heading text-lg font-bold text-[#D4B886]">
-                                    Manajemen & Koordinasi Meja Restoran
-                                </h3>
-                                <p className="text-xs text-stone-400">
-                                    Pantau kapasitas, status terisi, dan koordinasikan meja dengan staf waiter.
-                                </p>
-                            </div>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {tables.map(tbl => {
-                                const isOccupied = tbl.status === 'Occupied';
-                                const isCleaning = tbl.status === 'Cleaning';
-                                const isReserved = tbl.status === 'Reserved';
+                        {/* Up Next: Agenda & Priority Orders */}
+                        <div className="space-y-3 pt-4 border-t border-[#241F1D]">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-[#F4EFE6]">
+                                    Up next
+                                </span>
+                                <span className="text-[10px] text-[#9E938B]">
+                                    {selectedCalDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                </span>
+                            </div>
 
-                                return (
-                                    <div 
-                                        key={tbl.id}
-                                        className={`p-4 rounded-2xl border transition-all ${
-                                            isOccupied
-                                                ? 'bg-[#32151F]/40 border-rose-500/40 shadow-rose-950/30'
-                                                : isCleaning
-                                                ? 'bg-amber-950/30 border-amber-500/40'
-                                                : isReserved
-                                                ? 'bg-sky-950/30 border-sky-500/40'
-                                                : 'bg-[#1C1716] border-[#B99A65]/20 hover:border-[#D4B886]/40'
-                                        }`}
-                                    >
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className="font-heading text-base font-bold text-[#D4B886]">
-                                                {tbl.table_number}
-                                            </span>
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                                isOccupied
-                                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                                    : isCleaning
-                                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                                    : isReserved
-                                                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
-                                                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                            }`}>
-                                                {tbl.status}
-                                            </span>
+                            {/* Reservations on selected date */}
+                            {dayReservations.length > 0 ? (
+                                <div className="space-y-2">
+                                    <span className="text-[11px] font-bold text-[#D4B886] block">
+                                        Reservasi Tanggal Ini ({dayReservations.length})
+                                    </span>
+                                    {dayReservations.map(res => (
+                                        <div key={res.id} className="p-2.5 rounded-xl bg-[#141110] border border-[#241F1D] text-xs space-y-1">
+                                            <div className="flex items-center justify-between text-[11px] text-[#9E938B]">
+                                                <span>
+                                                    {new Date(res.reservation_datetime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                                                </span>
+                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                                    res.status === 'Confirmed' ? 'text-emerald-400 bg-emerald-950/60' : 'text-amber-400 bg-amber-950/60'
+                                                }`}>
+                                                    {res.status}
+                                                </span>
+                                            </div>
+                                            <p className="font-bold text-white leading-snug">
+                                                {res.customer_name} ({res.guest_count} Pax)
+                                            </p>
                                         </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-3 rounded-xl bg-[#141110] border border-[#241F1D] text-xs text-[#9E938B]">
+                                    Tidak ada reservasi pada {selectedCalDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}.
+                                </div>
+                            )}
 
-                                        <div className="space-y-1 text-xs text-stone-400 mb-4">
-                                            <p>Kapasitas: <span className="text-white font-bold">{tbl.capacity} Orang</span></p>
-                                            <p>Lokasi: <span className="text-white font-medium">{tbl.location}</span></p>
-                                            {tbl.active_session && (
-                                                <p className="text-[10px] text-[#B99A65] font-mono mt-1">
-                                                    Sesi: {tbl.active_session.session_code}
-                                                </p>
-                                            )}
+                            {/* Priority Orders Needing Cashier ACC */}
+                            <div className="pt-2 space-y-2">
+                                <span className="text-[11px] font-bold text-amber-400 block">
+                                    Menunggu Kasir ({pendingOrdersForAgenda.length})
+                                </span>
+                                {pendingOrdersForAgenda.length === 0 ? (
+                                    <p className="text-xs text-[#9E938B] italic">Semua transaksi pesanan telah terverifikasi.</p>
+                                ) : (
+                                    pendingOrdersForAgenda.map(o => (
+                                        <div key={o.id} className="p-2.5 rounded-xl bg-[#141110] border border-[#241F1D] text-xs space-y-1.5">
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-mono font-bold text-[#D4B886]">#{o.order_code}</span>
+                                                <span className="text-[10px] text-amber-400 font-bold">{o.order_status}</span>
+                                            </div>
+                                            <p className="text-white font-medium truncate">
+                                                {o.customer_name || 'Pelanggan'} · {o.order_type === 'dine_in' ? (o.table_number || 'Dine-in') : 'Takeaway'}
+                                            </p>
+                                            <div className="flex items-center justify-between pt-1">
+                                                <span className="font-mono text-[#9E938B]">{formatIDR(o.total)}</span>
+                                                <button
+                                                    onClick={() => handleOpenCashModal(o)}
+                                                    className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] uppercase transition-colors"
+                                                >
+                                                    Bayar
+                                                </button>
+                                            </div>
                                         </div>
-
-                                        {/* Status Switcher Action */}
-                                        <div className="pt-2 border-t border-stone-800/80">
-                                            <select
-                                                value={tbl.status}
-                                                onChange={(e) => handleTableStatusChange(tbl.id, e.target.value)}
-                                                className="w-full px-2 py-1.5 rounded-xl bg-black/60 border border-stone-700 text-xs text-stone-200 focus:outline-none focus:border-[#D4B886]"
-                                            >
-                                                <option value="Available">Available (Kosong)</option>
-                                                <option value="Occupied">Occupied (Terisi)</option>
-                                                <option value="Reserved">Reserved (Dipesan)</option>
-                                                <option value="Cleaning">Cleaning (Dibersihkan)</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* ========================================================
-                    6. CONTENT TAB 3: RESERVATIONS BOARD
-                ======================================================== */}
-                {mainTab === 'reservations' && (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="font-heading text-lg font-bold text-[#D4B886]">
-                                    Kelola Reservasi Tamu Restoran
-                                </h3>
-                                <p className="text-xs text-stone-400">
-                                    Konfirmasi kedatangan dan alokasikan meja untuk tamu reservasi hari ini.
-                                </p>
+                                    ))
+                                )}
                             </div>
                         </div>
-
-                        {reservations.length === 0 ? (
-                            <div className="py-16 text-center rounded-2xl bg-[#1C1716] border border-[#B99A65]/20">
-                                <Calendar className="w-8 h-8 text-stone-500 mx-auto mb-2" />
-                                <p className="text-sm font-semibold text-[#D4B886]">Belum Ada Reservasi Aktif</p>
-                                <p className="text-xs text-stone-400">Reservasi tamu mendatang akan muncul di sini.</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {reservations.map(res => (
-                                    <div key={res.id} className="p-4 rounded-2xl bg-[#1C1716] border border-[#B99A65]/25 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <span className="font-mono text-xs font-bold text-[#D4B886]">
-                                                {res.reservation_code}
-                                            </span>
-                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40 font-bold uppercase">
-                                                {res.status}
-                                            </span>
-                                        </div>
-
-                                        <div className="space-y-1 text-xs">
-                                            <p className="font-bold text-[#F4EFE6] text-sm">{res.customer_name || 'Tamu Reservasi'}</p>
-                                            <p className="text-stone-400 flex items-center gap-1.5">
-                                                <Phone className="w-3 h-3 text-[#B99A65]" />
-                                                <span>{res.customer_phone || '-'}</span>
-                                            </p>
-                                            <p className="text-stone-400 flex items-center gap-1.5">
-                                                <Clock className="w-3 h-3 text-[#B99A65]" />
-                                                <span>{new Date(res.reservation_datetime).toLocaleString('id-ID')}</span>
-                                            </p>
-                                            <p className="text-stone-400 flex items-center gap-1.5">
-                                                <UserIcon className="w-3 h-3 text-[#B99A65]" />
-                                                <span>{res.guest_count} Orang Guest</span>
-                                            </p>
-                                            {res.experience_name && (
-                                                <p className="text-[11px] font-semibold text-[#D4B886] mt-1">
-                                                    Paket: {res.experience_name}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        {/* Action buttons */}
-                                        <div className="pt-2 border-t border-stone-800 flex items-center gap-2">
-                                            {res.status === 'Pending' && (
-                                                <button
-                                                    onClick={() => handleReservationStatusChange(res.id, 'Confirmed')}
-                                                    className="flex-1 py-1.5 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs"
-                                                >
-                                                    Konfirmasi
-                                                </button>
-                                            )}
-                                            {res.status === 'Confirmed' && (
-                                                <button
-                                                    onClick={() => handleReservationStatusChange(res.id, 'Seated')}
-                                                    className="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
-                                                >
-                                                    Tamu Duduk (Seated)
-                                                </button>
-                                            )}
-                                            {res.status === 'Seated' && (
-                                                <button
-                                                    onClick={() => handleReservationStatusChange(res.id, 'Completed')}
-                                                    className="flex-1 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs"
-                                                >
-                                                    Selesai
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => {
-                                                    if (confirm('Batalkan reservasi ini?')) {
-                                                        handleReservationStatusChange(res.id, 'Cancelled');
-                                                    }
-                                                }}
-                                                className="px-3 py-1.5 rounded-xl bg-stone-800 text-stone-400 hover:text-rose-300 text-xs"
-                                            >
-                                                Batal
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
                     </div>
-                )}
-            </main>
+                </aside>
+            )}
 
             {/* ========================================================
-                7. MODAL CASH PAYMENT CONFIRMATION (BAYAR TUNAI DI KASIR)
+                OPERATIONAL CHAT MODAL WITH ADMIN HQ
+            ======================================================== */}
+            <OperationalChatModal
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+                role="cashier"
+                userName={cashierUser.name}
+                messages={chatMessages}
+            />
+
+            {/* ========================================================
+                MODAL 1: CASH PAYMENT CONFIRMATION
             ======================================================== */}
             {cashPaymentOrder && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-                    <div className="w-full max-w-md rounded-2xl bg-[#1C1716] border border-[#B99A65]/40 shadow-2xl p-6 space-y-4">
-                        <div className="flex items-center justify-between pb-3 border-b border-stone-800">
+                    <div className="w-full max-w-md rounded-2xl bg-[#161312] border border-[#241F1D] shadow-2xl p-6 space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-[#241F1D]">
                             <div className="flex items-center gap-2">
                                 <Wallet className="w-5 h-5 text-emerald-400" />
-                                <h3 className="font-heading text-lg font-bold text-[#D4B886]">
+                                <h3 className="font-heading text-lg font-bold text-white">
                                     Penerimaan Pembayaran Tunai
                                 </h3>
                             </div>
                             <button 
+                                type="button"
                                 onClick={() => setCashPaymentOrder(null)}
-                                className="text-stone-400 hover:text-white"
+                                className="text-[#9E938B] hover:text-white"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
                         <div className="space-y-3 text-xs">
-                            <div className="p-3 rounded-xl bg-black/40 border border-stone-800 space-y-1.5">
+                            <div className="p-3 rounded-xl bg-[#141110] border border-[#241F1D] space-y-1.5">
                                 <div className="flex justify-between">
-                                    <span className="text-stone-400">Kode Pesanan:</span>
-                                    <span className="font-mono font-bold text-white">{cashPaymentOrder.order_code}</span>
+                                    <span className="text-[#9E938B]">Kode Pesanan:</span>
+                                    <span className="font-mono font-bold text-white">#{cashPaymentOrder.order_code}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-stone-400">Tipe / Meja:</span>
+                                    <span className="text-[#9E938B]">Tipe / Meja:</span>
                                     <span className="font-semibold text-[#D4B886]">
                                         {cashPaymentOrder.order_type === 'dine_in' ? cashPaymentOrder.table_number || 'Dine-in' : 'Takeaway'}
                                     </span>
                                 </div>
-                                <div className="flex justify-between pt-1 border-t border-stone-800/80">
-                                    <span className="text-stone-300 font-bold">Total Tagihan:</span>
-                                    <span className="font-mono text-base font-bold text-amber-300">
+                                <div className="flex justify-between pt-1 border-t border-[#241F1D]">
+                                    <span className="text-[#F4EFE6] font-bold">Total Tagihan:</span>
+                                    <span className="font-mono text-base font-bold text-[#D4B886]">
                                         {formatIDR(cashPaymentOrder.total)}
                                     </span>
                                 </div>
                             </div>
 
-                            {/* Input Uang Tunai Diterima */}
                             <div className="space-y-1.5">
-                                <label className="text-xs font-semibold text-stone-300">
+                                <label className="text-xs font-semibold text-white">
                                     Nominal Uang Tunai Diterima (Rp):
                                 </label>
                                 <input
                                     type="number"
                                     value={cashReceived || ''}
                                     onChange={(e) => setCashReceived(Number(e.target.value))}
-                                    className="w-full px-3 py-2.5 rounded-xl bg-black/60 border border-[#B99A65]/40 font-mono text-lg font-bold text-emerald-300 focus:outline-none focus:border-[#D4B886]"
+                                    className="w-full px-3 py-2.5 rounded-xl bg-[#141110] border border-[#241F1D] font-mono text-base font-bold text-emerald-300 focus:outline-none focus:border-[#B99A65]"
                                     min={cashPaymentOrder.total}
                                 />
                             </div>
 
-                            {/* Hitungan Kembalian */}
                             <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex justify-between items-center">
                                 <span className="font-semibold text-emerald-300">Kembalian ke Pelanggan:</span>
                                 <span className="font-mono text-base font-bold text-emerald-400">
@@ -1081,19 +1353,18 @@ export default function CashierDashboard({
                             </div>
                         </div>
 
-                        {/* Submit Button */}
                         <div className="pt-2 flex items-center gap-2">
                             <button
                                 type="button"
                                 onClick={() => setCashPaymentOrder(null)}
-                                className="flex-1 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 font-semibold text-xs transition-all"
+                                className="flex-1 py-2.5 rounded-xl bg-[#241F1D] hover:bg-[#2D2622] text-[#9E938B] font-semibold text-xs transition-all"
                             >
                                 Batal
                             </button>
                             <button
                                 type="button"
                                 onClick={handleConfirmCashPayment}
-                                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg transition-all"
+                                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase shadow transition-all"
                             >
                                 Selesai & Kirim Dapur
                             </button>
@@ -1103,17 +1374,21 @@ export default function CashierDashboard({
             )}
 
             {/* ========================================================
-                8. MODAL CETAK STRUK RESMI KASIR NUSARA (RECEIPT MODAL)
+                MODAL 2: RECEIPT PRINT PREVIEW
             ======================================================== */}
             {receiptOrder && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
                     <div className="w-full max-w-sm rounded-2xl bg-white text-[#211D1B] shadow-2xl p-6 space-y-4 font-mono max-h-[90vh] overflow-y-auto">
-                        {/* Struk Thermal View Header */}
                         <div className="text-center space-y-1 pb-3 border-b border-dashed border-stone-300">
-                            <h2 className="font-heading text-2xl font-bold tracking-wider text-[#32151F]">
-                                NUSARA
-                            </h2>
-                            <p className="text-[11px] uppercase tracking-widest text-stone-600">
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA" 
+                                className="h-10 w-auto object-contain mx-auto mb-1 filter invert"
+                                onError={(e) => {
+                                    (e.target as HTMLElement).style.display = 'none';
+                                }}
+                            />
+                            <p className="text-[11px] uppercase tracking-widest text-stone-600 font-bold">
                                 Restoran Nusantara & Rasa
                             </p>
                             <p className="text-[10px] text-stone-500 leading-tight">
@@ -1124,11 +1399,10 @@ export default function CashierDashboard({
                             </p>
                         </div>
 
-                        {/* Order Metadata */}
                         <div className="text-[11px] space-y-1 pb-3 border-b border-dashed border-stone-300 text-stone-700">
                             <div className="flex justify-between">
                                 <span>No. Struk:</span>
-                                <span className="font-bold">{receiptOrder.order_code}</span>
+                                <span className="font-bold">#{receiptOrder.order_code}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Tanggal:</span>
@@ -1150,7 +1424,6 @@ export default function CashierDashboard({
                             </div>
                         </div>
 
-                        {/* Item Breakdown */}
                         <div className="space-y-2 text-[11px] pb-3 border-b border-dashed border-stone-300">
                             {(receiptOrder.items || []).map((it, idx) => (
                                 <div key={idx} className="space-y-0.5">
@@ -1165,7 +1438,6 @@ export default function CashierDashboard({
                             ))}
                         </div>
 
-                        {/* Totals */}
                         <div className="text-xs space-y-1 pb-3 border-b border-dashed border-stone-300">
                             <div className="flex justify-between text-stone-600">
                                 <span>Subtotal:</span>
@@ -1191,14 +1463,12 @@ export default function CashierDashboard({
                             </div>
                         </div>
 
-                        {/* Struk Footer Greeting */}
                         <div className="text-center text-[10px] text-stone-500 space-y-1">
                             <p className="font-serif italic text-stone-700">"Matur Nuwun / Terima Kasih"</p>
                             <p>Cita Rasa Luhur Nusantara di Setiap Suapan</p>
                             <p className="text-[9px] text-stone-400">Simpan struk ini sebagai bukti pembayaran resmi</p>
                         </div>
 
-                        {/* Action Buttons: Print and Close */}
                         <div className="pt-2 flex items-center gap-2 print:hidden font-sans">
                             <button
                                 type="button"

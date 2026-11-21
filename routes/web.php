@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CashierController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\WaiterController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -22,7 +23,9 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Quick simulated action routes from PRD
 Route::get('/menu', [LandingPageController::class, 'index'])->name('menu');
-Route::get('/reservation', [LandingPageController::class, 'index'])->name('reservation');
+// Dedicated Luxury Reservation Page (Customer Flow)
+Route::get('/reservation', [ReservationController::class, 'index'])->name('reservation');
+Route::post('/reservation', [ReservationController::class, 'store'])->name('reservation.store');
 
 // Customer Ordering App (Akses Publik / Tamu Meja & Member)
 Route::get('/order', [OrderController::class, 'index'])->name('order.app');
@@ -32,6 +35,7 @@ Route::post('/order/checkout', [OrderController::class, 'checkout'])->name('orde
 Route::middleware('auth')->group(function () {
     Route::post('/order/{id}/rating', [OrderController::class, 'submitRating'])->name('order.rating');
     Route::post('/chat/send', [OrderController::class, 'sendMessage'])->name('chat.send');
+    Route::post('/chat/read', [OrderController::class, 'markAsRead'])->name('chat.read');
     Route::post('/favorites/toggle', [OrderController::class, 'toggleFavorite'])->name('favorites.toggle');
 });
 
@@ -42,7 +46,7 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     Route::post('/menu/{id}/stock', [AdminController::class, 'updateMenuStock'])->name('admin.menu.stock');
     Route::post('/table/{id}/status', [AdminController::class, 'updateTableStatus'])->name('admin.table.status');
     Route::post('/reservation/{id}/status', [AdminController::class, 'updateReservationStatus'])->name('admin.reservation.status');
-    Route::get('/chats', [AdminController::class, 'chats'])->name('admin.chats');                  // ← tambahkan
+    Route::get('/chats', [AdminController::class, 'chats'])->name('admin.chats');
     Route::get('/chats/{user}', [AdminController::class, 'chatShow'])->name('admin.chats.show');
     Route::post('/chats/{user}/send', [AdminController::class, 'sendChatMessage'])
         ->name('admin.chats.send');

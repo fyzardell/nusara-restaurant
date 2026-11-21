@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use App\Models\User;
+use Carbon\Carbon;
 
 class AdminController extends Controller
 {
@@ -226,6 +227,11 @@ class AdminController extends Controller
             ];
         }
 
+        $unreadChatCount = DB::table('chat_messages')
+            ->where('sender_type', '!=', 'admin')
+            ->where('is_read', false)
+            ->count();
+
         return Inertia::render('Admin/Dashboard', [
             'metrics' => [
                 'todayRevenue' => (float) $todayRevenue,
@@ -235,6 +241,7 @@ class AdminController extends Controller
                 'occupiedTables' => $occupiedTablesCount,
                 'totalTables' => $totalTablesCount,
                 'pendingReservations' => $pendingReservationsCount,
+                'unreadChatCount' => $unreadChatCount,
             ],
             'orders' => $orders,
             'menus' => $menus,
@@ -425,25 +432,37 @@ class AdminController extends Controller
         $this->ensureAdmin();
 
         $q = $request->input('q');
+        $roleFilter = $request->input('role', 'all');
 
-        $conversations = User::whereHas('chatMessages')
-            ->with('latestChatMessage')
-            ->withCount('chatMessages')
-            ->when($q, fn ($query) => $query->where('name', 'like', "%{$q}%"))
-            ->get()
-            ->sortByDesc(fn ($u) => $u->latestChatMessage->created_at)
+        $usersQuery = User::with(['role', 'latestChatMessage'])
+            ->withCount(['chatMessages', 'chatMessages as unread_count' => function ($query) {
+                $query->where('sender_type', '!=', 'admin')->where('is_read', false);
+            }])
+            ->where('id', '!=', Auth::id())
+            ->when($q, fn ($query) => $query->where('name', 'like', "%{$q}%"));
+
+        if ($roleFilter !== 'all') {
+            $usersQuery->whereHas('role', fn ($qr) => $qr->where('name', $roleFilter));
+        }
+
+        $conversations = $usersQuery->get()
+            ->filter(fn ($u) => $u->chat_messages_count > 0 || in_array($u->role?->name, ['waiter', 'cashier']))
+            ->sortByDesc(fn ($u) => $u->latestChatMessage?->created_at ?? $u->created_at)
             ->values()
             ->map(fn ($u) => [
                 'id' => $u->id,
                 'name' => $u->name,
+                'email' => $u->email,
+                'role' => $u->role?->name ?? 'customer',
                 'total' => $u->chat_messages_count,
-                'last_message' => $u->latestChatMessage->message,
-                'last_at' => $u->latestChatMessage->created_at->diffForHumans(),
+                'unread' => $u->unread_count,
+                'last_message' => $u->latestChatMessage?->message ?? 'Belum ada percakapan. Klik untuk mulai koordinasi.',
+                'last_at' => $u->latestChatMessage ? $u->latestChatMessage->created_at->diffForHumans() : '-',
             ]);
 
         return Inertia::render('Admin/Chats', [
             'conversations' => $conversations,
-            'filters' => ['q' => $q],
+            'filters' => ['q' => $q, 'role' => $roleFilter],
             'adminUser' => Auth::user(),
         ]);
     }
@@ -452,14 +471,30 @@ class AdminController extends Controller
     {
         $this->ensureAdmin();
 
+        // Mark messages from this user as read
+        DB::table('chat_messages')
+            ->where('user_id', $user->id)
+            ->where('sender_type', '!=', 'admin')
+            ->update(['is_read' => true]);
+
+        $roleName = DB::table('roles')->where('id', $user->role_id)->value('name') ?? 'customer';
+
         return Inertia::render('Admin/ChatShow', [
-            'customer' => $user->only('id', 'name'),
-            'messages' => $user->chatMessages()->orderBy('created_at')->get()
+            'customer' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $roleName,
+            ],
+            'messages' => DB::table('chat_messages')
+                ->where('user_id', $user->id)
+                ->orderBy('created_at', 'asc')
+                ->get()
                 ->map(fn ($m) => [
                     'id' => $m->id,
                     'sender' => $m->sender_type,
                     'message' => $m->message,
-                    'time' => $m->created_at->format('d M Y H:i'),
+                    'time' => Carbon::parse($m->created_at)->format('d M Y H:i'),
                 ]),
             'adminUser' => Auth::user(),
         ]);

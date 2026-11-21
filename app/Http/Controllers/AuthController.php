@@ -127,26 +127,28 @@ class AuthController extends Controller
 
         $redirectUrl = $request->input('redirect');
         if ($redirectUrl && is_string($redirectUrl) && str_starts_with($redirectUrl, '/')) {
-            return redirect($redirectUrl);
+            $target = $redirectUrl;
+        } elseif ($roleName === 'admin') {
+            $target = route('admin.dashboard');
+        } elseif ($roleName === 'cashier') {
+            $target = route('cashier.dashboard');
+        } elseif ($roleName === 'waiter') {
+            $target = route('waiter.dashboard');
+        } elseif ($roleName === 'customer') {
+            $target = route('order.app');
+        } else {
+            $target = route('home');
         }
 
-        if ($roleName === 'admin') {
-            return redirect()->intended(route('admin.dashboard'));
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => $target,
+                'message' => "Selamat datang kembali, {$cleanName} ({$roleLabel})!",
+            ]);
         }
 
-        if ($roleName === 'cashier') {
-            return redirect()->intended(route('cashier.dashboard'));
-        }
-
-        if ($roleName === 'waiter') {
-            return redirect()->intended(route('waiter.dashboard'));
-        }
-
-        if ($roleName === 'customer') {
-            return redirect()->intended(route('order.app'));
-        }
-
-        return redirect()->intended(route('home'));
+        return redirect()->intended($target);
     }
 
     public function register(Request $request)
@@ -228,6 +230,14 @@ class AuthController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('home'),
+                'message' => 'Sesi telah berhasil diakhiri.',
+            ]);
+        }
 
         return redirect()->route('home');
     }

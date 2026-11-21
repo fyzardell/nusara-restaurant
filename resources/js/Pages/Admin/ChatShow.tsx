@@ -91,7 +91,7 @@ export default function ChatShow({
             <Head title={`Chat - ${customer.name}`} />
 
             <div className="min-h-screen bg-black text-white">
-                <AdminHeader user={adminUser} />
+                <AdminHeader adminUser={adminUser} />
 
                 <div className="mx-auto max-w-6xl px-4 py-6">
                     <div className="overflow-hidden rounded-2xl border border-gray-800 bg-[#121212] shadow-xl">

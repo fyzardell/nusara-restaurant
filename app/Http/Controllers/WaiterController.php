@@ -187,6 +187,38 @@ class WaiterController extends Controller
                 return $tbl;
             });
 
+        // 6. Reservations (for Calendar Floor Plan synchronization)
+        $todayStr = Carbon::today()->toDateString();
+        $reservations = DB::table('reservations')
+            ->leftJoin('customers', 'reservations.customer_id', '=', 'customers.id')
+            ->leftJoin('dining_experiences', 'reservations.experience_id', '=', 'dining_experiences.id')
+            ->leftJoin('reservation_tables', 'reservations.id', '=', 'reservation_tables.reservation_id')
+            ->leftJoin('restaurant_tables', 'reservation_tables.table_id', '=', 'restaurant_tables.id')
+            ->select(
+                'reservations.*',
+                'customers.name as customer_name',
+                'customers.phone_normalized as customer_phone',
+                'dining_experiences.name as experience_name',
+                'restaurant_tables.table_number as table_number',
+                'restaurant_tables.id as table_id'
+            )
+            ->whereDate('reservations.reservation_datetime', '>=', $todayStr)
+            ->orderBy('reservations.reservation_datetime', 'asc')
+            ->limit(50)
+            ->get();
+
+        // 7. Chat messages with Admin & unread count
+        $chatMessages = DB::table('chat_messages')
+            ->where('user_id', $user->id)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $unreadChatCount = DB::table('chat_messages')
+            ->where('user_id', $user->id)
+            ->where('sender_type', 'admin')
+            ->where('is_read', false)
+            ->count();
+
         $settings = DB::table('restaurant_settings')->first();
 
         return Inertia::render('Waiter/Dashboard', [
@@ -201,6 +233,9 @@ class WaiterController extends Controller
             'preparingOrders' => $preparingOrders,
             'recentServedOrders' => $recentServedOrders,
             'tables' => $tables,
+            'reservations' => $reservations,
+            'chatMessages' => $chatMessages,
+            'unreadChatCount' => $unreadChatCount,
             'settings' => $settings,
         ]);
     }

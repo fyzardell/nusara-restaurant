@@ -41,6 +41,7 @@ import {
     CreditCard,
     ArrowRight
 } from 'lucide-react';
+import CircularFloorPlan from '../../Components/CircularFloorPlan';
 
 /* ============================================================
    ADMIN HEADER (dipakai juga oleh halaman Chats & ChatShow)
@@ -64,7 +65,7 @@ export function AdminHeader({ adminUser, active, onSelect, metrics }: {
     adminUser?: User;
     active?: AdminTab | string;
     onSelect?: (tab: DashboardTab) => void;
-    metrics?: { activeOrders: number; pendingReservations: number };
+    metrics?: { activeOrders: number; pendingReservations: number; unreadChatCount?: number };
 }) {
     const current = active ?? 'overview';
 
@@ -83,15 +84,24 @@ export function AdminHeader({ adminUser, active, onSelect, metrics }: {
                 </span>
             );
         }
+        if (key === 'chats' && metrics && (metrics.unreadChatCount ?? 0) > 0) {
+            return (
+                <span className="px-1.5 rounded-full text-[10px] bg-rose-500 text-white font-extrabold animate-pulse">
+                    {metrics.unreadChatCount}
+                </span>
+            );
+        }
         return null;
     };
 
     return (
         <header className="sticky top-0 z-40 bg-[#141110] text-[#F4EFE6] border-b border-[#241F1D] px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-                <Link href="/admin" className="flex items-center gap-2 text-stone-200 hover:text-[#D4B886] font-bold shrink-0">
-                    <img src="/images/nusara-logo.png" alt="NUSARA" className="h-6 w-auto" />
-                    <span className="font-heading text-sm tracking-wider">NUSARA ADMIN</span>
+                <Link href="/admin" className="flex items-center gap-2.5 text-stone-200 hover:text-[#D4B886] font-bold shrink-0">
+                    <img src="/images/nusara-logo.png" alt="NUSARA — Nusantara & Rasa" className="h-7 w-auto object-contain" />
+                    <span className="px-2 py-0.5 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[10px] font-bold text-[#D4B886] tracking-wider uppercase">
+                        Admin Executive
+                    </span>
                 </Link>
                 <nav className="hidden sm:flex items-center gap-1 ml-4 text-xs text-stone-400 overflow-x-auto scrollbar-none">
                     {adminTabs.map(({ key, label, icon: Icon }) => {
@@ -128,7 +138,11 @@ export function AdminHeader({ adminUser, active, onSelect, metrics }: {
                 )}
                 <button
                     type="button"
-                    onClick={() => router.post('/logout')}
+                    onClick={() => {
+                        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin keluar dari sesi Admin?')) {
+                            router.post('/logout');
+                        }
+                    }}
                     className="p-1.5 rounded-lg text-stone-400 hover:text-rose-400 hover:bg-[#211D1B] transition-colors"
                     title="Keluar / Logout"
                 >
@@ -512,19 +526,18 @@ export default function AdminDashboard({
                 <div className="flex flex-col h-full overflow-y-auto scrollbar-none">
                     {/* Top Identity Block */}
                     <div className="p-4 border-b border-[#241F1D] flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-white text-[#110F0E] flex items-center justify-center font-heading font-black text-xl shadow-md flex-shrink-0">
-                                N
-                            </div>
+                        <Link href="/admin" className="flex items-center gap-2.5">
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA — Nusantara & Rasa" 
+                                className="h-8 w-auto object-contain drop-shadow" 
+                            />
                             <div className="leading-tight">
-                                <h1 className="font-heading font-bold text-sm tracking-wide text-[#F4EFE6]">
-                                    NUSARA
-                                </h1>
-                                <p className="text-[11px] text-[#9E938B]">
+                                <span className="px-2 py-0.5 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[9px] font-bold text-[#D4B886] tracking-wider uppercase block">
                                     Executive Desk
-                                </p>
+                                </span>
                             </div>
-                        </div>
+                        </Link>
 
                         {/* Mobile close */}
                         <button
@@ -618,7 +631,14 @@ export default function AdminDashboard({
                                         <MessageSquare className="w-4 h-4 text-[#B99A65]" />
                                         <span>Konsierge / Chat</span>
                                     </div>
-                                    <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                                    <div className="flex items-center gap-1.5">
+                                        {(metrics.unreadChatCount ?? 0) > 0 && (
+                                            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white animate-pulse">
+                                                {metrics.unreadChatCount} baru
+                                            </span>
+                                        )}
+                                        <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                                    </div>
                                 </Link>
 
                                 <button onClick={() => goTab('audit')} className={navCls('audit')}>
@@ -695,7 +715,11 @@ export default function AdminDashboard({
                         </div>
 
                         <button
-                            onClick={() => router.post('/logout')}
+                            onClick={() => {
+                        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin keluar dari sesi Admin?')) {
+                            router.post('/logout');
+                        }
+                    }}
                             title="Keluar"
                             className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-950/60 transition-colors flex-shrink-0"
                         >
@@ -1423,11 +1447,23 @@ export default function AdminDashboard({
                         TAB 4: STATUS MEJA & SESI QR
                     ==================================================== */}
                     {activeTab === 'tables' && (
-                        <div className="space-y-4 animate-fade-in">
+                        <div className="space-y-6 animate-fade-in">
+                            {/* Interactive Circular Floor Plan Meja 01 s/d Meja 10 (Full Control) */}
+                            <CircularFloorPlan
+                                tables={initialTables}
+                                reservations={initialReservations}
+                                selectedDate={selectedCalDate}
+                                role="admin"
+                                onValidateTable={(id) => handleUpdateTableStatus(id, 'Occupied')}
+                                onStartCleaning={(id) => handleUpdateTableStatus(id, 'Cleaning')}
+                                onFinishCleaning={(id) => handleUpdateTableStatus(id, 'Available')}
+                                onUpdateStatus={handleUpdateTableStatus}
+                            />
+
                             <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
                                 <div>
                                     <h3 className="font-heading text-base font-bold text-white">
-                                        Denah {metrics.totalTables} Meja Makan Nusara
+                                        Daftar Detail {metrics.totalTables} Meja Makan Nusara
                                     </h3>
                                     <p className="text-xs text-[#9E938B]">
                                         Kelola ketersediaan meja restoran Senopati Flagship. Pastikan meja berstatus Available setelah dibersihkan oleh waiter.

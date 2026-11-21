@@ -110,6 +110,8 @@ export interface Order {
     customer_phone?: string;
     table_number?: string;
     session_code?: string;
+    table?: { id?: number; table_number?: string; location?: string } | null;
+    customer?: { id?: number; name?: string; phone_normalized?: string; email?: string } | null;
     items?: OrderItem[];
     payment?: {
         id?: number;
@@ -124,7 +126,7 @@ export interface Order {
 export interface ChatMessage {
     id: number;
     user_id: number;
-    sender_type: 'customer' | 'admin';
+    sender_type: 'customer' | 'admin' | 'waiter' | 'cashier' | string;
     message: string;
     is_read: boolean;
     created_at: string;
@@ -213,4 +215,5 @@ export interface AdminMetrics {
     occupiedTables: number;
     totalTables: number;
     pendingReservations: number;
+    unreadChatCount?: number;
 }

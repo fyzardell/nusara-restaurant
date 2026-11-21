@@ -127,20 +127,36 @@ class CashierController extends Controller
                 return $table;
             });
 
-        // 4. Reservations for today and upcoming
+        // 4. Reservations for today and upcoming with table info
         $reservations = DB::table('reservations')
             ->leftJoin('customers', 'reservations.customer_id', '=', 'customers.id')
             ->leftJoin('dining_experiences', 'reservations.experience_id', '=', 'dining_experiences.id')
+            ->leftJoin('reservation_tables', 'reservations.id', '=', 'reservation_tables.reservation_id')
+            ->leftJoin('restaurant_tables', 'reservation_tables.table_id', '=', 'restaurant_tables.id')
             ->select(
                 'reservations.*',
                 'customers.name as customer_name',
                 'customers.phone_normalized as customer_phone',
-                'dining_experiences.name as experience_name'
+                'dining_experiences.name as experience_name',
+                'restaurant_tables.table_number as table_number',
+                'restaurant_tables.id as table_id'
             )
             ->whereDate('reservations.reservation_datetime', '>=', $today)
             ->orderBy('reservations.reservation_datetime', 'asc')
-            ->limit(30)
+            ->limit(50)
             ->get();
+
+        // 5. Chat messages with Admin & unread count
+        $chatMessages = DB::table('chat_messages')
+            ->where('user_id', $user->id)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $unreadChatCount = DB::table('chat_messages')
+            ->where('user_id', $user->id)
+            ->where('sender_type', 'admin')
+            ->where('is_read', false)
+            ->count();
 
         $settings = DB::table('restaurant_settings')->first();
 
@@ -161,6 +177,8 @@ class CashierController extends Controller
             'orders' => $orders,
             'tables' => $tables,
             'reservations' => $reservations,
+            'chatMessages' => $chatMessages,
+            'unreadChatCount' => $unreadChatCount,
             'settings' => $settings,
             'filters' => [
                 'status' => $request->query('status', 'all'),
