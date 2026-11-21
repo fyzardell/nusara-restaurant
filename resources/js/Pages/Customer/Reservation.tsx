@@ -173,6 +173,13 @@ export default function Reservation({
         return 'Rp ' + Number(val).toLocaleString('id-ID');
     };
 
+    const getMenuImageUrl = (path?: string) => {
+        if (!path) return '/images/menus/sate-lilit.jpg';
+        if (path.startsWith('http://') || path.startsWith('https://')) return path;
+        if (path.startsWith('/')) return path;
+        return `/storage/${path}`;
+    };
+
     // Selected Experience Object
     const selectedExpObj = useMemo(() => {
         return experiences.find(e => e.id === Number(data.experience_id)) || null;
@@ -1215,8 +1222,11 @@ export default function Reservation({
                                     >
                                         {m.image_path ? (
                                             <img
-                                                src={`/storage/${m.image_path}`}
+                                                src={getMenuImageUrl(m.image_path)}
                                                 alt={m.name}
+                                                onError={(e) => {
+                                                    e.currentTarget.src = '/images/menus/sate-lilit.jpg';
+                                                }}
                                                 className="w-20 h-20 rounded-xl object-cover border border-[#E8DFD3] shrink-0"
                                             />
                                         ) : (

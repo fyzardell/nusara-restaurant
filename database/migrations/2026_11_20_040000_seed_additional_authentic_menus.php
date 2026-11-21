@@ -59,7 +59,7 @@ return new class extends Migration
                 'stock_quantity' => 22,
                 'is_available' => true,
                 'is_featured' => true,
-                'image_path' => 'https://images.unsplash.com/photo-1529563021893-cc83c914d73e?auto=format&fit=crop&w=800&q=80',
+                'image_path' => '/images/menus/sate-lilit.jpg',
                 'is_best_seller' => false,
             ],
             [
@@ -107,7 +107,7 @@ return new class extends Migration
                 'stock_quantity' => 24,
                 'is_available' => true,
                 'is_featured' => false,
-                'image_path' => 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=800&q=80',
+                'image_path' => '/images/menus/klappertaart.jpg',
                 'is_best_seller' => false,
             ],
             [
@@ -119,7 +119,7 @@ return new class extends Migration
                 'stock_quantity' => 28,
                 'is_available' => true,
                 'is_featured' => true,
-                'image_path' => 'https://images.unsplash.com/photo-1621236378699-8597fee6a1ce?auto=format&fit=crop&w=800&q=80',
+                'image_path' => '/images/menus/ketan-hitam.jpg',
                 'is_best_seller' => false,
             ],
             [

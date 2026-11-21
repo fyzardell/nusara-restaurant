@@ -240,6 +240,13 @@ export default function AdminDashboard({
         }).format(val);
     };
 
+    const getMenuImageUrl = (path?: string) => {
+        if (!path) return '/images/menus/sate-lilit.jpg';
+        if (path.startsWith('http://') || path.startsWith('https://')) return path;
+        if (path.startsWith('/')) return path;
+        return `/storage/${path}`;
+    };
+
     // Filtered orders
     const filteredOrders = useMemo(() => {
         return initialOrders.filter(order => {
@@ -1389,8 +1396,11 @@ export default function AdminDashboard({
                                             <div className="flex gap-3">
                                                 {menu.image_path ? (
                                                     <img
-                                                        src={menu.image_path}
+                                                        src={getMenuImageUrl(menu.image_path)}
                                                         alt={menu.name}
+                                                        onError={(e) => {
+                                                            e.currentTarget.src = '/images/menus/sate-lilit.jpg';
+                                                        }}
                                                         className="w-16 h-16 rounded-xl object-cover border border-[#241F1D] flex-shrink-0"
                                                     />
                                                 ) : (

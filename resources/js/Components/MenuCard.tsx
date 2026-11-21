@@ -12,6 +12,13 @@ interface Props {
 export default function MenuCard({ menu, isFavorite, onToggleFavorite, onAddToCart }: Props) {
     const isOutOfStock = !menu.is_available || menu.stock_quantity <= 0;
 
+    const resolveMenuImage = (path?: string) => {
+        if (!path) return '/images/menus/sate-lilit.jpg';
+        if (path.startsWith('http://') || path.startsWith('https://')) return path;
+        if (path.startsWith('/')) return path;
+        return `/storage/${path}`;
+    };
+
     const formatRupiah = (val: number) => {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
@@ -31,8 +38,11 @@ export default function MenuCard({ menu, isFavorite, onToggleFavorite, onAddToCa
             {/* Image & Badges */}
             <div className="relative h-56 w-full overflow-hidden bg-stone-900">
                 <img
-                    src={menu.image_path}
+                    src={resolveMenuImage(menu.image_path)}
                     alt={menu.name}
+                    onError={(e) => {
+                        e.currentTarget.src = '/images/menus/sate-lilit.jpg';
+                    }}
                     className={`h-full w-full object-cover transition-transform duration-700 ${
                         isOutOfStock ? '' : 'group-hover:scale-110'
                     }`}
