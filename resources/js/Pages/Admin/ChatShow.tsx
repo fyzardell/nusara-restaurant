@@ -1,19 +1,18 @@
-
 import { useEffect, useRef } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, Sparkles, Send } from 'lucide-react';
+import { ArrowLeft, Sparkles, Send, Utensils, Receipt, UserCheck, Shield } from 'lucide-react';
 import { AdminHeader } from './Dashboard';
 import { User } from '../../types';
 
 interface Message {
     id: number;
-    sender: 'customer' | 'admin';
+    sender: 'customer' | 'admin' | 'waiter' | 'cashier' | string;
     message: string;
     time: string;
 }
 
 interface Props {
-    customer: { id: number; name: string };
+    customer: { id: number; name: string; email?: string; role?: string };
     messages: Message[];
     adminUser: User;
 }
@@ -73,6 +72,46 @@ export default function ChatShow({ customer, messages, adminUser }: Props) {
         }
     };
 
+    const getRoleBadge = (roleName?: string) => {
+        switch (roleName) {
+            case 'waiter':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-950/70 border border-amber-500/40 text-[10px] font-bold text-amber-300">
+                        <Utensils className="w-2.5 h-2.5" />
+                        Pramusaji (Waiter)
+                    </span>
+                );
+            case 'cashier':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-950/70 border border-sky-500/40 text-[10px] font-bold text-sky-300">
+                        <Receipt className="w-2.5 h-2.5" />
+                        Staf Kasir (Cashier)
+                    </span>
+                );
+            case 'admin':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-950/70 border border-rose-500/40 text-[10px] font-bold text-rose-300">
+                        <Shield className="w-2.5 h-2.5" />
+                        Admin
+                    </span>
+                );
+            default:
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[10px] font-bold text-[#D4B886]">
+                        <UserCheck className="w-2.5 h-2.5" />
+                        Pelanggan / Order
+                    </span>
+                );
+        }
+    };
+
+    const quickReplies = [
+        'Baik, segera kami koordinasikan dengan tim operasional.',
+        'Meja dan hidangan siap diproses.',
+        'Terima kasih laporannya, sudah kami konfirmasi.',
+        'Ada pesanan khusus atau alergi yang perlu dicatat?'
+    ];
+
     return (
         <div className="min-h-screen bg-[#181413] text-[#F4EFE6] font-dashboard selection:bg-[#B99A65] selection:text-[#32151F]">
             <Head title={`Chat ${customer.name} — NUSARA Admin`} />
@@ -84,7 +123,7 @@ export default function ChatShow({ customer, messages, adminUser }: Props) {
                     className="inline-flex items-center gap-1.5 text-xs text-[#D4B886] hover:text-[#F4EFE6] transition-colors"
                 >
                     <ArrowLeft className="w-3.5 h-3.5" />
-                    <span>Semua Percakapan</span>
+                    <span>Kembali ke Semua Percakapan</span>
                 </Link>
 
                 {/* Customer card */}
@@ -93,17 +132,17 @@ export default function ChatShow({ customer, messages, adminUser }: Props) {
                         {customer.name?.charAt(0).toUpperCase()}
                     </div>
 
-                    <div>
-                        <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#D4B886]">
-                            Customer
-                        </span>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                            {getRoleBadge(customer.role)}
+                        </div>
 
-                        <h1 className="font-heading text-2xl sm:text-3xl font-bold leading-tight">
+                        <h1 className="font-heading text-2xl sm:text-3xl font-bold leading-tight mt-1 text-white truncate">
                             {customer.name}
                         </h1>
 
-                        <p className="text-xs text-[#F4EFE6]/65">
-                            {messages.length} pesan dalam percakapan ini
+                        <p className="text-xs text-[#F4EFE6]/65 mt-0.5">
+                            {messages.length} pesan dalam percakapan · {customer.email || 'Akun Restoran'}
                         </p>
                     </div>
                 </div>
@@ -111,55 +150,53 @@ export default function ChatShow({ customer, messages, adminUser }: Props) {
                 {/* Chat area */}
                 <div
                     ref={boxRef}
-                    className="flex max-h-[60vh] min-h-[300px] flex-col gap-4 overflow-y-auto rounded-3xl bg-[#211D1B] border border-[#B99A65]/30 p-5 sm:p-6 shadow-2xl"
+                    className="flex max-h-[60vh] min-h-[320px] flex-col gap-4 overflow-y-auto rounded-3xl bg-[#211D1B] border border-[#B99A65]/30 p-5 sm:p-6 shadow-2xl"
                 >
                     {messages.length === 0 && (
                         <div className="p-10 text-center text-xs text-stone-500">
-                            Belum ada pesan.
+                            Belum ada percakapan. Mulai kirim pesan untuk berkoordinasi.
                         </div>
                     )}
 
                     {messages.map((m) => {
-                        const isCustomer = m.sender === 'customer';
+                        const isMe = m.sender === 'admin';
 
                         return (
                             <div
                                 key={m.id}
                                 className={`flex items-end gap-2.5 ${
-                                    isCustomer ? 'flex-row-reverse' : 'flex-row'
+                                    isMe ? 'flex-row-reverse' : 'flex-row'
                                 }`}
                             >
                                 <div
                                     className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
-                                        isCustomer
-                                            ? 'bg-gradient-to-br from-[#D4B886] to-[#987B49] text-[#211D1B]'
-                                            : 'bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886]'
+                                        isMe
+                                            ? 'bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886]'
+                                            : 'bg-gradient-to-br from-[#D4B886] to-[#987B49] text-[#211D1B]'
                                     }`}
                                 >
-                                    {isCustomer ? (
-                                        customer.name?.charAt(0).toUpperCase()
-                                    ) : (
+                                    {isMe ? (
                                         <Sparkles className="w-4 h-4" />
+                                    ) : (
+                                        customer.name?.charAt(0).toUpperCase()
                                     )}
                                 </div>
 
                                 <div
-                                    className={`max-w-[75%] ${
-                                        isCustomer ? 'items-end' : 'items-start'
+                                    className={`max-w-[78%] ${
+                                        isMe ? 'items-end' : 'items-start'
                                     } flex flex-col`}
                                 >
                                     <span className="mb-1 text-[10px] text-stone-400">
-                                        {isCustomer
-                                            ? customer.name
-                                            : 'Admin NUSARA'}{' '}
+                                        {isMe ? 'Admin Eksekutif' : customer.name}{' '}
                                         · {m.time}
                                     </span>
 
                                     <div
                                         className={`px-4 py-2.5 text-xs leading-relaxed break-words whitespace-pre-wrap shadow ${
-                                            isCustomer
-                                                ? 'rounded-2xl rounded-br-md bg-gradient-to-br from-[#D4B886] to-[#B99A65] text-[#211D1B] font-medium'
-                                                : 'rounded-2xl rounded-bl-md bg-[#32151F] border border-[#B99A65]/25 text-[#F4EFE6]'
+                                            isMe
+                                                ? 'rounded-2xl rounded-br-md bg-[#32151F] border border-[#B99A65]/30 text-[#F4EFE6]'
+                                                : 'rounded-2xl rounded-bl-md bg-gradient-to-br from-[#D4B886] to-[#B99A65] text-[#211D1B] font-semibold'
                                         }`}
                                     >
                                         {m.message}
@@ -168,6 +205,20 @@ export default function ChatShow({ customer, messages, adminUser }: Props) {
                             </div>
                         );
                     })}
+                </div>
+
+                {/* Quick Reply Suggestions */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+                    {quickReplies.map((qr, i) => (
+                        <button
+                            key={i}
+                            type="button"
+                            onClick={() => setData('message', qr)}
+                            className="px-3 py-1.5 rounded-full bg-[#211D1B] border border-[#B99A65]/20 hover:border-[#D4B886] text-stone-300 hover:text-white whitespace-nowrap transition-colors"
+                        >
+                            {qr}
+                        </button>
+                    ))}
                 </div>
 
                 {/* Form kirim pesan admin */}
@@ -180,7 +231,7 @@ export default function ChatShow({ customer, messages, adminUser }: Props) {
                             value={data.message}
                             onChange={(e) => setData('message', e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="Ketik pesan kepada customer..."
+                            placeholder="Ketik balasan koordinasi admin..."
                             rows={2}
                             disabled={processing}
                             className="flex-1 resize-none bg-[#181413] border border-[#B99A65]/20 rounded-xl px-4 py-3 text-sm text-[#F4EFE6] placeholder:text-stone-500 focus:outline-none focus:border-[#B99A65] disabled:opacity-50"
@@ -189,7 +240,7 @@ export default function ChatShow({ customer, messages, adminUser }: Props) {
                         <button
                             type="submit"
                             disabled={processing || !data.message.trim()}
-                            className="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br from-[#D4B886] to-[#B99A65] text-[#211D1B] flex items-center justify-center hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br from-[#D4B886] to-[#B99A65] text-[#211D1B] flex items-center justify-center hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
                         >
                             <Send className="w-4 h-4" />
                         </button>
@@ -197,17 +248,17 @@ export default function ChatShow({ customer, messages, adminUser }: Props) {
 
                     <div className="flex justify-between items-center mt-2 px-1">
                         <span className="text-[10px] text-stone-500">
-                            Enter untuk mengirim · Shift + Enter untuk baris baru
+                            Tekan Enter untuk mengirim · Shift + Enter untuk baris baru
                         </span>
 
                         {processing && (
                             <span className="text-[10px] text-[#D4B886]">
-                                Mengirim pesan...
+                                Mengirim balasan...
                             </span>
                         )}
                     </div>
                 </form>
             </main>
         </div>
-);
+    );
 }

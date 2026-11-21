@@ -340,29 +340,54 @@ class OrderController extends Controller
             'message' => 'required|string|max:1000',
         ]);
 
-        // Customer message
+        $roleName = DB::table('roles')->where('id', $user->role_id)->value('name') ?? 'customer';
+
+        // Message record
         DB::table('chat_messages')->insert([
             'user_id' => $user->id,
-            'sender_type' => 'customer',
+            'sender_type' => $roleName,
             'message' => $request->message,
-            'is_read' => true,
+            'is_read' => false,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        // Automated smart concierge response
-        $reply = "Terima kasih telah menghubungi Konsierge NUSARA! Pesan Anda: \"{$request->message}\" telah kami sampaikan ke tim kasir & kapten restoran. Kami siap melayani pesanan Anda dengan sepenuh hati.";
+        // Automated response only for customer orders if first contact
+        if ($roleName === 'customer') {
+            $hasReplied = DB::table('chat_messages')
+                ->where('user_id', $user->id)
+                ->where('sender_type', 'admin')
+                ->exists();
 
-        DB::table('chat_messages')->insert([
-            'user_id' => $user->id,
-            'sender_type' => 'admin',
-            'message' => $reply,
-            'is_read' => true,
-            'created_at' => now()->addSeconds(1),
-            'updated_at' => now()->addSeconds(1),
-        ]);
+            if (!$hasReplied) {
+                $reply = "Terima kasih telah menghubungi Konsierge NUSARA! Pesan Anda: \"{$request->message}\" telah kami terima dan diteruskan ke Admin & Tim Restoran. Kami siap melayani Anda.";
+                DB::table('chat_messages')->insert([
+                    'user_id' => $user->id,
+                    'sender_type' => 'admin',
+                    'message' => $reply,
+                    'is_read' => false,
+                    'created_at' => now()->addSeconds(1),
+                    'updated_at' => now()->addSeconds(1),
+                ]);
+            }
+        }
 
-        return redirect()->back()->with('success', 'Pesan terkirim ke admin concierge!');
+        return redirect()->back()->with('success', 'Pesan berhasil terkirim ke Admin.');
+    }
+
+    public function markAsRead()
+    {
+        $user = Auth::user();
+        if ($user) {
+            DB::table('chat_messages')
+                ->where('user_id', $user->id)
+                ->where('sender_type', 'admin')
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+        }
+
+        return response()->json(['success' => true]);
+    }
     }
 
     public function toggleFavorite(Request $request)

@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
+import CircularFloorPlan from '../../Components/CircularFloorPlan';
+import OperationalChatModal from '../../Components/OperationalChatModal';
 import { 
     UtensilsCrossed, 
     CheckCircle2, 
@@ -12,7 +14,7 @@ import {
     Check, 
     AlertCircle, 
     ChevronRight, 
-    ChevronLeft,
+    ChevronLeft, 
     Flame, 
     QrCode, 
     Search,
@@ -27,7 +29,8 @@ import {
     Store,
     ShoppingBag,
     MapPin,
-    ExternalLink
+    ExternalLink,
+    MessageSquare
 } from 'lucide-react';
 import { RestaurantTable, WaiterMetrics, Order } from '../../types';
 
@@ -52,6 +55,9 @@ interface Props {
     preparingOrders: WaiterOrder[];
     recentServedOrders: WaiterOrder[];
     tables: (RestaurantTable & { active_orders_count?: number })[];
+    reservations?: any[];
+    chatMessages?: any[];
+    unreadChatCount?: number;
     settings: any;
 }
 
@@ -64,12 +70,16 @@ export default function WaiterDashboard({
     preparingOrders = [],
     recentServedOrders = [],
     tables = [],
+    reservations = [],
+    chatMessages = [],
+    unreadChatCount = 0,
     settings
 }: Props) {
     // App Shell 4 Layout State
     const [activeTab, setActiveTab] = useState<WaiterTab>('serve');
     const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+    const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
 
     // Operational Action States
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -223,7 +233,7 @@ export default function WaiterDashboard({
 
     // Priority Action Lists for Right Inspector Panel
     const pendingValidationTablesList = useMemo(() => {
-        return tables.filter(t => t.status.toLowerCase() === 'pending_validation');
+        return tables.filter(t => t.status.toLowerCase() === 'pending_validation' || t.status.toLowerCase() === 'pending validation');
     }, [tables]);
 
     const cleaningTablesList = useMemo(() => {
@@ -305,7 +315,7 @@ export default function WaiterDashboard({
                                 <button onClick={() => goTab('tables')} className={navCls('tables')}>
                                     <div className="flex items-center gap-2.5">
                                         <TableIcon className="w-4 h-4 text-[#B99A65]" />
-                                        <span>Denah Meja</span>
+                                        <span>Denah Meja (1-10)</span>
                                     </div>
                                     <span className="text-[10px] text-emerald-400 font-mono">
                                         {metrics.occupiedTables}/{tables.length}
@@ -334,7 +344,32 @@ export default function WaiterDashboard({
                             </div>
                         </div>
 
-                        {/* Group 2: Status Okupansi Meja */}
+                        {/* Group 2: Koordinasi & Notifikasi Chat Admin */}
+                        <div>
+                            <span className="px-3 text-[10px] font-semibold tracking-wider text-[#9E938B] uppercase">
+                                Koordinasi Staf
+                            </span>
+                            <div className="mt-1.5 space-y-1">
+                                <button
+                                    onClick={() => setIsChatOpen(true)}
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18] transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <MessageSquare className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Chat Admin HQ</span>
+                                    </div>
+                                    {unreadChatCount > 0 ? (
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-stone-950 animate-pulse">
+                                            {unreadChatCount} baru
+                                        </span>
+                                    ) : (
+                                        <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Group 3: Status Okupansi Meja */}
                         <div>
                             <span className="px-3 text-[10px] font-semibold tracking-wider text-[#9E938B] uppercase">
                                 Status Meja
@@ -375,7 +410,7 @@ export default function WaiterDashboard({
                             </div>
                         </div>
 
-                        {/* Group 3: Navigasi Cepat */}
+                        {/* Group 4: Navigasi Cepat */}
                         <div>
                             <span className="px-3 text-[10px] font-semibold tracking-wider text-[#9E938B] uppercase">
                                 Navigasi Cepat
@@ -478,7 +513,7 @@ export default function WaiterDashboard({
                             <span className="text-[#4D443E]">/</span>
                             <span className="font-semibold text-[#F4EFE6]">
                                 {activeTab === 'serve' && 'Pesanan Siap Saji'}
-                                {activeTab === 'tables' && 'Denah Meja Restoran'}
+                                {activeTab === 'tables' && 'Denah Meja Restoran (Meja 01 - 10)'}
                                 {activeTab === 'kitchen' && 'Antrean Proses Dapur'}
                                 {activeTab === 'history' && 'Riwayat Sajian Tersaji'}
                             </span>
@@ -487,6 +522,22 @@ export default function WaiterDashboard({
 
                     {/* Top Right Controls */}
                     <div className="flex items-center gap-2">
+                        {/* Button Notifikasi & Chat Admin */}
+                        <button
+                            type="button"
+                            onClick={() => setIsChatOpen(true)}
+                            className="relative px-3 py-1.5 rounded-lg bg-[#241F1D] border border-[#342D2A] text-xs font-semibold text-[#F4EFE6] hover:bg-[#2D2622] flex items-center gap-1.5 transition-colors"
+                            title="Buka Chat Koordinasi dengan Admin"
+                        >
+                            <Bell className={`w-3.5 h-3.5 ${unreadChatCount > 0 ? 'text-amber-400' : 'text-[#B99A65]'}`} />
+                            <span className="hidden sm:inline">Chat Admin</span>
+                            {unreadChatCount > 0 && (
+                                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-stone-950 animate-pulse">
+                                    {unreadChatCount}
+                                </span>
+                            )}
+                        </button>
+
                         <button
                             onClick={handleRefresh}
                             disabled={isRefreshing}
@@ -528,7 +579,7 @@ export default function WaiterDashboard({
                                     : 'text-[#9E938B] hover:text-white bg-[#1E1A18] border border-[#241F1D]'
                             }`}
                         >
-                            Denah Meja ({tables.length})
+                            Denah Meja (1-10)
                         </button>
                         <button
                             onClick={() => setActiveTab('kitchen')}
@@ -700,129 +751,140 @@ export default function WaiterDashboard({
                         </div>
                     )}
 
-                    {/* TAB 2: DENAH MEJA RESTORAN */}
+                    {/* TAB 2: DENAH MEJA RESTORAN (CIRCULAR BLUEPRINT FLOOR PLAN 1-10) */}
                     {activeTab === 'tables' && (
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
-                                <div>
-                                    <h3 className="font-heading font-bold text-base text-white flex items-center gap-2">
-                                        <TableIcon className="w-4 h-4 text-[#B99A65]" />
-                                        <span>Denah & Status Meja ({filteredTables.length})</span>
-                                    </h3>
-                                    <p className="text-xs text-[#9E938B] mt-0.5">
-                                        Kelola ketersediaan meja, validasi tamu duduk, dan selesaikan pembersihan meja santap.
-                                    </p>
+                        <div className="space-y-6">
+                            {/* Visual Circular Floor Plan Component */}
+                            <CircularFloorPlan
+                                tables={filteredTables}
+                                reservations={reservations}
+                                selectedDate={selectedCalDate}
+                                role="waiter"
+                                onValidateTable={handleValidateTable}
+                                onStartCleaning={handleStartCleaning}
+                                onFinishCleaning={handleFinishCleaning}
+                            />
+
+                            {/* Tables Detail Cards Grid */}
+                            <div className="space-y-3 pt-2">
+                                <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
+                                    <h4 className="font-heading font-bold text-sm text-[#F4EFE6]">
+                                        Daftar Rincian Meja ({filteredTables.length} Meja)
+                                    </h4>
+                                    <span className="text-[11px] text-[#9E938B]">
+                                        Tersedia kontrol cepat status sesi meja
+                                    </span>
                                 </div>
-                            </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {filteredTables.map((tbl) => {
-                                    const isPending = tbl.status.toLowerCase() === 'pending_validation';
-                                    const isOccupied = tbl.status.toLowerCase() === 'occupied';
-                                    const isCleaning = tbl.status.toLowerCase() === 'cleaning';
-                                    const isAvailable = tbl.status.toLowerCase() === 'available';
-                                    const isReserved = tbl.status.toLowerCase() === 'reserved';
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {filteredTables.map((tbl) => {
+                                        const isPending = tbl.status.toLowerCase() === 'pending_validation' || tbl.status.toLowerCase() === 'pending validation';
+                                        const isOccupied = tbl.status.toLowerCase() === 'occupied';
+                                        const isCleaning = tbl.status.toLowerCase() === 'cleaning';
+                                        const isAvailable = tbl.status.toLowerCase() === 'available';
+                                        const isReserved = tbl.status.toLowerCase() === 'reserved';
 
-                                    return (
-                                        <div
-                                            key={tbl.id}
-                                            className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
-                                                isPending
-                                                    ? 'bg-amber-950/20 border-amber-500/80 shadow-lg ring-1 ring-amber-500/40'
-                                                    : isOccupied
-                                                    ? 'bg-[#161312] border-rose-900/50'
-                                                    : isCleaning
-                                                    ? 'bg-blue-950/20 border-blue-800/60'
-                                                    : isAvailable
-                                                    ? 'bg-[#161312] border-emerald-900/40'
-                                                    : 'bg-[#161312] border-[#241F1D]'
-                                            }`}
-                                        >
-                                            <div>
-                                                {/* Header Table Info */}
-                                                <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
-                                                    <div>
-                                                        <h4 className="font-heading font-bold text-base text-[#F4EFE6]">
-                                                            {tbl.table_number}
-                                                        </h4>
-                                                        <span className="text-[10px] text-[#9E938B]">
-                                                            Kapasitas {tbl.capacity} Kursi · {tbl.location || 'Lantai 1'}
+                                        return (
+                                            <div
+                                                key={tbl.id}
+                                                className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                                                    isPending
+                                                        ? 'bg-amber-950/20 border-amber-500/80 shadow-lg ring-1 ring-amber-500/40'
+                                                        : isOccupied
+                                                        ? 'bg-[#161312] border-rose-900/50'
+                                                        : isCleaning
+                                                        ? 'bg-blue-950/20 border-blue-800/60'
+                                                        : isAvailable
+                                                        ? 'bg-[#161312] border-emerald-900/40'
+                                                        : 'bg-[#161312] border-[#241F1D]'
+                                                }`}
+                                            >
+                                                <div>
+                                                    {/* Header Table Info */}
+                                                    <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
+                                                        <div>
+                                                            <h4 className="font-heading font-bold text-base text-[#F4EFE6]">
+                                                                {tbl.table_number}
+                                                            </h4>
+                                                            <span className="text-[10px] text-[#9E938B]">
+                                                                Kapasitas {tbl.capacity} Kursi · {tbl.location || 'Lantai 1'}
+                                                            </span>
+                                                        </div>
+
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                            isAvailable ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' :
+                                                            isOccupied ? 'bg-rose-950 text-rose-300 border border-rose-800' :
+                                                            isCleaning ? 'bg-blue-950 text-blue-300 border border-blue-800 animate-pulse' :
+                                                            isPending ? 'bg-amber-950 text-amber-300 border border-amber-600 animate-pulse font-extrabold' :
+                                                            isReserved ? 'bg-amber-900 text-amber-200 border border-amber-700' :
+                                                            'bg-stone-800 text-stone-300'
+                                                        }`}>
+                                                            {isPending ? 'Perlu Validasi' : tbl.status}
                                                         </span>
                                                     </div>
 
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                                        isAvailable ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' :
-                                                        isOccupied ? 'bg-rose-950 text-rose-300 border border-rose-800' :
-                                                        isCleaning ? 'bg-blue-950 text-blue-300 border border-blue-800 animate-pulse' :
-                                                        isPending ? 'bg-amber-950 text-amber-300 border border-amber-600 animate-pulse font-extrabold' :
-                                                        isReserved ? 'bg-amber-900 text-amber-200 border border-amber-700' :
-                                                        'bg-stone-800 text-stone-300'
-                                                    }`}>
-                                                        {isPending ? 'Perlu Validasi' : tbl.status}
-                                                    </span>
+                                                    {/* Active Session Info */}
+                                                    <div className="py-2.5 space-y-1 text-xs text-[#9E938B]">
+                                                        {tbl.active_session ? (
+                                                            <div className="p-2 rounded-xl bg-[#141110] border border-[#241F1D] text-[11px]">
+                                                                <div className="flex items-center justify-between text-stone-300 font-mono">
+                                                                    <span>Sesi: {tbl.active_session.session_code}</span>
+                                                                    <span className="text-emerald-400 font-bold">{tbl.active_session.status}</span>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-[11px] italic text-[#665C54]">Tidak ada sesi aktif</p>
+                                                        )}
+                                                    </div>
                                                 </div>
 
-                                                {/* Active Session Info */}
-                                                <div className="py-2.5 space-y-1 text-xs text-[#9E938B]">
-                                                    {tbl.active_session ? (
-                                                        <div className="p-2 rounded-xl bg-[#141110] border border-[#241F1D] text-[11px]">
-                                                            <div className="flex items-center justify-between text-stone-300 font-mono">
-                                                                <span>Sesi: {tbl.active_session.session_code}</span>
-                                                                <span className="text-emerald-400 font-bold">{tbl.active_session.status}</span>
-                                                            </div>
+                                                {/* Action Buttons */}
+                                                <div className="pt-3 border-t border-[#241F1D] space-y-2">
+                                                    {isPending && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleValidateTable(tbl.id)}
+                                                            className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md"
+                                                        >
+                                                            <Check className="w-4 h-4" />
+                                                            <span>Validasi Tamu Duduk</span>
+                                                        </button>
+                                                    )}
+
+                                                    {isOccupied && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleStartCleaning(tbl.id)}
+                                                            className="w-full py-2 px-3 rounded-xl bg-[#211D1B] hover:bg-blue-950/60 text-blue-300 border border-blue-900/60 font-semibold text-xs transition-all flex items-center justify-center gap-1.5"
+                                                        >
+                                                            <Sparkles className="w-3.5 h-3.5" />
+                                                            <span>Mulai Bersihkan Meja</span>
+                                                        </button>
+                                                    )}
+
+                                                    {isCleaning && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleFinishCleaning(tbl.id)}
+                                                            disabled={cleaningTableId === tbl.id}
+                                                            className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
+                                                        >
+                                                            <CheckCheck className="w-4 h-4" />
+                                                            <span>{cleaningTableId === tbl.id ? 'Memproses...' : 'Selesai Bersih (Available)'}</span>
+                                                        </button>
+                                                    )}
+
+                                                    {isAvailable && (
+                                                        <div className="text-center py-1 text-[11px] text-emerald-400 font-medium flex items-center justify-center gap-1">
+                                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                                            <span>Meja Bersih & Siap Digunakan</span>
                                                         </div>
-                                                    ) : (
-                                                        <p className="text-[11px] italic text-[#665C54]">Tidak ada sesi aktif</p>
                                                     )}
                                                 </div>
                                             </div>
-
-                                            {/* Action Buttons */}
-                                            <div className="pt-3 border-t border-[#241F1D] space-y-2">
-                                                {isPending && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleValidateTable(tbl.id)}
-                                                        className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md"
-                                                    >
-                                                        <Check className="w-4 h-4" />
-                                                        <span>Validasi Tamu Duduk</span>
-                                                    </button>
-                                                )}
-
-                                                {isOccupied && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleStartCleaning(tbl.id)}
-                                                        className="w-full py-2 px-3 rounded-xl bg-[#211D1B] hover:bg-blue-950/60 text-blue-300 border border-blue-900/60 font-semibold text-xs transition-all flex items-center justify-center gap-1.5"
-                                                    >
-                                                        <Sparkles className="w-3.5 h-3.5" />
-                                                        <span>Mulai Bersihkan Meja</span>
-                                                    </button>
-                                                )}
-
-                                                {isCleaning && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleFinishCleaning(tbl.id)}
-                                                        disabled={cleaningTableId === tbl.id}
-                                                        className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
-                                                    >
-                                                        <CheckCheck className="w-4 h-4" />
-                                                        <span>{cleaningTableId === tbl.id ? 'Memproses...' : 'Selesai Bersih (Available)'}</span>
-                                                    </button>
-                                                )}
-
-                                                {isAvailable && (
-                                                    <div className="text-center py-1 text-[11px] text-emerald-400 font-medium flex items-center justify-center gap-1">
-                                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                                        <span>Meja Bersih & Siap Digunakan</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -1010,7 +1072,7 @@ export default function WaiterDashboard({
                             <div className="grid grid-cols-7 gap-1 text-center">
                                 {calendarDays.map((calDay, idx) => {
                                     const isSelected = selectedCalDate.toDateString() === calDay.date.toDateString();
-                                    const isToday = today.toDateString() === calDay.date.toDateString();
+                                    const isTodayDate = today.toDateString() === calDay.date.toDateString();
 
                                     return (
                                         <button
@@ -1025,7 +1087,7 @@ export default function WaiterDashboard({
                                             }`}
                                         >
                                             <span className="leading-none">{calDay.day}</span>
-                                            {isToday && (
+                                            {isTodayDate && (
                                                 <span className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? 'bg-[#110F0E]' : 'bg-[#D4B886]'}`}></span>
                                             )}
                                         </button>
@@ -1131,6 +1193,17 @@ export default function WaiterDashboard({
                     </div>
                 </aside>
             )}
+
+            {/* ========================================================
+                OPERATIONAL CHAT MODAL WITH ADMIN HQ
+            ======================================================== */}
+            <OperationalChatModal
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+                role="waiter"
+                userName={waiterUser.name}
+                messages={chatMessages}
+            />
         </div>
     );
 }
