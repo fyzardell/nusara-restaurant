@@ -89,10 +89,10 @@ export default function Chats({ conversations, filters, adminUser }: Props) {
     return (
         <div className="min-h-screen bg-[#181413] text-[#F4EFE6] font-dashboard selection:bg-[#B99A65] selection:text-[#32151F]">
             <Head title="Koordinasi & Riwayat Chat — NUSARA Admin" />
-            <AdminHeader 
-                adminUser={adminUser} 
-                active="chats" 
-                metrics={{ activeOrders: 0, pendingReservations: 0, unreadChatCount: totalUnread }} 
+            <AdminHeader
+                adminUser={adminUser}
+                active="chats"
+                metrics={{ activeOrders: 0, pendingReservations: 0, unreadChatCount: totalUnread }}
             />
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -150,22 +150,20 @@ export default function Chats({ conversations, filters, adminUser }: Props) {
                         <button
                             type="button"
                             onClick={() => handleFilterRole('all')}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                                currentRole === 'all'
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${currentRole === 'all'
                                     ? 'bg-[#D4B886] text-[#211D1B] shadow-md'
                                     : 'bg-[#211D1B] text-[#9E938B] hover:text-[#F4EFE6] border border-[#342D2A]'
-                            }`}
+                                }`}
                         >
                             Semua Kontak
                         </button>
                         <button
                             type="button"
                             onClick={() => handleFilterRole('customer')}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                currentRole === 'customer'
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${currentRole === 'customer'
                                     ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65] shadow-md'
                                     : 'bg-[#211D1B] text-[#9E938B] hover:text-[#F4EFE6] border border-[#342D2A]'
-                            }`}
+                                }`}
                         >
                             <UserCheck className="w-3.5 h-3.5" />
                             Pelanggan / Order
@@ -173,11 +171,10 @@ export default function Chats({ conversations, filters, adminUser }: Props) {
                         <button
                             type="button"
                             onClick={() => handleFilterRole('waiter')}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                currentRole === 'waiter'
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${currentRole === 'waiter'
                                     ? 'bg-amber-950/80 text-amber-300 border border-amber-500 shadow-md'
                                     : 'bg-[#211D1B] text-[#9E938B] hover:text-[#F4EFE6] border border-[#342D2A]'
-                            }`}
+                                }`}
                         >
                             <Utensils className="w-3.5 h-3.5" />
                             Pramusaji (Waiter)
@@ -185,11 +182,10 @@ export default function Chats({ conversations, filters, adminUser }: Props) {
                         <button
                             type="button"
                             onClick={() => handleFilterRole('cashier')}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                currentRole === 'cashier'
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${currentRole === 'cashier'
                                     ? 'bg-sky-950/80 text-sky-300 border border-sky-500 shadow-md'
                                     : 'bg-[#211D1B] text-[#9E938B] hover:text-[#F4EFE6] border border-[#342D2A]'
-                            }`}
+                                }`}
                         >
                             <Receipt className="w-3.5 h-3.5" />
                             Staf Kasir (Cashier)
@@ -235,11 +231,10 @@ export default function Chats({ conversations, filters, adminUser }: Props) {
                                 <Link
                                     key={cv.id}
                                     href={`/admin/chats/${cv.id}`}
-                                    className={`group flex items-center gap-4 p-4 rounded-2xl border shadow-lg transition-all hover:-translate-y-0.5 ${
-                                        hasUnread
+                                    className={`group flex items-center gap-4 p-4 rounded-2xl border shadow-lg transition-all hover:-translate-y-0.5 ${hasUnread
                                             ? 'bg-[#241718] border-rose-500/50 hover:border-rose-400 hover:bg-[#2e191b]'
                                             : 'bg-[#211D1B] border-[#B99A65]/25 hover:border-[#D4B886] hover:bg-[#32151F]/40'
-                                    }`}
+                                        }`}
                                 >
                                     <div className="relative">
                                         <div className="w-12 h-12 shrink-0 rounded-full bg-gradient-to-br from-[#D4B886] to-[#987B49] text-[#211D1B] flex items-center justify-center font-heading text-xl font-bold shadow">

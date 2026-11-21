@@ -152,8 +152,9 @@ export default function WaiterDashboard({
 
     // Filtered Tables
     const filteredTables = useMemo(() => {
+        const normalize = (s?: string) => (s || '').toLowerCase().replace(/[\s_-]+/g, '');
         return tables.filter(t => {
-            const matchFilter = tableFilter === 'all' || t.status.toLowerCase() === tableFilter.toLowerCase();
+            const matchFilter = tableFilter === 'all' || normalize(t.status) === normalize(tableFilter);
             const matchSearch = t.table_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (t.location || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (t.active_session?.session_code || '').toLowerCase().includes(searchQuery.toLowerCase());
@@ -626,27 +627,44 @@ export default function WaiterDashboard({
 
                 {/* Sub-bar for Tables: Specific Status Filter Pills */}
                 {activeTab === 'tables' && (
-                    <div className="px-4 sm:px-6 py-2 border-b border-[#241F1D] bg-[#110F0E] flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-shrink-0">
-                        {[
-                            { key: 'all', label: 'Semua Meja' },
-                            { key: 'pending_validation', label: `Perlu Validasi (${metrics.pendingValidationTables})` },
-                            { key: 'available', label: 'Kosong (Available)' },
-                            { key: 'occupied', label: `Terisi (${metrics.occupiedTables})` },
-                            { key: 'cleaning', label: `Pembersihan (${metrics.cleaningTables})` },
-                            { key: 'reserved', label: 'Reservasi' },
-                        ].map(({ key, label }) => (
+                    <div className="px-4 sm:px-6 py-2.5 border-b border-[#241F1D] bg-[#110F0E] flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+                        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#9E938B] mr-1 hidden sm:inline">
+                                Filter Meja:
+                            </span>
+                            {[
+                                { key: 'all', label: `Keseluruhan (${tables.length})` },
+                                { key: 'cleaning', label: `Pembersihan (${metrics.cleaningTables})` },
+                                { key: 'occupied', label: `Terisi (${metrics.occupiedTables})` },
+                                { key: 'pending_validation', label: `Perlu Validasi (${metrics.pendingValidationTables})` },
+                                { key: 'available', label: `Kosong (${metrics.availableTables})` },
+                                { key: 'reserved', label: 'Reservasi' },
+                            ].map(({ key, label }) => (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setTableFilter(key)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                                        tableFilter === key
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65] font-bold shadow-sm'
+                                            : 'text-[#9E938B] hover:text-[#F4EFE6] bg-[#161312] border border-[#241F1D]'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {tableFilter !== 'all' && (
                             <button
-                                key={key}
-                                onClick={() => setTableFilter(key)}
-                                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${
-                                    tableFilter === key
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40 font-bold'
-                                        : 'text-[#9E938B] hover:text-[#F4EFE6] bg-[#161312] border border-[#241F1D]'
-                                }`}
+                                type="button"
+                                onClick={() => setTableFilter('all')}
+                                className="text-xs text-[#D4B886] hover:underline flex items-center gap-1 font-semibold"
                             >
-                                {label}
+                                <X className="w-3.5 h-3.5" />
+                                <span>Reset ke Keseluruhan</span>
                             </button>
-                        ))}
+                        )}
                     </div>
                 )}
 
@@ -754,12 +772,14 @@ export default function WaiterDashboard({
                     {/* TAB 2: DENAH MEJA RESTORAN (CIRCULAR BLUEPRINT FLOOR PLAN 1-10) */}
                     {activeTab === 'tables' && (
                         <div className="space-y-6">
-                            {/* Visual Circular Floor Plan Component */}
+                            {/* Visual Circular Floor Plan Component with Filter state */}
                             <CircularFloorPlan
-                                tables={filteredTables}
+                                tables={tables}
                                 reservations={reservations}
                                 selectedDate={selectedCalDate}
                                 role="waiter"
+                                statusFilter={tableFilter}
+                                onFilterChange={setTableFilter}
                                 onValidateTable={handleValidateTable}
                                 onStartCleaning={handleStartCleaning}
                                 onFinishCleaning={handleFinishCleaning}
@@ -768,16 +788,48 @@ export default function WaiterDashboard({
                             {/* Tables Detail Cards Grid */}
                             <div className="space-y-3 pt-2">
                                 <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
-                                    <h4 className="font-heading font-bold text-sm text-[#F4EFE6]">
-                                        Daftar Rincian Meja ({filteredTables.length} Meja)
-                                    </h4>
-                                    <span className="text-[11px] text-[#9E938B]">
-                                        Tersedia kontrol cepat status sesi meja
-                                    </span>
+                                    <div>
+                                        <h4 className="font-heading font-bold text-sm text-[#F4EFE6]">
+                                            {tableFilter === 'all'
+                                                ? `Daftar Rincian Keseluruhan (${tables.length} Meja)`
+                                                : `Daftar Meja Terfilter (${filteredTables.length} Meja)`}
+                                        </h4>
+                                        <p className="text-[11px] text-[#9E938B]">
+                                            {tableFilter === 'all'
+                                                ? 'Menampilkan status seluruh meja restoran (Meja 01 s/d 10)'
+                                                : `Menampilkan hanya meja yang sedang berstatus ${tableFilter.toUpperCase()}`}
+                                        </p>
+                                    </div>
+                                    {tableFilter !== 'all' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setTableFilter('all')}
+                                            className="px-2.5 py-1 rounded-lg bg-[#241F1D] text-[#D4B886] hover:bg-[#32151F] text-xs font-semibold transition-colors"
+                                        >
+                                            Tampilkan Keseluruhan
+                                        </button>
+                                    )}
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                    {filteredTables.map((tbl) => {
+                                {filteredTables.length === 0 ? (
+                                    <div className="p-8 text-center rounded-2xl bg-[#161312] border border-[#241F1D] space-y-2">
+                                        <p className="text-sm font-semibold text-stone-300">
+                                            Tidak ada meja dengan status "{tableFilter}" saat ini.
+                                        </p>
+                                        <p className="text-xs text-[#9E938B]">
+                                            Pilih filter status lain atau kembali ke denah keseluruhan.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setTableFilter('all')}
+                                            className="inline-block mt-2 px-3 py-1.5 rounded-xl bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886] text-xs font-bold hover:bg-[#B99A65] hover:text-[#110F0E] transition-all"
+                                        >
+                                            Kembali ke Keseluruhan Meja
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                        {filteredTables.map((tbl) => {
                                         const isPending = tbl.status.toLowerCase() === 'pending_validation' || tbl.status.toLowerCase() === 'pending validation';
                                         const isOccupied = tbl.status.toLowerCase() === 'occupied';
                                         const isCleaning = tbl.status.toLowerCase() === 'cleaning';
@@ -885,6 +937,7 @@ export default function WaiterDashboard({
                                         );
                                     })}
                                 </div>
+                                )}
                             </div>
                         </div>
                     )}
