@@ -464,4 +464,27 @@ class AdminController extends Controller
             'adminUser' => Auth::user(),
         ]);
     }
+    public function sendChatMessage(Request $request, User $user)
+{
+    $this->ensureAdmin();
+
+    $validated = $request->validate([
+        'message' => 'required|string|max:5000',
+    ]);
+
+    $message = $user->chatMessages()->create([
+        'sender_type' => 'admin',
+        'message' => $validated['message'],
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'message' => [
+            'id' => $message->id,
+            'sender' => $message->sender_type,
+            'message' => $message->message,
+            'time' => $message->created_at->format('d M Y H:i'),
+        ],
+    ]);
+}
 }

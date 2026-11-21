@@ -1464,7 +1464,7 @@ export default function OrderApp({
                             </div>
                         </div>
                     ) : (
-                        <div className="rounded-3xl bg-white border border-[#B99A65]/40 shadow-xl overflow-hidden flex flex-col h-[600px]">
+                        <div className="rounded-3xl bg-white border border-[#D8CDBB] shadow-xl overflow-hidden flex flex-col h-[600px]">
                         {/* Chat Header */}
                         <div className="p-4 bg-[#32151F] text-[#F4EFE6] flex items-center justify-between border-b border-[#B99A65]/30">
                             <div className="flex items-center gap-3">
@@ -1487,7 +1487,7 @@ export default function OrderApp({
                         </div>
 
                         {/* Chat Message List */}
-                        <div className="flex-grow p-4 overflow-y-auto space-y-3 bg-[#FAF7F2]">
+                        <div className="flex-grow p-4 overflow-y-auto space-y-3 bg-white">
                             {initialChats.map(chat => {
                                 const isMe = chat.sender_type === 'customer';
                                 return (
@@ -1497,17 +1497,17 @@ export default function OrderApp({
                                     >
                                         <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${
                                             isMe 
-                                                ? 'bg-[#32151F] text-[#F4EFE6] rounded-br-none shadow' 
-                                                : 'bg-white text-[#211D1B] border border-stone-200 rounded-bl-none shadow-sm'
+                                                ? 'bg-gradient-to-br from-[#D4B886] to-[#B99A65] text-[#211D1B] rounded-br-md shadow' 
+                                                : 'bg-[#32151F] text-[#F4EFE6] border border-[#B99A65]/25 rounded-bl-md shadow'
                                         }`}>
                                             {!isMe && (
                                                 <span className="font-bold text-[10px] text-[#B99A65] block uppercase tracking-wider mb-1">
-                                                    Concierge NUSARA
+                                                    Kasir / Admin NUSARA
                                                 </span>
                                             )}
                                             <p>{chat.message}</p>
                                         </div>
-                                        <span className="text-[9px] text-stone-400 mt-1 px-1">
+                                        <span className="text-[9px] text-stone-500 mt-1 px-1">
                                             {new Date(chat.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                                         </span>
                                     </div>
@@ -1516,41 +1516,41 @@ export default function OrderApp({
                         </div>
 
                         {/* Quick Prompts */}
-                        <div className="p-2.5 bg-stone-100 border-t border-stone-200 flex items-center gap-2 overflow-x-auto text-xs scrollbar-none">
-                            <span className="text-[10px] text-stone-500 uppercase font-bold flex-shrink-0">Cepat:</span>
+                        <div className="p-2.5 bg-[#F8F5F0] border-t border-[#D8CDBB] flex items-center gap-2 overflow-x-auto text-xs scrollbar-none">
+                            <span className="text-[10px] text-[#B99A65] uppercase font-bold flex-shrink-0">Cepat:</span>
                             <button
                                 onClick={() => setChatInput('Berapa lama estimasi pesanan saya siap?')}
-                                className="px-3 py-1 rounded-full bg-white border border-stone-300 text-[11px] whitespace-nowrap hover:border-[#32151F]"
+                                className="px-3 py-1 rounded-full bg-white border border-[#D8CDBB] text-[#51453A] text-[11px] whitespace-nowrap hover:border-[#B99A65]"
                             >
                                 Estimasi Waktu?
                             </button>
                             <button
                                 onClick={() => setChatInput('Tolong bawakan piring kecil dan garpu tambahan ke meja saya.')}
-                                className="px-3 py-1 rounded-full bg-white border border-stone-300 text-[11px] whitespace-nowrap hover:border-[#32151F]"
+                                className="px-3 py-1 rounded-full bg-white border border-[#D8CDBB] text-[#51453A] text-[11px] whitespace-nowrap hover:border-[#B99A65]"
                             >
                                 Piring & Garpu Tambahan
                             </button>
                             <button
                                 onClick={() => setChatInput('Apakah menu rendang ini sangat pedas?')}
-                                className="px-3 py-1 rounded-full bg-white border border-stone-300 text-[11px] whitespace-nowrap hover:border-[#32151F]"
+                                className="px-3 py-1 rounded-full bg-white border border-[#D8CDBB] text-[#51453A] text-[11px] whitespace-nowrap hover:border-[#B99A65]"
                             >
                                 Tingkat Kepedasan Rendang?
                             </button>
                         </div>
 
                         {/* Chat Input Box */}
-                        <form onSubmit={handleSendChat} className="p-3 bg-white border-t border-stone-200 flex items-center gap-2">
+                        <form onSubmit={handleSendChat} className="p-3 bg-white border-t border-[#D8CDBB] flex items-center gap-2">
                             <input
                                 type="text"
                                 value={chatInput}
                                 onChange={(e) => setChatInput(e.target.value)}
                                 placeholder="Tulis pesan ke admin atau minta bantuan staf..."
-                                className="flex-grow px-4 py-2.5 rounded-full bg-stone-100 border border-stone-300 text-xs focus:outline-none focus:border-[#32151F]"
+                                className="flex-grow px-4 py-2.5 rounded-full bg-[#FAF7F2] border border-[#D8CDBB] text-[#211D1B] placeholder:text-stone-400 text-xs focus:outline-none focus:border-[#B99A65]"
                             />
                             <button
                                 type="submit"
                                 disabled={isSendingChat || !chatInput.trim()}
-                                className="p-2.5 rounded-full bg-[#32151F] text-[#D4B886] hover:bg-gradient-to-r hover:from-[#B99A65] hover:to-[#D4B886] hover:text-[#211D1B] disabled:opacity-40 transition-all"
+                                className="p-2.5 rounded-full bg-gradient-to-br from-[#D4B886] to-[#B99A65] text-[#211D1B] hover:bg-gradient-to-r hover:from-[#B99A65] hover:to-[#D4B886] hover:text-[#211D1B] disabled:opacity-40 transition-all"
                             >
                                 <Send className="w-4 h-4" />
                             </button>
