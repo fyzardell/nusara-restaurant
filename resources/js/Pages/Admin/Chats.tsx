@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState, FormEvent } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { Search, ChevronRight, MessageSquare, Users, Sparkles, Bell, Shield, UserCheck, Utensils, Receipt } from 'lucide-react';
-import { AdminHeader } from './Dashboard';
+import AdminSidebar from '../../Components/AdminSidebar';
 import { User } from '../../types';
 
 interface Conversation {
@@ -87,15 +87,18 @@ export default function Chats({ conversations, filters, adminUser }: Props) {
     };
 
     return (
-        <div className="min-h-screen bg-[#181413] text-[#F4EFE6] font-dashboard selection:bg-[#B99A65] selection:text-[#32151F]">
+        <div className="h-screen w-screen bg-[#110F0E] text-[#F4EFE6] font-dashboard selection:bg-[#B99A65] selection:text-[#110F0E] flex overflow-hidden">
             <Head title="Koordinasi & Riwayat Chat — NUSARA Admin" />
-            <AdminHeader
+            
+            {/* Left Sidebar (App Shell 4 Persistent Sidebar) */}
+            <AdminSidebar
                 adminUser={adminUser}
-                active="chats"
-                metrics={{ activeOrders: 0, pendingReservations: 0, unreadChatCount: totalUnread }}
+                activeNav="chats"
+                unreadChatCount={totalUnread}
             />
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+            {/* Main Content Workspace */}
+            <main className="flex-1 flex flex-col h-screen overflow-y-auto bg-[#181413] p-4 sm:p-8 space-y-6">
                 {/* Header Banner */}
                 <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#32151F] via-[#211D1B] to-[#32151F] border border-[#B99A65]/40 shadow-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div>

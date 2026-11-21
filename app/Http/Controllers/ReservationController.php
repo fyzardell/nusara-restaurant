@@ -44,6 +44,47 @@ class ReservationController extends Controller
             ->orderBy('id')
             ->get();
 
+        // Ensure Buyout Packages exist in Dining Experiences
+        $buyoutExperiences = [
+            [
+                'name' => 'Sewa 1 Resto (50 Orang · 2 Jam)',
+                'slug' => 'sewa-resto-50-pax-2-jam',
+                'description' => 'Penutupan eksklusif seluruh area restoran Senopati Flagship (10 meja, kapasitas hingga 50 tamu) selama 2 jam. Termasuk pelayanan staf privat penuh, hidangan prasmanan pusaka, dan tata suara audio.',
+                'duration_minutes' => 120,
+                'price_per_person' => 300000,
+                'image_url' => 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80',
+                'is_available' => true,
+            ],
+            [
+                'name' => 'Sewa 1 Resto (50 Orang · 3 Jam)',
+                'slug' => 'sewa-resto-50-pax-3-jam',
+                'description' => 'Penutupan eksklusif seluruh restoran selama 3 jam untuk perhelatan akbar, gala dinner, atau resepsi intim 50 tamu dengan full course banquet, panggung kehormatan, dan layanan konsierge VIP.',
+                'duration_minutes' => 180,
+                'price_per_person' => 400000,
+                'image_url' => 'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=1200&q=80',
+                'is_available' => true,
+            ],
+            [
+                'name' => 'Sewa 1 Resto Privat Berdua Saja (Romantic Buyout)',
+                'slug' => 'sewa-resto-privat-berdua',
+                'description' => 'Kemewahan tertinggi: seluruh restoran NUSARA ditutup khusus hanya untuk Anda berdua. Candlelight dinner dengan ribuan lilin, alunan biola/akustik privat, dan sajian langsung dari Executive Chef.',
+                'duration_minutes' => 150,
+                'price_per_person' => 3750000,
+                'image_url' => 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80',
+                'is_available' => true,
+            ]
+        ];
+
+        foreach ($buyoutExperiences as $bExp) {
+            $exists = DB::table('dining_experiences')->where('slug', $bExp['slug'])->exists();
+            if (!$exists) {
+                DB::table('dining_experiences')->insert(array_merge($bExp, [
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]));
+            }
+        }
+
         // Dining Experiences
         $experiences = DB::table('dining_experiences')
             ->where('is_available', true)
@@ -81,15 +122,22 @@ class ReservationController extends Controller
         $customerReservations = DB::table('reservations')
             ->where('customer_id', $customer->id)
             ->leftJoin('dining_experiences', 'reservations.experience_id', '=', 'dining_experiences.id')
-            ->leftJoin('reservation_tables', 'reservations.id', '=', 'reservation_tables.reservation_id')
-            ->leftJoin('restaurant_tables', 'reservation_tables.table_id', '=', 'restaurant_tables.id')
             ->select(
                 'reservations.*',
-                'dining_experiences.name as experience_name',
-                'restaurant_tables.table_number'
+                'dining_experiences.name as experience_name'
             )
             ->orderByDesc('reservations.created_at')
-            ->get();
+            ->get()
+            ->map(function ($r) {
+                $tables = DB::table('reservation_tables')
+                    ->join('restaurant_tables', 'reservation_tables.table_id', '=', 'restaurant_tables.id')
+                    ->where('reservation_tables.reservation_id', $r->id)
+                    ->pluck('restaurant_tables.table_number')
+                    ->toArray();
+
+                $r->table_number = count($tables) > 0 ? implode(', ', $tables) : 'Dipersiapkan Staf';
+                return $r;
+            });
 
         // Restaurant Menus (for optional menu pre-order preview)
         $menus = DB::table('menus')
@@ -140,7 +188,7 @@ class ReservationController extends Controller
     }
 
     /**
-     * Store new customer reservation with 3-hour WIB rule and table collision prevention.
+     * Store new customer reservation with 3-hour WIB rule, dynamic table allocation, and DP validation.
      */
     public function store(Request $request)
     {
@@ -151,17 +199,20 @@ class ReservationController extends Controller
         $request->validate([
             'date' => 'required|date_format:Y-m-d|after_or_equal:today',
             'time' => 'required|date_format:H:i',
-            'guest_count' => 'required|integer|min:1|max:10',
-            'table_id' => 'required|exists:restaurant_tables,id',
+            'guest_count' => 'required|integer|min:1|max:50',
+            'table_id' => 'nullable|exists:restaurant_tables,id',
+            'table_ids' => 'nullable|array',
+            'table_ids.*' => 'exists:restaurant_tables,id',
             'experience_id' => 'nullable|exists:dining_experiences,id',
             'special_request' => 'nullable|string|max:500',
             'customer_name' => 'required|string|max:100',
             'customer_phone' => 'required|string|max:25',
+            'dp_amount' => 'nullable|numeric|min:0',
+            'dp_payment_method' => 'nullable|string|max:50',
         ], [
             'date.required' => 'Pilih tanggal reservasi terlebih dahulu.',
             'date.after_or_equal' => 'Tanggal reservasi tidak boleh di masa lalu.',
             'time.required' => 'Pilih jam kedatangan reservasi.',
-            'table_id.required' => 'Pilih salah satu meja yang masih tersedia.',
             'guest_count.required' => 'Tentukan jumlah tamu reservasi.',
             'customer_phone.required' => 'Nomor kontak WhatsApp/telepon wajib diisi untuk konfirmasi.',
         ]);
@@ -184,22 +235,62 @@ class ReservationController extends Controller
             ])->withInput();
         }
 
-        // Table Collision Detection (± 105 menit rentang waktu makan)
+        // Resolusi Meja yang dipilih:
+        $selectedTableIds = [];
+        if ($request->has('table_ids') && is_array($request->table_ids) && count($request->table_ids) > 0) {
+            $selectedTableIds = array_map('intval', $request->table_ids);
+        } elseif ($request->filled('table_id')) {
+            $selectedTableIds = [intval($request->table_id)];
+        }
+
+        // Ketentuan: Maksimal 1 meja = 5 orang.
+        // Jika 6 s/d 10 orang -> minimal 2 meja wajib dipilih.
+        // Jika > 10 orang (Paket Sewa 1 Resto) -> otomatis alokasikan seluruh 10 meja jika belum dipilih
+        if ($request->guest_count > 10) {
+            if (empty($selectedTableIds)) {
+                $selectedTableIds = DB::table('restaurant_tables')->where('is_active', true)->pluck('id')->toArray();
+            }
+        } elseif ($request->guest_count > 5) {
+            if (count($selectedTableIds) < 2) {
+                return back()->withErrors([
+                    'table_ids' => 'Kapasitas maksimal 1 meja adalah 5 orang. Untuk ' . $request->guest_count . ' tamu, Anda wajib memilih minimal 2 meja.'
+                ])->withInput();
+            }
+        } else {
+            if (count($selectedTableIds) < 1) {
+                return back()->withErrors([
+                    'table_id' => 'Silakan pilih meja yang tersedia.'
+                ])->withInput();
+            }
+        }
+
+        // Experience Duration
         $durationMinutes = 120;
+        if ($request->filled('experience_id')) {
+            $exp = DB::table('dining_experiences')->where('id', $request->experience_id)->first();
+            if ($exp && $exp->duration_minutes) {
+                $durationMinutes = $exp->duration_minutes;
+            }
+        }
+
+        // Table Collision Detection (± durasi makan)
         $startWindow = $resDateTime->copy()->subMinutes($durationMinutes - 15);
         $endWindow = $resDateTime->copy()->addMinutes($durationMinutes - 15);
 
-        $conflict = DB::table('reservations')
-            ->join('reservation_tables', 'reservations.id', '=', 'reservation_tables.reservation_id')
-            ->where('reservation_tables.table_id', $request->table_id)
-            ->whereIn('reservations.status', ['Pending', 'Confirmed'])
-            ->whereBetween('reservations.reservation_datetime', [$startWindow, $endWindow])
-            ->exists();
+        foreach ($selectedTableIds as $tId) {
+            $conflict = DB::table('reservations')
+                ->join('reservation_tables', 'reservations.id', '=', 'reservation_tables.reservation_id')
+                ->where('reservation_tables.table_id', $tId)
+                ->whereIn('reservations.status', ['Pending', 'Confirmed'])
+                ->whereBetween('reservations.reservation_datetime', [$startWindow, $endWindow])
+                ->exists();
 
-        if ($conflict) {
-            return back()->withErrors([
-                'table_id' => 'Meja yang dipilih sudah terpesan oleh tamu lain pada rentang jam tersebut. Silakan pilih meja lain atau sesuaikan jam kedatangan.'
-            ])->withInput();
+            if ($conflict) {
+                $tableName = DB::table('restaurant_tables')->where('id', $tId)->value('table_number') ?? "Meja #{$tId}";
+                return back()->withErrors([
+                    'table_id' => "{$tableName} sudah terpesan oleh tamu lain pada rentang jam tersebut. Silakan pilih meja lain atau sesuaikan jam kedatangan."
+                ])->withInput();
+            }
         }
 
         // Resolve customer
@@ -225,6 +316,14 @@ class ReservationController extends Controller
 
         $code = 'RSV-' . strtoupper(Str::random(6));
 
+        // Format Special Request dengan info DP terbayar (Menunggu Validasi Kasir)
+        $specialRequest = $request->special_request ?? '';
+        if ($request->filled('dp_amount') && floatval($request->dp_amount) > 0) {
+            $dpFmt = number_format(floatval($request->dp_amount), 0, ',', '.');
+            $method = strtoupper($request->dp_payment_method ?? 'QRIS');
+            $specialRequest = "[DP TERBAYAR: Rp {$dpFmt} via {$method} - Menunggu Validasi Kasir] " . $specialRequest;
+        }
+
         $reservationId = DB::table('reservations')->insertGetId([
             'reservation_code' => $code,
             'customer_id' => $customerId,
@@ -233,20 +332,22 @@ class ReservationController extends Controller
             'guest_count' => $request->guest_count,
             'duration_minutes' => $durationMinutes,
             'status' => 'Pending',
-            'special_request' => $request->special_request,
+            'special_request' => $specialRequest,
             'source' => 'website',
             'created_by' => $user->id,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        // Attach pivot table
-        DB::table('reservation_tables')->insert([
-            'reservation_id' => $reservationId,
-            'table_id' => $request->table_id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        // Attach all selected tables to pivot table
+        foreach ($selectedTableIds as $tId) {
+            DB::table('reservation_tables')->insert([
+                'reservation_id' => $reservationId,
+                'table_id' => $tId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         // Audit Log
         DB::table('audit_logs')->insert([
@@ -254,13 +355,16 @@ class ReservationController extends Controller
             'action' => 'reservation.create',
             'entity_type' => 'Reservation',
             'entity_id' => $reservationId,
-            'description' => "Reservasi online dibuat dengan kode {$code} untuk {$request->guest_count} tamu pada {$request->date} {$request->time} WIB.",
+            'description' => "Reservasi online dibuat dengan kode {$code} untuk {$request->guest_count} tamu pada {$request->date} {$request->time} WIB (Menunggu Validasi Kasir).",
             'created_at' => now(),
         ]);
 
-        $tableName = DB::table('restaurant_tables')->where('id', $request->table_id)->value('table_number') ?? 'Meja';
+        $tableNames = DB::table('restaurant_tables')
+            ->whereIn('id', $selectedTableIds)
+            ->pluck('table_number')
+            ->implode(', ');
 
-        session()->flash('success', "Reservasi {$code} berhasil dibuat untuk {$tableName}! Tim reservasi NUSARA akan segera mengonfirmasi melalui kontak Anda.");
+        session()->flash('success', "Reservasi {$code} ({$tableNames}) berhasil diajukan dengan pembayaran DP! Staf kasir NUSARA sedang memverifikasi pembayaran Anda.");
 
         return redirect()->route('reservation');
     }
