@@ -48,6 +48,7 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     Route::post('/reservation/{id}/status', [AdminController::class, 'updateReservationStatus'])->name('admin.reservation.status');
     Route::get('/chats', [AdminController::class, 'chats'])->name('admin.chats');
     Route::get('/chats/{user}', [AdminController::class, 'chatShow'])->name('admin.chats.show');
+    Route::post('/chats/{user}', [AdminController::class, 'sendChatMessage'])->name('admin.chats.send_direct');
     Route::post('/chats/{user}/send', [AdminController::class, 'sendChatMessage'])
         ->name('admin.chats.send');
 });
