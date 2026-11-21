@@ -267,7 +267,7 @@ class NusaraDatabaseSeeder extends Seeder
                 'stock_quantity' => 40,
                 'is_available' => true,
                 'is_featured' => true,
-                'image_path' => 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=800&q=80',
+                'image_path' => '/images/menus/cendol-nangka.jpg',
                 'is_best_seller' => true,
             ],
             [

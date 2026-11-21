@@ -281,6 +281,13 @@ export default function OrderApp({
         }).format(val);
     };
 
+    const getMenuImageUrl = (path?: string) => {
+        if (!path) return '/images/menus/sate-lilit.jpg';
+        if (path.startsWith('http://') || path.startsWith('https://')) return path;
+        if (path.startsWith('/')) return path;
+        return `/storage/${path}`;
+    };
+
     // Toggle Favorite
     const handleToggleFavorite = (menuId: number) => {
         if (isGuest) {
@@ -1069,8 +1076,11 @@ export default function OrderApp({
                                         >
                                             <div className="relative h-48 w-full bg-stone-900 overflow-hidden">
                                                 <img
-                                                    src={menu.image_path}
+                                                    src={getMenuImageUrl(menu.image_path)}
                                                     alt={menu.name}
+                                                    onError={(e) => {
+                                                        e.currentTarget.src = '/images/menus/sate-lilit.jpg';
+                                                    }}
                                                     className="w-full h-full object-cover"
                                                     loading="lazy"
                                                 />
@@ -1661,8 +1671,11 @@ export default function OrderApp({
 
                         <div className="flex gap-4 items-start mb-4">
                             <img
-                                src={customizingMenu.image_path}
+                                src={getMenuImageUrl(customizingMenu.image_path)}
                                 alt={customizingMenu.name}
+                                onError={(e) => {
+                                    e.currentTarget.src = '/images/menus/sate-lilit.jpg';
+                                }}
                                 className="w-20 h-20 rounded-2xl object-cover border border-[#B99A65]/30 flex-shrink-0"
                             />
                             <div>
