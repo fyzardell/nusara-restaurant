@@ -23,13 +23,17 @@ import {
     CheckCircle2, 
     ArrowRight,
     LogOut,
-    HelpCircle,
-    PanelRightClose,
-    PanelRight,
     QrCode,
     Plus,
     Search,
-    BookOpen
+    BookOpen,
+    Filter,
+    Layers,
+    ExternalLink,
+    FileText,
+    Eye,
+    Table as TableIcon,
+    Menu as MenuIcon
 } from 'lucide-react';
 import FlashToast from '../../Components/FlashToast';
 import { DiningExperience, RestaurantTable, OperatingHour, RestaurantSettings, User, Menu } from '../../types';
@@ -84,6 +88,8 @@ interface Props {
     preselectedExperience?: string | number | null;
 }
 
+type AppShell8Tab = 'all' | 'pending' | 'confirmed' | 'completed' | 'experiences' | 'menu' | 'tables' | 'policy';
+
 export default function Reservation({
     auth,
     customer,
@@ -97,53 +103,30 @@ export default function Reservation({
     nowJakarta,
     preselectedExperience
 }: Props) {
-    // Active navigation tab on the left sidebar
-    const [sidebarTab, setSidebarTab] = useState<'form' | 'experiences' | 'tables' | 'history' | 'policy'>('form');
+    // App Shell 8 Active View State
+    const [activeTab, setActiveTab] = useState<AppShell8Tab>('all');
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'upcoming'>('all');
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
-    // App Shell 4 Right Panel Toggle
-    const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(true);
+    // Slide-over / Modal Booking Drawer State ("+ Book job" style)
+    const [isBookingDrawerOpen, setIsBookingDrawerOpen] = useState<boolean>(!!preselectedExperience);
+    const [selectedReservationDetail, setSelectedReservationDetail] = useState<CustomerReservationHistory | null>(null);
 
     // Digital Menu Modal state for A La Carte preview
     const [isMenuModalOpen, setIsMenuModalOpen] = useState<boolean>(false);
     const [menuSearchQuery, setMenuSearchQuery] = useState<string>('');
     const [selectedMenuCategory, setSelectedMenuCategory] = useState<string>('all');
 
-    // Menu Categories & Filtering
-    const menuCategories = useMemo(() => {
-        const cats = new Set<string>();
-        menus.forEach(m => {
-            if (m.category_name) cats.add(m.category_name);
-        });
-        return Array.from(cats);
-    }, [menus]);
-
-    const filteredMenus = useMemo(() => {
-        return menus.filter(m => {
-            const matchesCategory = selectedMenuCategory === 'all' || m.category_name === selectedMenuCategory;
-            const matchesSearch = !menuSearchQuery || 
-                m.name.toLowerCase().includes(menuSearchQuery.toLowerCase()) || 
-                (m.description || '').toLowerCase().includes(menuSearchQuery.toLowerCase());
-            return matchesCategory && matchesSearch;
-        });
-    }, [menus, selectedMenuCategory, menuSearchQuery]);
-
-    // Handle Quick Pre-Order Append to Special Request
-    const handleAddDishToRequest = (menuName: string) => {
-        const tag = `[Pre-order Menu: ${menuName}]`;
-        if (!data.special_request.includes(tag)) {
-            setData('special_request', data.special_request ? `${data.special_request}, ${tag}` : tag);
-        }
-    };
-
     // Date calculations in Jakarta Time
     const initialDate = nowJakarta?.date || new Date().toISOString().split('T')[0];
 
-    // Form state
+    // Form state for creating a new reservation
     const { data, setData, post, processing, errors, reset } = useForm({
         date: initialDate,
         time: '18:30',
         guest_count: 2,
-        experience_id: preselectedExperience ? Number(preselectedExperience) : (experiences[0]?.id || ''),
+        experience_id: preselectedExperience ? Number(preselectedExperience) : '',
         table_id: '' as number | string,
         customer_name: customer?.name || auth.user.name || '',
         customer_phone: customer?.phone_normalized || '+6281234567890',
@@ -154,7 +137,7 @@ export default function Reservation({
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const calendarRef = useRef<HTMLDivElement>(null);
 
-    // Right Inspector Panel Calendar Month State
+    // Month picker calendar navigation state
     const todayObj = useMemo(() => new Date(), []);
     const [viewYear, setViewYear] = useState<number>(todayObj.getFullYear());
     const [viewMonth, setViewMonth] = useState<number>(todayObj.getMonth());
@@ -208,56 +191,48 @@ export default function Reservation({
 
     // Available operating time slots (every 30 minutes from 11:30 to 21:00)
     const timeSlots = useMemo(() => {
-        const slots: { time: string; label: string; disabled: boolean; reason?: string }[] = [];
-        const times = [
-            '11:30', '12:00', '12:30', '13:00', '13:30', '14:00',
-            '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00'
-        ];
+        const slots: { time: string; label: string; isPastOrCutoff: boolean; reason?: string }[] = [];
+        const openH = 11;
+        const openM = 30;
+        const closeH = 21;
+        const closeM = 0;
 
-        times.forEach(t => {
-            const [sh, sm] = t.split(':').map(Number);
-            const slotMinutes = sh * 60 + sm;
+        let current = openH * 60 + openM;
+        const end = closeH * 60 + closeM;
 
-            let disabled = false;
+        while (current <= end) {
+            const h = Math.floor(current / 60);
+            const m = current % 60;
+            const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+            let isPastOrCutoff = false;
             let reason = '';
 
-            // Rule 3 Jam Sebelum Reservasi (Untuk Pemesanan Hari Ini):
-            // Jika tanggal = hari ini, maka slot yang kurang dari 180 menit (3 jam) ke depan WAJIB di-disable
             if (isSelectedDateToday) {
-                const diff = slotMinutes - currentWibMinutes;
-                if (diff < 180) { // kurang dari 3 jam (180 menit)
-                    disabled = true;
-                    reason = diff <= 0 ? 'Waktu sudah lewat' : 'Minimal 3 jam sebelumnya';
+                if (current <= currentWibMinutes) {
+                    isPastOrCutoff = true;
+                    reason = 'Waktu telah lewat';
+                } else if (current - currentWibMinutes < 180) {
+                    isPastOrCutoff = true;
+                    reason = 'Terkunci (Min. 3 Jam)';
                 }
             }
 
             slots.push({
-                time: t,
-                label: `${t} WIB`,
-                disabled,
+                time: timeStr,
+                label: `${timeStr} WIB`,
+                isPastOrCutoff,
                 reason
             });
-        });
 
+            current += 30;
+        }
         return slots;
     }, [isSelectedDateToday, currentWibMinutes]);
 
-    // Auto-adjust time if currently selected time is disabled
-    useEffect(() => {
-        const currentSlot = timeSlots.find(s => s.time === data.time);
-        if (currentSlot && currentSlot.disabled) {
-            const firstAvailable = timeSlots.find(s => !s.disabled);
-            if (firstAvailable) {
-                setData('time', firstAvailable.time);
-            }
-        }
-    }, [timeSlots, data.time]);
-
-    // Table Availability Logic:
-    // Menghubungkan ketersediaan Meja 01 s/d 10 secara real-time dengan data reservasi backend
+    // Real-Time Table Availability & Collision Check
     const tableAvailabilityMap = useMemo(() => {
         const map = new Map<number, { isAvailable: boolean; bookedByCode?: string; bookedTime?: string }>();
-
         if (!data.date || !data.time) {
             tables.forEach(t => map.set(t.id, { isAvailable: true }));
             return map;
@@ -265,12 +240,11 @@ export default function Reservation({
 
         const [reqH, reqM] = data.time.split(':').map(Number);
         const reqTotalMin = reqH * 60 + reqM;
-        const durationMin = 120; // 2 jam alokasi per sesi santap
+        const durationMin = selectedExpObj?.duration_minutes || 120;
 
         tables.forEach(t => {
-            // Temukan apakah meja ini memiliki reservasi pada tanggal yang sama dalam selisih waktu 105 menit
             const conflict = reservations.find(r => {
-                if (r.table_id !== t.id) return false;
+                if (Number(r.table_id) !== t.id) return false;
                 const rDateStr = r.reservation_datetime.split('T')[0] || r.reservation_datetime.split(' ')[0];
                 if (rDateStr !== data.date) return false;
 
@@ -278,7 +252,6 @@ export default function Reservation({
                 const [rH, rM] = rTimeStr.split(':').map(Number);
                 const rTotalMin = rH * 60 + rM;
 
-                // Cek bentrok overlap durasi santap (± 105 menit)
                 return Math.abs(reqTotalMin - rTotalMin) < (durationMin - 15);
             });
 
@@ -295,7 +268,7 @@ export default function Reservation({
         });
 
         return map;
-    }, [tables, reservations, data.date, data.time]);
+    }, [tables, reservations, data.date, data.time, selectedExpObj]);
 
     // Auto-select first available table if current table is invalid/booked
     useEffect(() => {
@@ -320,7 +293,6 @@ export default function Reservation({
 
         const list: { day: number; dateStr: string; isCurrentMonth: boolean; isPast: boolean; isToday: boolean }[] = [];
 
-        // Prev month padding
         for (let i = firstDayOfMonth - 1; i >= 0; i--) {
             const d = daysInPrevMonth - i;
             const prevMonthDate = new Date(viewYear, viewMonth - 1, d);
@@ -334,7 +306,6 @@ export default function Reservation({
             });
         }
 
-        // Current month days
         const todayStr = nowJakarta?.date || new Date().toISOString().split('T')[0];
         for (let d = 1; d <= daysInMonth; d++) {
             const m = String(viewMonth + 1).padStart(2, '0');
@@ -352,7 +323,6 @@ export default function Reservation({
             });
         }
 
-        // Next month padding to fill 42 cells (6 rows)
         const remaining = 42 - list.length;
         for (let d = 1; d <= remaining; d++) {
             const nextMonthDate = new Date(viewYear, viewMonth + 1, d);
@@ -362,7 +332,7 @@ export default function Reservation({
                 dateStr,
                 isCurrentMonth: false,
                 isPast: false,
-                isToday: false
+                isToday: false,
             });
         }
 
@@ -376,8 +346,8 @@ export default function Reservation({
 
     const prevMonth = () => {
         if (viewMonth === 0) {
-            setViewYear(v => v - 1);
             setViewMonth(11);
+            setViewYear(v => v - 1);
         } else {
             setViewMonth(v => v - 1);
         }
@@ -385,8 +355,8 @@ export default function Reservation({
 
     const nextMonth = () => {
         if (viewMonth === 11) {
-            setViewYear(v => v + 1);
             setViewMonth(0);
+            setViewYear(v => v + 1);
         } else {
             setViewMonth(v => v + 1);
         }
@@ -397,7 +367,6 @@ export default function Reservation({
         setIsCalendarOpen(false);
     };
 
-    // Quick Date Helpers
     const setQuickDate = (daysAhead: number) => {
         const d = new Date();
         d.setDate(d.getDate() + daysAhead);
@@ -407,1297 +376,1254 @@ export default function Reservation({
         setData('date', `${y}-${m}-${day}`);
     };
 
-    // Submit Reservation
+    // Menu Categories & Filtering
+    const menuCategories = useMemo(() => {
+        const cats = new Set<string>();
+        menus.forEach(m => {
+            if (m.category_name) cats.add(m.category_name);
+        });
+        return Array.from(cats);
+    }, [menus]);
+
+    const filteredMenus = useMemo(() => {
+        return menus.filter(m => {
+            const matchesCategory = selectedMenuCategory === 'all' || m.category_name === selectedMenuCategory;
+            const matchesSearch = !menuSearchQuery || 
+                m.name.toLowerCase().includes(menuSearchQuery.toLowerCase()) || 
+                (m.description || '').toLowerCase().includes(menuSearchQuery.toLowerCase());
+            return matchesCategory && matchesSearch;
+        });
+    }, [menus, selectedMenuCategory, menuSearchQuery]);
+
+    // Handle Quick Pre-Order Append to Special Request
+    const handleAddDishToRequest = (menuName: string) => {
+        const tag = `[Pre-order Menu: ${menuName}]`;
+        if (!data.special_request.includes(tag)) {
+            setData('special_request', data.special_request ? `${data.special_request}, ${tag}` : tag);
+        }
+    };
+
+    // Form Submission
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         post('/reservation', {
             preserveScroll: true,
             onSuccess: () => {
-                reset('special_request');
-            }
+                reset();
+                setIsBookingDrawerOpen(false);
+                setActiveTab('all');
+            },
         });
     };
 
+    // Filtered Customer Reservations for the App Shell 8 Table
+    const filteredReservations = useMemo(() => {
+        return customerReservations.filter(res => {
+            // Tab Status Filter
+            const s = (res.status || '').toLowerCase();
+            if (activeTab === 'pending' && s !== 'pending') return false;
+            if (activeTab === 'confirmed' && s !== 'confirmed') return false;
+            if (activeTab === 'completed' && s !== 'completed' && s !== 'finished' && s !== 'cancelled') return false;
+
+            // Date Filter
+            if (dateFilter === 'today') {
+                const isToday = res.reservation_datetime.includes(nowJakarta?.date || '') || res.created_at.includes(nowJakarta?.date || '');
+                if (!isToday) return false;
+            }
+
+            // Search query filter
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase();
+                const matchCode = res.reservation_code.toLowerCase().includes(q);
+                const matchTable = (res.table_number || '').toLowerCase().includes(q);
+                const matchExp = (res.experience_name || '').toLowerCase().includes(q);
+                const matchStatus = (res.status || '').toLowerCase().includes(q);
+                if (!matchCode && !matchTable && !matchExp && !matchStatus) return false;
+            }
+
+            return true;
+        });
+    }, [customerReservations, activeTab, dateFilter, searchQuery, nowJakarta?.date]);
+
+    // Badges calculation for App Shell 8 Sidebar
+    const pendingCount = useMemo(() => customerReservations.filter(r => (r.status || '').toLowerCase() === 'pending').length, [customerReservations]);
+    const confirmedCount = useMemo(() => customerReservations.filter(r => (r.status || '').toLowerCase() === 'confirmed').length, [customerReservations]);
+    const completedCount = useMemo(() => customerReservations.filter(r => ['completed', 'finished', 'cancelled'].includes((r.status || '').toLowerCase())).length, [customerReservations]);
+    const availableTablesCount = useMemo(() => {
+        let count = 0;
+        tableAvailabilityMap.forEach(v => {
+            if (v.isAvailable) count++;
+        });
+        return count;
+    }, [tableAvailabilityMap]);
+
     return (
-        <div className="min-h-screen bg-[#FBF9F5] text-[#1A1615] font-sans selection:bg-[#B99A65] selection:text-[#32151F]">
-            <Head title="Reservasi Meja Restoran — NUSARA Nusantara & Rasa" />
+        <div className="min-h-screen bg-[#FAF7F2] text-[#1A1615] flex flex-col font-sans antialiased selection:bg-[#32151F] selection:text-[#D4B886]">
+            <Head title="Reservasi Meja Restoran - NUSARA Senopati" />
             <FlashToast />
 
             {/* ============================================================
-                TOP BAR HEADER (APP SHELL 4 - LIGHT VERSION)
+                MOBILE TOP BAR (HAMBURGER & LOGO)
             ============================================================ */}
-            <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E8DFD3] px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4 shadow-sm">
-                <div className="flex items-center gap-4 min-w-0">
-                    <Link href="/" className="flex items-center gap-3 shrink-0 group">
-                        <img 
-                            src="/images/nusara-logo.png" 
-                            alt="NUSARA Logo" 
-                            className="h-8 w-auto object-contain transition-transform group-hover:scale-105" 
-                        />
-                        <span className="px-2.5 py-0.5 rounded-full bg-[#32151F] border border-[#B99A65]/40 text-[10px] font-bold text-[#D4B886] tracking-wider uppercase">
-                            Reservasi Eksklusif
-                        </span>
-                    </Link>
-
-                    <div className="hidden md:flex items-center gap-2 pl-4 border-l border-[#E8DFD3] text-xs text-[#7C7169]">
-                        <span className="font-semibold text-[#1A1615]">Senopati Flagship Dining</span>
-                        <span>·</span>
-                        <span className="flex items-center gap-1.5 font-mono text-[#4A1525] font-bold bg-[#FAF4ED] px-2 py-0.5 rounded-md border border-[#E5DDCF]">
-                            <Clock className="w-3.5 h-3.5 text-[#B99A65]" />
-                            WIB: {currentTimeWib}
-                        </span>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0">
-                    <button
-                        type="button"
-                        onClick={() => setIsMenuModalOpen(true)}
-                        className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF4ED] hover:bg-[#F2E8DC] text-[#4A1525] border border-[#E8DFD3] text-xs font-bold transition-all shadow-sm"
-                    >
-                        <BookOpen className="w-3.5 h-3.5 text-[#B99A65]" />
-                        <span>Buku Menu A La Carte</span>
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
-                        className="p-2 rounded-xl border border-[#E8DFD3] text-[#7C7169] hover:text-[#1A1615] hover:bg-[#FAF4ED] transition-colors"
-                        title={isRightPanelOpen ? "Sembunyikan Panel Jadwal (App Shell 4)" : "Tampilkan Panel Jadwal (App Shell 4)"}
-                    >
-                        {isRightPanelOpen ? <PanelRightClose className="w-4 h-4 text-[#B99A65]" /> : <PanelRight className="w-4 h-4 text-[#B99A65]" />}
-                    </button>
-
-                    <div className="flex items-center gap-2 pl-2 border-l border-[#E8DFD3]">
-                        <div className="text-right hidden sm:block">
-                            <span className="text-xs font-bold text-[#1A1615] block leading-tight">{auth.user.name}</span>
-                            <span className="text-[10px] text-[#7C7169] block font-mono">{auth.user.email}</span>
-                        </div>
-                        <div className="w-8 h-8 rounded-full bg-[#32151F] text-[#D4B886] font-bold flex items-center justify-center text-xs shadow-sm">
-                            {auth.user.name.charAt(0).toUpperCase()}
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => router.post('/logout')}
-                            className="p-1.5 rounded-lg text-[#7C7169] hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                            title="Keluar"
-                        >
-                            <LogOut className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-            </header>
+            <div className="lg:hidden sticky top-0 z-40 bg-white border-b border-[#E8DFD3] px-4 py-3 flex items-center justify-between shadow-xs">
+                <button
+                    type="button"
+                    onClick={() => setIsMobileSidebarOpen(true)}
+                    className="p-2 rounded-xl text-[#4A1525] hover:bg-[#FAF4ED] transition-colors"
+                >
+                    <MenuIcon className="w-5 h-5" />
+                </button>
+                <img 
+                    src="/images/nusara-logo.png" 
+                    alt="NUSARA Logo" 
+                    className="h-7 w-auto object-contain" 
+                />
+                <button
+                    type="button"
+                    onClick={() => setIsBookingDrawerOpen(true)}
+                    className="p-2 rounded-xl bg-[#32151F] text-[#D4B886] font-bold text-xs shadow-sm"
+                >
+                    <Plus className="w-4 h-4" />
+                </button>
+            </div>
 
             {/* ============================================================
-                3-COLUMN WORKSPACE (APP SHELL 4 - LIGHT)
+                APP SHELL 8 MAIN CONTAINER (SIDEBAR + MAIN CONTENT WORKSPACE)
             ============================================================ */}
-            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col lg:flex-row gap-6">
+            <div className="flex-1 flex overflow-hidden">
 
                 {/* ========================================================
-                    COLUMN 1: LEFT NAVIGATION & INFO SIDEBAR
+                    LEFT SIDEBAR (APP SHELL 8 SPECIFICATION)
                 ======================================================== */}
-                <aside className="w-full lg:w-72 shrink-0 space-y-4">
-                    {/* Customer Profile Card */}
-                    <div className="p-4 rounded-2xl bg-white border border-[#E8DFD3] shadow-sm space-y-3">
-                        <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#32151F] to-[#4A1525] text-[#D4B886] flex items-center justify-center font-bold text-base shadow">
-                                {auth.user.name.charAt(0).toUpperCase()}
+                {/* Mobile Backdrop */}
+                {isMobileSidebarOpen && (
+                    <div 
+                        className="fixed inset-0 z-40 bg-[#1A1615]/40 backdrop-blur-xs lg:hidden"
+                        onClick={() => setIsMobileSidebarOpen(false)}
+                    />
+                )}
+
+                <aside className={`
+                    fixed lg:static top-0 bottom-0 left-0 z-50
+                    w-72 bg-[#FFFFFF] border-r border-[#E8DFD3] flex flex-col justify-between
+                    transform transition-transform duration-300 ease-in-out
+                    ${isMobileSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'}
+                `}>
+                    <div className="flex flex-col h-full overflow-y-auto">
+                        {/* 1. Header Profile & Brand Banner (Matching Calder Field / Dispatch) */}
+                        <div className="p-5 border-b border-[#F2E8DC] flex items-center justify-between">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#32151F] to-[#4A1525] text-[#D4B886] flex items-center justify-center font-bold text-base shadow-sm shrink-0 border border-[#B99A65]/40">
+                                    {auth.user.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                    <h2 className="font-heading font-bold text-sm text-[#1A1615] truncate">
+                                        {auth.user.name}
+                                    </h2>
+                                    <p className="text-[11px] text-[#7C7169] truncate flex items-center gap-1 font-medium">
+                                        <Sparkles className="w-3 h-3 text-[#B99A65]" />
+                                        <span>Tamu Kehormatan</span>
+                                    </p>
+                                </div>
                             </div>
-                            <div className="min-w-0">
+                            <button
+                                type="button"
+                                onClick={() => setIsMobileSidebarOpen(false)}
+                                className="lg:hidden p-1.5 rounded-lg text-[#7C7169] hover:bg-[#FAF4ED]"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* 2. Grouped Navigation Links with Badges (App Shell 8 Exact Pattern) */}
+                        <div className="p-4 space-y-6 flex-1">
+                            {/* Group A: Dispatch / Status Reservasi */}
+                            <div className="space-y-1">
+                                <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#7C7169] block mb-1">
+                                    Reservasi Saya
+                                </span>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setActiveTab('all'); setIsMobileSidebarOpen(false); }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                        activeTab === 'all'
+                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                            : 'text-[#4A1525] hover:bg-[#FAF7F2]'
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2.5">
+                                        <CalendarIcon className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Semua Jadwal</span>
+                                    </span>
+                                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono ${
+                                        activeTab === 'all' ? 'bg-[#4A1525] text-[#D4B886]' : 'bg-[#FAF4ED] text-[#7C7169]'
+                                    }`}>
+                                        {customerReservations.length}
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setActiveTab('pending'); setIsMobileSidebarOpen(false); }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                        activeTab === 'pending'
+                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                            : 'text-[#4A1525] hover:bg-[#FAF7F2]'
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2.5">
+                                        <Clock className="w-4 h-4 text-amber-600" />
+                                        <span>Menunggu Validasi</span>
+                                    </span>
+                                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono ${
+                                        activeTab === 'pending' ? 'bg-[#4A1525] text-[#D4B886]' : 'bg-amber-100 text-amber-800'
+                                    }`}>
+                                        {pendingCount}
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setActiveTab('confirmed'); setIsMobileSidebarOpen(false); }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                        activeTab === 'confirmed'
+                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                            : 'text-[#4A1525] hover:bg-[#FAF7F2]'
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2.5">
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                        <span>Terkonfirmasi</span>
+                                    </span>
+                                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono ${
+                                        activeTab === 'confirmed' ? 'bg-[#4A1525] text-[#D4B886]' : 'bg-emerald-100 text-emerald-800'
+                                    }`}>
+                                        {confirmedCount}
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setActiveTab('completed'); setIsMobileSidebarOpen(false); }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                        activeTab === 'completed'
+                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                            : 'text-[#4A1525] hover:bg-[#FAF7F2]'
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2.5">
+                                        <History className="w-4 h-4 text-[#7C7169]" />
+                                        <span>Selesai / Riwayat</span>
+                                    </span>
+                                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono ${
+                                        activeTab === 'completed' ? 'bg-[#4A1525] text-[#D4B886]' : 'bg-[#FAF4ED] text-[#7C7169]'
+                                    }`}>
+                                        {completedCount}
+                                    </span>
+                                </button>
+                            </div>
+
+                            {/* Group B: Upcoming & Meja */}
+                            <div className="space-y-1">
+                                <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#7C7169] block mb-1">
+                                    Eksplorasi & Meja
+                                </span>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setActiveTab('experiences'); setIsMobileSidebarOpen(false); }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                        activeTab === 'experiences'
+                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                            : 'text-[#4A1525] hover:bg-[#FAF7F2]'
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2.5">
+                                        <Sparkles className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Paket Gastronomi</span>
+                                    </span>
+                                    <span className="text-[11px] px-2 py-0.5 rounded-full font-mono bg-[#FAF4ED] text-[#7C7169]">
+                                        {experiences.length}
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setActiveTab('menu'); setIsMobileSidebarOpen(false); }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                        activeTab === 'menu'
+                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                            : 'text-[#4A1525] hover:bg-[#FAF7F2]'
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2.5">
+                                        <BookOpen className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Buku Menu A La Carte</span>
+                                    </span>
+                                    <span className="text-[11px] px-2 py-0.5 rounded-full font-mono bg-[#FAF4ED] text-[#7C7169]">
+                                        {menus.length}
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setActiveTab('tables'); setIsMobileSidebarOpen(false); }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                        activeTab === 'tables'
+                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                            : 'text-[#4A1525] hover:bg-[#FAF7F2]'
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2.5">
+                                        <TableIcon className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Denah Meja 01–10</span>
+                                    </span>
+                                    <span className="text-[11px] px-2 py-0.5 rounded-full font-mono bg-[#FAF4ED] text-[#7C7169]">
+                                        10
+                                    </span>
+                                </button>
+                            </div>
+
+                            {/* Group C: Policy & Bantuan */}
+                            <div className="space-y-1">
+                                <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#7C7169] block mb-1">
+                                    Ketentuan & Bantuan
+                                </span>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setActiveTab('policy'); setIsMobileSidebarOpen(false); }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                        activeTab === 'policy'
+                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                            : 'text-[#4A1525] hover:bg-[#FAF7F2]'
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2.5">
+                                        <ShieldCheck className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Aturan 3 Jam (WIB)</span>
+                                    </span>
+                                </button>
+
+                                <a
+                                    href={`https://wa.me/6281299998888?text=${encodeURIComponent('Halo Konsierge NUSARA, saya ingin konfirmasi reservasi meja.')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-[#4A1525] hover:bg-[#FAF7F2] transition-all"
+                                >
+                                    <span className="flex items-center gap-2.5">
+                                        <Phone className="w-4 h-4 text-emerald-600" />
+                                        <span>WhatsApp Konsierge</span>
+                                    </span>
+                                    <ExternalLink className="w-3 h-3 text-[#7C7169]" />
+                                </a>
+                            </div>
+                        </div>
+
+                        {/* 3. Bottom Shift Status Card (App Shell 8 Exact "Shift coverage" Box) */}
+                        <div className="p-4 border-t border-[#F2E8DC] space-y-3">
+                            <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-[#EBD7BE] shadow-xs space-y-1.5">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#B99A65] block">
-                                    Tamu Kehormatan
+                                    Status Sesi Meja Hari Ini
                                 </span>
-                                <h3 className="font-bold text-sm text-[#1A1615] truncate">{auth.user.name}</h3>
-                                <span className="text-[11px] text-[#7C7169] font-mono truncate block">
-                                    {customer?.phone_normalized || auth.user.email}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Navigation Tabs */}
-                        <div className="pt-2 border-t border-[#F2E8DC] space-y-1 text-xs">
-                            <button
-                                type="button"
-                                onClick={() => setSidebarTab('form')}
-                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition-all ${
-                                    sidebarTab === 'form'
-                                        ? 'bg-[#32151F] text-[#F4EFE6] font-bold shadow-sm'
-                                        : 'text-[#4A1525] hover:bg-[#FAF4ED]'
-                                }`}
-                            >
-                                <span className="flex items-center gap-2">
-                                    <CalendarIcon className="w-4 h-4 text-[#D4B886]" />
-                                    <span>Formulir Reservasi</span>
-                                </span>
-                                <ChevronRight className="w-3.5 h-3.5 opacity-60" />
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => setSidebarTab('history')}
-                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition-all ${
-                                    sidebarTab === 'history'
-                                        ? 'bg-[#32151F] text-[#F4EFE6] font-bold shadow-sm'
-                                        : 'text-[#4A1525] hover:bg-[#FAF4ED]'
-                                }`}
-                            >
-                                <span className="flex items-center gap-2">
-                                    <History className="w-4 h-4 text-[#D4B886]" />
-                                    <span>Riwayat Reservasi Saya</span>
-                                </span>
-                                <span className="px-1.5 py-0.5 rounded-full bg-[#FAF4ED] text-[#4A1525] text-[10px] font-mono font-bold">
-                                    {customerReservations.length}
-                                </span>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => setSidebarTab('policy')}
-                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition-all ${
-                                    sidebarTab === 'policy'
-                                        ? 'bg-[#32151F] text-[#F4EFE6] font-bold shadow-sm'
-                                        : 'text-[#4A1525] hover:bg-[#FAF4ED]'
-                                }`}
-                            >
-                                <span className="flex items-center gap-2">
-                                    <ShieldCheck className="w-4 h-4 text-[#D4B886]" />
-                                    <span>Aturan & Kebijakan Meja</span>
-                                </span>
-                                <ChevronRight className="w-3.5 h-3.5 opacity-60" />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Operational Clock & 3-Hour Buffer Rule Card */}
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-[#FFFDF9] to-[#FAF5EC] border border-[#E8DFD3] shadow-sm space-y-3">
-                        <div className="flex items-center gap-2 text-xs font-bold text-[#4A1525] uppercase tracking-wider">
-                            <Clock className="w-4 h-4 text-[#B99A65]" />
-                            <span>Waktu Jakarta & Aturan</span>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-white border border-[#E8DFD3]">
-                            <div className="flex items-center justify-between">
-                                <span className="text-[11px] text-[#7C7169]">Jam Jakarta Saat Ini:</span>
-                                <span className="font-mono text-sm font-bold text-[#32151F]">{currentTimeWib} WIB</span>
-                            </div>
-                            <div className="mt-1 flex items-center justify-between text-[11px] text-[#7C7169]">
-                                <span>Tanggal Hari Ini:</span>
-                                <span className="font-mono font-semibold text-[#1A1615]">{nowJakarta?.date}</span>
-                            </div>
-                        </div>
-
-                        <div className="p-2.5 rounded-xl bg-[#FFF6EA] border border-[#EBD7BE] text-[11px] text-[#805315] space-y-1">
-                            <p className="font-bold flex items-center gap-1">
-                                <AlertCircle className="w-3.5 h-3.5 text-[#B99A65] shrink-0" />
-                                <span>Aturan Reservasi 3 Jam:</span>
-                            </p>
-                            <p className="leading-relaxed">
-                                Pemesanan untuk hari ini wajib dilakukan minimal <strong>3 jam sebelumnya</strong>. Pilihan jam kurang dari 3 jam dari sekarang otomatis dinonaktifkan.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Operating Hours Card */}
-                    <div className="p-4 rounded-2xl bg-white border border-[#E8DFD3] shadow-sm space-y-2.5">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#B99A65] block">
-                            Jam Operasional Restoran
-                        </span>
-                        <div className="space-y-1.5 text-xs">
-                            {operatingHours.map(oh => (
-                                <div key={oh.id} className="flex items-center justify-between py-1 border-b border-[#FAF4ED] last:border-none">
-                                    <span className="text-[#7C7169]">{oh.day_name}</span>
-                                    <span className="font-mono font-semibold text-[#1A1615]">
-                                        {oh.is_closed ? 'Tutup' : `${oh.open_time.substring(0, 5)} - ${oh.close_time.substring(0, 5)}`}
+                                <div className="flex items-center justify-between text-xs font-semibold">
+                                    <span className="text-[#1A1615]">Ketersediaan Meja:</span>
+                                    <span className="font-mono text-[#4A1525] font-bold">
+                                        {availableTablesCount} dari 10 Siap
                                     </span>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                                <div className="flex items-center justify-between text-[11px] text-[#7C7169]">
+                                    <span>Jam Jakarta Saat Ini:</span>
+                                    <span className="font-mono font-bold text-[#1A1615]">{currentTimeWib} WIB</span>
+                                </div>
+                            </div>
 
-                    {/* Concierge Help Card */}
-                    <div className="p-4 rounded-2xl bg-[#32151F] text-[#F4EFE6] border border-[#B99A65]/40 shadow-sm space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-bold text-[#D4B886]">
-                            <Sparkles className="w-3.5 h-3.5" />
-                            <span>Butuh Bantuan Khusus?</span>
+                            <div className="flex items-center justify-between pt-1">
+                                <Link
+                                    href="/"
+                                    className="text-xs text-[#7C7169] hover:text-[#1A1615] font-medium flex items-center gap-1"
+                                >
+                                    <ChevronLeft className="w-3.5 h-3.5" />
+                                    <span>Landing Page</span>
+                                </Link>
+
+                                <button
+                                    type="button"
+                                    onClick={() => router.post('/logout')}
+                                    className="text-xs text-[#7C7169] hover:text-rose-600 font-semibold flex items-center gap-1.5 transition-colors"
+                                >
+                                    <LogOut className="w-3.5 h-3.5" />
+                                    <span>Keluar</span>
+                                </button>
+                            </div>
                         </div>
-                        <p className="text-[11px] text-[#F4EFE6]/75 leading-relaxed">
-                            Untuk reservasi kelompok di atas 10 tamu atau private room VIP, hubungi konsierge reservasi NUSARA langsung.
-                        </p>
-                        <a
-                            href={`https://wa.me/6281299998888?text=${encodeURIComponent('Halo Konsierge NUSARA, saya ingin menanyakan reservasi meja VIP.')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#D4B886] hover:underline pt-1"
-                        >
-                            <Phone className="w-3.5 h-3.5" />
-                            <span>Chat WhatsApp Konsierge</span>
-                        </a>
                     </div>
                 </aside>
 
                 {/* ========================================================
-                    COLUMN 2: MAIN INTERACTIVE RESERVATION CANVAS
+                    MAIN WORKSPACE (APP SHELL 8 HEADER + TABLE / LIST VIEW)
                 ======================================================== */}
-                <main className="flex-1 space-y-6 min-w-0">
-
-                    {/* Header Banner */}
-                    <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#FFFDF9] via-white to-[#FDF8F0] border border-[#E8DFD3] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#B99A65]">
-                                Formulir Reservasi Gastronomi
-                            </span>
-                            <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#1A1615] mt-1">
-                                Reservasi Pengalaman Bersantap
-                            </h1>
-                            <p className="text-xs sm:text-sm text-[#7C7169] mt-1 max-w-xl">
-                                Pastikan alokasi meja restoran Senopati Flagship Anda siap menyambut jamuan istimewa Nusantara.
-                            </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setSidebarTab('form')}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                                    sidebarTab === 'form'
-                                        ? 'bg-[#32151F] text-[#F4EFE6] shadow'
-                                        : 'bg-white text-[#4A1525] border border-[#E8DFD3]'
-                                }`}
-                            >
-                                Buat Reservasi
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSidebarTab('history')}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                                    sidebarTab === 'history'
-                                        ? 'bg-[#32151F] text-[#F4EFE6] shadow'
-                                        : 'bg-white text-[#4A1525] border border-[#E8DFD3]'
-                                }`}
-                            >
-                                Riwayat ({customerReservations.length})
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* VIEW A: MAIN RESERVATION FORM */}
-                    {sidebarTab === 'form' && (
-                        <form onSubmit={handleSubmit} className="space-y-6">
-
-                            {/* SECTION 1: PILIHAN PENGALAMAN GASTRONOMI */}
-                            <div className="p-6 rounded-3xl bg-white border border-[#E8DFD3] shadow-sm space-y-4">
-                                <div className="flex items-center justify-between pb-3 border-b border-[#F2E8DC]">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-6 h-6 rounded-full bg-[#FAF4ED] text-[#B99A65] border border-[#E8DFD3] flex items-center justify-center font-bold text-xs">
-                                            1
-                                        </span>
-                                        <h3 className="font-heading font-bold text-base text-[#1A1615]">
-                                            Pilih Pengalaman Bersantap
-                                        </h3>
-                                    </div>
-                                    <span className="text-[11px] text-[#7C7169]">
-                                        Paketan Kurasi Chef & Santap Reguler A La Carte
-                                    </span>
-                                </div>
-
-                                {/* Luxury Clarification Callout regarding Menus & Ordering */}
-                                <div className="p-4 rounded-2xl bg-[#FFFDF9] border border-[#EBD7BE] shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                                    <div className="flex items-start gap-2.5">
-                                        <div className="w-8 h-8 rounded-xl bg-[#FAF4ED] border border-[#E8DFD3] flex items-center justify-center text-[#B99A65] shrink-0">
-                                            <Info className="w-4 h-4" />
-                                        </div>
-                                        <div className="text-xs space-y-0.5">
-                                            <p className="font-bold text-[#1A1615]">
-                                                Apakah Wajib Memilih Menu Saat Reservasi?
-                                            </p>
-                                            <p className="text-[#7C7169] leading-relaxed text-[11px]">
-                                                <strong>Tidak wajib.</strong> Jika Anda memilih <em>Paket Gastronomi</em>, menu sudah lengkap 1 set per orang. Jika Anda memilih <em>Santap Reguler (A La Carte)</em>, pilihan menu makanan dan minuman dipesan bebas langsung di meja Anda saat tiba melalui <strong>Scan QR Meja</strong>.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsMenuModalOpen(true)}
-                                        className="shrink-0 px-3.5 py-2 rounded-xl bg-white border border-[#B99A65] text-[#4A1525] hover:bg-[#FAF4ED] text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
-                                    >
-                                        <BookOpen className="w-3.5 h-3.5 text-[#B99A65]" />
-                                        <span>Buku Menu A La Carte</span>
-                                    </button>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {/* Option A: Santap Reguler A La Carte */}
-                                    <div
-                                        onClick={() => setData('experience_id', '')}
-                                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
-                                            !data.experience_id
-                                                ? 'bg-[#FDF9F3] border-[#B99A65] ring-2 ring-[#B99A65]/40 shadow-md'
-                                                : 'bg-white border-[#E8DFD3] hover:border-[#D4B886] hover:bg-[#FAF7F2]'
-                                        }`}
-                                    >
-                                        <div className="flex gap-3.5">
-                                            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[#32151F] to-[#4A1525] border border-[#B99A65]/40 flex items-center justify-center text-[#D4B886] shrink-0 shadow-sm">
-                                                <UtensilsCrossed className="w-7 h-7" />
-                                            </div>
-
-                                            <div className="min-w-0">
-                                                <div className="flex items-center justify-between gap-1">
-                                                    <h4 className="font-bold text-sm text-[#1A1615] truncate">
-                                                        Santap Reguler (A La Carte)
-                                                    </h4>
-                                                    {!data.experience_id && (
-                                                        <span className="w-4 h-4 rounded-full bg-[#32151F] text-[#D4B886] flex items-center justify-center shrink-0">
-                                                            <Check className="w-3 h-3" />
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-[#7C7169] line-clamp-2 mt-1 leading-relaxed">
-                                                    Hanya reservasi meja. Pesan menu favorit Anda bebas di restoran lewat Scan QR Meja saat kedatangan.
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-3 pt-2.5 border-t border-[#F2E8DC] flex items-center justify-between text-xs">
-                                            <span className="font-mono font-bold text-[#4A1525]">
-                                                Bebas Pilih Menu (A La Carte)
-                                            </span>
-                                            <span className="text-[11px] text-[#7C7169] flex items-center gap-1">
-                                                <Clock className="w-3 h-3 text-[#B99A65]" />
-                                                <span>120 Menit Sesi</span>
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Option B: Curated Gastronomy Packages */}
-                                    {experiences.map(exp => {
-                                        const isSelected = Number(data.experience_id) === exp.id;
-                                        return (
-                                            <div
-                                                key={exp.id}
-                                                onClick={() => setData('experience_id', exp.id)}
-                                                className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
-                                                    isSelected
-                                                        ? 'bg-[#FDF9F3] border-[#B99A65] ring-2 ring-[#B99A65]/40 shadow-md'
-                                                        : 'bg-white border-[#E8DFD3] hover:border-[#D4B886] hover:bg-[#FAF7F2]'
-                                                }`}
-                                            >
-                                                <div className="flex gap-3.5">
-                                                    {exp.image_url ? (
-                                                        <img
-                                                            src={exp.image_url}
-                                                            alt={exp.name}
-                                                            className="w-16 h-16 rounded-xl object-cover border border-[#E8DFD3] shrink-0"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-16 h-16 rounded-xl bg-[#FAF4ED] border border-[#E8DFD3] flex items-center justify-center text-[#B99A65] font-bold text-lg shrink-0">
-                                                            N
-                                                        </div>
-                                                    )}
-
-                                                    <div className="min-w-0">
-                                                        <div className="flex items-center justify-between gap-1">
-                                                            <h4 className="font-bold text-sm text-[#1A1615] truncate">
-                                                                {exp.name}
-                                                            </h4>
-                                                            {isSelected && (
-                                                                <span className="w-4 h-4 rounded-full bg-[#32151F] text-[#D4B886] flex items-center justify-center shrink-0">
-                                                                    <Check className="w-3 h-3" />
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-xs text-[#7C7169] line-clamp-2 mt-1 leading-relaxed">
-                                                            {exp.description}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="mt-3 pt-2.5 border-t border-[#F2E8DC] flex items-center justify-between text-xs">
-                                                    <span className="font-mono font-bold text-[#4A1525]">
-                                                        {exp.price_per_person ? `${formatRupiah(exp.price_per_person)} / pax` : 'Paket Kurasi Chef'}
-                                                    </span>
-                                                    <span className="text-[11px] text-[#7C7169] flex items-center gap-1">
-                                                        <Clock className="w-3 h-3 text-[#B99A65]" />
-                                                        <span>{exp.duration_minutes} Menit</span>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                <main className="flex-1 flex flex-col h-screen overflow-y-auto bg-[#FAF7F2]">
+                    
+                    {/* Top Main Bar (Title, Search, Filters, Primary CTA) */}
+                    <div className="sticky top-0 z-30 bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#E8DFD3] p-4 sm:p-6 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            {/* Left Title & Date */}
+                            <div>
+                                <h1 className="font-heading font-bold text-xl sm:text-2xl text-[#1A1615]">
+                                    {activeTab === 'experiences' && 'Paket Gastronomi Kurasi'}
+                                    {activeTab === 'menu' && 'Buku Menu Digital NUSARA'}
+                                    {activeTab === 'tables' && 'Denah & Status Meja 01–10'}
+                                    {activeTab === 'policy' && 'Kebijakan & Aturan Reservasi'}
+                                    {['all', 'pending', 'confirmed', 'completed'].includes(activeTab) && 'Jadwal Reservasi Meja'}
+                                </h1>
+                                <p className="text-xs text-[#7C7169] mt-0.5">
+                                    Senopati Flagship Dining · Waktu Jakarta: <span className="font-mono font-semibold text-[#1A1615]">{currentTimeWib} WIB</span>
+                                </p>
                             </div>
 
-                            {/* SECTION 2: TANGGAL & WAKTU RESERVASI (DENGAN ATURAN 3 JAM WIB) */}
-                            <div className="p-6 rounded-3xl bg-white border border-[#E8DFD3] shadow-sm space-y-5">
-                                <div className="flex items-center justify-between pb-3 border-b border-[#F2E8DC]">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-6 h-6 rounded-full bg-[#FAF4ED] text-[#B99A65] border border-[#E8DFD3] flex items-center justify-center font-bold text-xs">
-                                            2
-                                        </span>
-                                        <h3 className="font-heading font-bold text-base text-[#1A1615]">
-                                            Tanggal & Waktu Reservasi (WIB)
-                                        </h3>
-                                    </div>
-                                    <span className="text-[11px] font-mono text-[#4A1525] bg-[#FAF4ED] px-2.5 py-1 rounded-md border border-[#E8DFD3] font-bold">
-                                        Jam Sekarang: {currentTimeWib} WIB
-                                    </span>
-                                </div>
-
-                                {/* Date Picker with Calendar Popup & Manual Input */}
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-bold text-[#1A1615] uppercase tracking-wider">
-                                        Pilih Tanggal Reservasi *
-                                    </label>
-
-                                    {/* Quick Date Pills */}
-                                    <div className="flex flex-wrap items-center gap-2 pb-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => setQuickDate(0)}
-                                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                                                isSelectedDateToday
-                                                    ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-sm'
-                                                    : 'bg-[#FAF4ED] text-[#7C7169] hover:text-[#1A1615] border border-[#E8DFD3]'
-                                            }`}
-                                        >
-                                            Hari Ini ({nowJakarta?.date})
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setQuickDate(1)}
-                                            className="px-3 py-1 rounded-lg text-xs font-semibold bg-[#FAF4ED] text-[#7C7169] hover:text-[#1A1615] border border-[#E8DFD3] transition-all"
-                                        >
-                                            Besok
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setQuickDate(2)}
-                                            className="px-3 py-1 rounded-lg text-xs font-semibold bg-[#FAF4ED] text-[#7C7169] hover:text-[#1A1615] border border-[#E8DFD3] transition-all"
-                                        >
-                                            Lusa
-                                        </button>
-                                    </div>
-
-                                    {/* Interactive Date Input Container with Calendar Popup */}
-                                    <div className="relative" ref={calendarRef}>
-                                        <div className="flex items-center gap-2">
-                                            <div className="relative flex-1">
-                                                <CalendarIcon className="w-4 h-4 text-[#B99A65] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                                <input
-                                                    type="date"
-                                                    value={data.date}
-                                                    min={nowJakarta?.date}
-                                                    onChange={(e) => setData('date', e.target.value)}
-                                                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-[#E8DFD3] text-xs font-mono font-bold text-[#1A1615] focus:outline-none focus:border-[#B99A65] focus:ring-1 focus:ring-[#B99A65]"
-                                                />
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsCalendarOpen(prev => !prev)}
-                                                className="px-4 py-2.5 rounded-xl bg-[#FAF4ED] hover:bg-[#F2E8DC] text-[#4A1525] border border-[#E8DFD3] text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
-                                            >
-                                                <CalendarIcon className="w-3.5 h-3.5 text-[#B99A65]" />
-                                                <span>Buka Kalender</span>
-                                            </button>
-                                        </div>
-
-                                        {/* Pop-up Interactive Calendar */}
-                                        {isCalendarOpen && (
-                                            <div className="absolute top-full left-0 z-50 mt-2 p-4 rounded-2xl bg-white border border-[#B99A65]/40 shadow-2xl w-80 animate-fade-in">
-                                                <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#F2E8DC]">
-                                                    <span className="font-bold text-xs text-[#1A1615]">
-                                                        {monthNames[viewMonth]} {viewYear}
-                                                    </span>
-                                                    <div className="flex items-center gap-1">
-                                                        <button
-                                                            type="button"
-                                                            onClick={prevMonth}
-                                                            className="p-1 rounded-md hover:bg-[#FAF4ED] text-[#7C7169]"
-                                                        >
-                                                            <ChevronLeft className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={nextMonth}
-                                                            className="p-1 rounded-md hover:bg-[#FAF4ED] text-[#7C7169]"
-                                                        >
-                                                            <ChevronRight className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[#7C7169] mb-1">
-                                                    {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((d, i) => (
-                                                        <span key={i}>{d}</span>
-                                                    ))}
-                                                </div>
-
-                                                <div className="grid grid-cols-7 gap-1 text-center text-xs">
-                                                    {calendarDays.map((cDay, idx) => {
-                                                        const isSelected = data.date === cDay.dateStr;
-                                                        return (
-                                                            <button
-                                                                key={idx}
-                                                                type="button"
-                                                                disabled={cDay.isPast}
-                                                                onClick={() => handleSelectDate(cDay.dateStr)}
-                                                                className={`h-8 rounded-lg flex items-center justify-center font-mono text-xs transition-all ${
-                                                                    isSelected
-                                                                        ? 'bg-[#32151F] text-[#D4B886] font-bold shadow'
-                                                                        : cDay.isPast
-                                                                        ? 'text-[#C5BCB3] cursor-not-allowed'
-                                                                        : cDay.isCurrentMonth
-                                                                        ? 'text-[#1A1615] hover:bg-[#FAF4ED] font-semibold'
-                                                                        : 'text-[#9E938B] hover:bg-[#FAF4ED]'
-                                                                }`}
-                                                            >
-                                                                {cDay.day}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    {errors.date && (
-                                        <p className="text-xs text-rose-600 font-semibold">{errors.date}</p>
-                                    )}
-                                </div>
-
-                                {/* Time Slot Selection with 3-Hour Buffer Rule */}
-                                <div className="space-y-2.5">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                                        <label className="block text-xs font-bold text-[#1A1615] uppercase tracking-wider">
-                                            Pilih Jam Kedatangan (WIB) *
-                                        </label>
-                                        {isSelectedDateToday && (
-                                            <span className="text-[11px] text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 font-semibold flex items-center gap-1">
-                                                <Info className="w-3 h-3 text-[#B99A65]" />
-                                                <span>Pemesanan hari ini minimal 3 jam sebelumnya</span>
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                                        {timeSlots.map(slot => {
-                                            const isSelected = data.time === slot.time;
-                                            return (
-                                                <button
-                                                    key={slot.time}
-                                                    type="button"
-                                                    disabled={slot.disabled}
-                                                    onClick={() => setData('time', slot.time)}
-                                                    className={`py-2 px-1.5 rounded-xl text-xs font-mono font-bold transition-all flex flex-col items-center justify-center ${
-                                                        isSelected
-                                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65] shadow-md ring-2 ring-[#B99A65]/40'
-                                                            : slot.disabled
-                                                            ? 'bg-[#F2ECE4] text-[#A69C92] cursor-not-allowed border border-[#E5DDD2] opacity-60'
-                                                            : 'bg-white hover:bg-[#FAF7F2] text-[#1A1615] border border-[#E8DFD3]'
-                                                    }`}
-                                                    title={slot.reason || slot.label}
-                                                >
-                                                    <span>{slot.time}</span>
-                                                    {slot.disabled ? (
-                                                        <span className="text-[8px] font-sans text-rose-500 font-normal leading-tight mt-0.5">
-                                                            {slot.reason === 'Waktu sudah lewat' ? 'Lewat' : 'Terkunci'}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[9px] font-sans text-[#7C7169] font-normal leading-tight mt-0.5">
-                                                            Tersedia
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    {errors.time && (
-                                        <p className="text-xs text-rose-600 font-semibold">{errors.time}</p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* SECTION 3: PEMILIHAN MEJA RESTORAN (MEJA 01 - MEJA 10) */}
-                            <div className="p-6 rounded-3xl bg-white border border-[#E8DFD3] shadow-sm space-y-4">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#F2E8DC]">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-6 h-6 rounded-full bg-[#FAF4ED] text-[#B99A65] border border-[#E8DFD3] flex items-center justify-center font-bold text-xs">
-                                            3
-                                        </span>
-                                        <div>
-                                            <h3 className="font-heading font-bold text-base text-[#1A1615]">
-                                                Pilih Meja Restoran (Meja 01 – Meja 10)
-                                            </h3>
-                                            <p className="text-[11px] text-[#7C7169]">
-                                                Ketersediaan meja diperiksa otomatis sesuai tanggal {data.date} pukul {data.time} WIB.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-3 text-[11px]">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                            <span className="text-[#1A1615] font-semibold">Tersedia</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="w-2 h-2 rounded-full bg-stone-300" />
-                                            <span className="text-[#7C7169]">Sudah Dipesan</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* 10 Tables Grid */}
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5">
-                                    {tables.map(tbl => {
-                                        const availInfo = tableAvailabilityMap.get(tbl.id);
-                                        const isAvailable = availInfo?.isAvailable ?? true;
-                                        const isSelected = Number(data.table_id) === tbl.id;
-
-                                        return (
-                                            <div
-                                                key={tbl.id}
-                                                onClick={() => {
-                                                    if (isAvailable) {
-                                                        setData('table_id', tbl.id);
-                                                    }
-                                                }}
-                                                className={`relative p-3.5 rounded-2xl border-2 transition-all flex flex-col items-center justify-between text-center ${
-                                                    isSelected
-                                                        ? 'bg-[#FDF9F3] border-[#B99A65] ring-2 ring-[#B99A65]/40 shadow-lg scale-102 z-10'
-                                                        : !isAvailable
-                                                        ? 'bg-[#F5F2EB] border-[#E8DFD3] opacity-45 cursor-not-allowed'
-                                                        : 'bg-white border-[#E8DFD3] hover:border-[#D4B886] hover:bg-[#FAF7F2] cursor-pointer'
-                                                }`}
-                                            >
-                                                {/* Table Number & Status Pill */}
-                                                <div className="w-full flex items-center justify-between">
-                                                    <span className="font-heading font-bold text-sm text-[#1A1615]">
-                                                        {tbl.table_number}
-                                                    </span>
-                                                    {isSelected ? (
-                                                        <span className="w-4 h-4 rounded-full bg-[#32151F] text-[#D4B886] flex items-center justify-center">
-                                                            <Check className="w-3 h-3" />
-                                                        </span>
-                                                    ) : !isAvailable ? (
-                                                        <span className="text-[#7C7169]" title="Sudah terpesan di jam ini">
-                                                            <Lock className="w-3.5 h-3.5" />
-                                                        </span>
-                                                    ) : (
-                                                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                                    )}
-                                                </div>
-
-                                                {/* Circular Visual Table Mockup */}
-                                                <div className="my-2 relative w-16 h-16 rounded-full border-2 border-dashed border-[#D4B886]/60 bg-[#FAF6F0] flex flex-col items-center justify-center">
-                                                    <span className="text-[10px] font-bold text-[#4A1525]">
-                                                        {tbl.capacity} Kursi
-                                                    </span>
-                                                    <span className="text-[8px] text-[#7C7169]">
-                                                        {tbl.location || 'Hall'}
-                                                    </span>
-                                                </div>
-
-                                                {/* Bottom Status Text */}
-                                                <div className="w-full pt-1.5 border-t border-[#F2E8DC]">
-                                                    {isAvailable ? (
-                                                        <span className="text-[10px] font-bold text-emerald-700 block">
-                                                            {isSelected ? 'Terpilih' : 'Siap Dipesan'}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[9px] text-[#8C827A] font-medium block">
-                                                            Sudah Terisi
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                {errors.table_id && (
-                                    <p className="text-xs text-rose-600 font-semibold">{errors.table_id}</p>
-                                )}
-                            </div>
-
-                            {/* SECTION 4: DETAIL TAMU & CATATAN KHUSUS */}
-                            <div className="p-6 rounded-3xl bg-white border border-[#E8DFD3] shadow-sm space-y-4">
-                                <div className="flex items-center justify-between pb-3 border-b border-[#F2E8DC]">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-6 h-6 rounded-full bg-[#FAF4ED] text-[#B99A65] border border-[#E8DFD3] flex items-center justify-center font-bold text-xs">
-                                            4
-                                        </span>
-                                        <h3 className="font-heading font-bold text-base text-[#1A1615]">
-                                            Detail Tamu & Catatan Jamuan
-                                        </h3>
-                                    </div>
-                                    <span className="text-[11px] text-[#7C7169]">
-                                        Data otomatis terhubung dengan akun Anda
-                                    </span>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    {/* Jumlah Tamu */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#1A1615] uppercase tracking-wider mb-1.5">
-                                            Jumlah Tamu *
-                                        </label>
-                                        <div className="flex items-center rounded-xl bg-white border border-[#E8DFD3] p-1">
-                                            <button
-                                                type="button"
-                                                onClick={() => setData('guest_count', Math.max(1, data.guest_count - 1))}
-                                                className="w-9 h-9 rounded-lg bg-[#FAF4ED] hover:bg-[#F2E8DC] text-[#4A1525] font-bold text-sm flex items-center justify-center transition-colors"
-                                            >
-                                                -
-                                            </button>
-                                            <div className="flex-1 text-center font-mono font-bold text-sm text-[#1A1615]">
-                                                {data.guest_count} Tamu
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setData('guest_count', Math.min(10, data.guest_count + 1))}
-                                                className="w-9 h-9 rounded-lg bg-[#FAF4ED] hover:bg-[#F2E8DC] text-[#4A1525] font-bold text-sm flex items-center justify-center transition-colors"
-                                            >
-                                                +
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Nama Pemesan */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#1A1615] uppercase tracking-wider mb-1.5">
-                                            Nama Pemesan *
-                                        </label>
-                                        <div className="relative">
-                                            <UserIcon className="w-4 h-4 text-[#B99A65] absolute left-3 top-1/2 -translate-y-1/2" />
-                                            <input
-                                                type="text"
-                                                value={data.customer_name}
-                                                onChange={(e) => setData('customer_name', e.target.value)}
-                                                placeholder="Nama lengkap tamu..."
-                                                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-[#E8DFD3] text-xs font-medium text-[#1A1615] focus:outline-none focus:border-[#B99A65]"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* No WhatsApp / Telepon */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#1A1615] uppercase tracking-wider mb-1.5">
-                                            Nomor WhatsApp / Kontak *
-                                        </label>
-                                        <div className="relative">
-                                            <Phone className="w-4 h-4 text-[#B99A65] absolute left-3 top-1/2 -translate-y-1/2" />
-                                            <input
-                                                type="text"
-                                                value={data.customer_phone}
-                                                onChange={(e) => setData('customer_phone', e.target.value)}
-                                                placeholder="+62 812..."
-                                                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-[#E8DFD3] text-xs font-mono font-medium text-[#1A1615] focus:outline-none focus:border-[#B99A65]"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Catatan Khusus */}
-                                <div>
-                                    <label className="block text-xs font-bold text-[#1A1615] uppercase tracking-wider mb-1.5">
-                                        Permintaan Khusus (Opsional)
-                                    </label>
-                                    <textarea
-                                        value={data.special_request}
-                                        onChange={(e) => setData('special_request', e.target.value)}
-                                        placeholder="Contoh: Alergi makanan laut, perayaan ulang tahun pernikahan, mohon disiapkan baby chair..."
-                                        rows={3}
-                                        className="w-full p-3 rounded-xl bg-white border border-[#E8DFD3] text-xs text-[#1A1615] focus:outline-none focus:border-[#B99A65]"
-                                    />
-                                    <span className="text-[10px] text-[#7C7169] mt-1 block">
-                                        Tim kami akan berusaha mengakomodasi permintaan Anda sebaik mungkin sesuai ketersediaan.
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* SUBMIT BUTTON BAR */}
-                            <div className="p-4 rounded-2xl bg-white border border-[#E8DFD3] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-                                <div className="text-xs text-[#7C7169]">
-                                    <span className="font-bold text-[#1A1615] block">
-                                        {selectedExpObj?.name || 'Paket Bersantap'} · {selectedTableObj?.table_number || 'Pilih Meja'}
-                                    </span>
-                                    <span>
-                                        {data.date} pukul {data.time} WIB ({data.guest_count} Tamu)
-                                    </span>
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    disabled={processing || !data.table_id}
-                                    className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:brightness-105 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-40"
-                                >
-                                    <Sparkles className="w-4 h-4" />
-                                    <span>{processing ? 'Menyimpan Reservasi...' : 'Konfirmasi Reservasi Sekarang'}</span>
-                                </button>
-                            </div>
-                        </form>
-                    )}
-
-                    {/* VIEW B: RIWAYAT RESERVASI SAYA */}
-                    {sidebarTab === 'history' && (
-                        <div className="p-6 rounded-3xl bg-white border border-[#E8DFD3] shadow-sm space-y-4">
-                            <div className="flex items-center justify-between pb-3 border-b border-[#F2E8DC]">
-                                <div>
-                                    <h3 className="font-heading font-bold text-lg text-[#1A1615]">
-                                        Riwayat Reservasi Anda
-                                    </h3>
-                                    <p className="text-xs text-[#7C7169]">
-                                        Daftar reservasi meja restoran yang pernah Anda ajukan di NUSARA.
-                                    </p>
-                                </div>
+                            {/* Right Action: "+ Book job" Styled Button */}
+                            <div className="flex items-center gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => setSidebarTab('form')}
-                                    className="px-3.5 py-1.5 rounded-xl bg-[#FAF4ED] text-[#4A1525] hover:bg-[#F2E8DC] text-xs font-bold transition-all"
+                                    onClick={() => setIsBookingDrawerOpen(true)}
+                                    className="px-5 py-2.5 rounded-full bg-[#32151F] text-[#D4B886] hover:bg-[#4A1525] active:scale-95 transition-all shadow-md font-bold text-xs uppercase tracking-wider flex items-center gap-2 border border-[#B99A65]/40"
                                 >
-                                    + Reservasi Baru
+                                    <Plus className="w-4 h-4" />
+                                    <span>Reservasi Meja Baru</span>
                                 </button>
                             </div>
+                        </div>
 
-                            {customerReservations.length === 0 ? (
-                                <div className="py-16 text-center space-y-3">
-                                    <div className="w-14 h-14 rounded-2xl bg-[#FAF4ED] text-[#B99A65] mx-auto flex items-center justify-center">
-                                        <History className="w-6 h-6" />
-                                    </div>
-                                    <h4 className="font-bold text-sm text-[#1A1615]">Belum Ada Reservasi</h4>
-                                    <p className="text-xs text-[#7C7169] max-w-sm mx-auto">
-                                        Anda belum memiliki jadwal reservasi meja. Buat reservasi pertama Anda sekarang.
-                                    </p>
+                        {/* Search & Quick Filters Bar (App Shell 8 Style) */}
+                        {['all', 'pending', 'confirmed', 'completed'].includes(activeTab) && (
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+                                {/* Search Jobs Input */}
+                                <div className="relative flex-1 max-w-md">
+                                    <Search className="w-4 h-4 text-[#7C7169] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Cari kode booking, nama tamu, meja, atau paket..."
+                                        className="w-full pl-10 pr-4 py-2 rounded-xl bg-white border border-[#E8DFD3] text-xs text-[#1A1615] placeholder-[#7C7169] focus:outline-none focus:border-[#B99A65] focus:ring-1 focus:ring-[#B99A65] shadow-xs"
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSearchQuery('')}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7C7169] hover:text-[#1A1615]"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Quick Filters: Time / Customer */}
+                                <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                                    <span className="text-[11px] text-[#7C7169] mr-1 hidden sm:inline">Filter:</span>
                                     <button
                                         type="button"
-                                        onClick={() => setSidebarTab('form')}
-                                        className="mt-2 px-5 py-2 rounded-full bg-[#32151F] text-[#D4B886] font-bold text-xs uppercase tracking-wider"
+                                        onClick={() => setDateFilter('all')}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                            dateFilter === 'all'
+                                                ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                                : 'bg-white text-[#7C7169] hover:text-[#1A1615] border border-[#E8DFD3]'
+                                        }`}
                                     >
-                                        Pesan Meja Sekarang
+                                        Semua Tanggal
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setDateFilter('today')}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                            dateFilter === 'today'
+                                                ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                                : 'bg-white text-[#7C7169] hover:text-[#1A1615] border border-[#E8DFD3]'
+                                        }`}
+                                    >
+                                        Hari Ini
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ========================================================
+                        CONTENT VIEW A: RESERVATIONS TABLE (APP SHELL 8 LIST)
+                    ======================================================== */}
+                    {['all', 'pending', 'confirmed', 'completed'].includes(activeTab) && (
+                        <div className="p-4 sm:p-6 flex-1">
+                            {filteredReservations.length === 0 ? (
+                                <div className="p-12 text-center rounded-3xl bg-white border border-[#E8DFD3] shadow-xs max-w-2xl mx-auto space-y-4 my-8">
+                                    <div className="w-16 h-16 rounded-2xl bg-[#FAF4ED] text-[#B99A65] mx-auto flex items-center justify-center border border-[#E8DFD3]">
+                                        <CalendarIcon className="w-8 h-8" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <h3 className="font-heading font-bold text-lg text-[#1A1615]">
+                                            Belum Ada Jadwal Reservasi
+                                        </h3>
+                                        <p className="text-xs text-[#7C7169] max-w-md mx-auto leading-relaxed">
+                                            {searchQuery 
+                                                ? 'Tidak ditemukan reservasi yang sesuai dengan kata kunci pencarian Anda.' 
+                                                : 'Nikmati jamuan santap eksklusif gastronomi nusantara di Senopati. Pesan meja Anda sekarang minimal 3 jam sebelum jadwal jamuan.'}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsBookingDrawerOpen(true)}
+                                        className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#32151F] text-[#D4B886] font-bold text-xs uppercase tracking-wider hover:bg-[#4A1525] shadow-md transition-all"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        <span>Buat Reservasi Meja Pertama</span>
                                     </button>
                                 </div>
                             ) : (
-                                <div className="space-y-3">
-                                    {customerReservations.map(res => {
-                                        const isPending = res.status === 'Pending';
-                                        const isConfirmed = res.status === 'Confirmed';
-                                        return (
-                                            <div
-                                                key={res.id}
-                                                className="p-4 rounded-2xl bg-[#FFFDF9] border border-[#E8DFD3] hover:border-[#D4B886] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm"
-                                            >
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-mono text-xs font-bold text-[#4A1525]">
+                                <div className="bg-white rounded-2xl border border-[#E8DFD3] shadow-xs overflow-hidden">
+                                    {/* Table Header */}
+                                    <div className="grid grid-cols-12 gap-3 px-5 py-3 bg-[#FFFDF9] border-b border-[#F2E8DC] text-[11px] font-bold uppercase tracking-wider text-[#7C7169]">
+                                        <span className="col-span-3 sm:col-span-2">Kode</span>
+                                        <span className="col-span-5 sm:col-span-4">Paket & Meja</span>
+                                        <span className="col-span-4 sm:col-span-3 hidden md:block">Tamu & Kontak</span>
+                                        <span className="col-span-4 sm:col-span-2 text-right sm:text-left">Jadwal (WIB)</span>
+                                        <span className="col-span-1 text-right hidden sm:block">Status</span>
+                                    </div>
+
+                                    {/* Table Body Rows (Matching App Shell 8 Ferngate Dental / Halstead Grocers style) */}
+                                    <div className="divide-y divide-[#F2E8DC]">
+                                        {filteredReservations.map(res => {
+                                            const isConfirmed = (res.status || '').toLowerCase() === 'confirmed';
+                                            const isPending = (res.status || '').toLowerCase() === 'pending';
+                                            return (
+                                                <div
+                                                    key={res.id}
+                                                    onClick={() => setSelectedReservationDetail(res)}
+                                                    className="grid grid-cols-12 gap-3 px-5 py-3.5 items-center hover:bg-[#FAF7F2] transition-colors cursor-pointer group"
+                                                >
+                                                    {/* 1. Job Code (WO-4821 style -> RES-...) */}
+                                                    <div className="col-span-3 sm:col-span-2">
+                                                        <span className="font-mono text-xs font-bold text-[#4A1525] group-hover:text-[#B99A65] transition-colors block">
                                                             {res.reservation_code}
                                                         </span>
-                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                        <span className="text-[10px] text-[#7C7169] block font-mono">
+                                                            {res.created_at.split(' ')[0]}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* 2. Experience Name & Table */}
+                                                    <div className="col-span-5 sm:col-span-4 min-w-0">
+                                                        <h4 className="font-bold text-xs sm:text-sm text-[#1A1615] truncate group-hover:text-[#32151F]">
+                                                            {res.experience_name || 'Santap Meja Reguler (A La Carte)'}
+                                                        </h4>
+                                                        <div className="flex items-center gap-2 text-[11px] text-[#7C7169] mt-0.5">
+                                                            <span className="font-semibold text-[#1A1615] bg-[#FAF4ED] px-2 py-0.5 rounded border border-[#EBD7BE]">
+                                                                {res.table_number || 'Alokasi Staf'}
+                                                            </span>
+                                                            <span>·</span>
+                                                            <span className="flex items-center gap-1">
+                                                                <Users className="w-3 h-3 text-[#B99A65]" />
+                                                                <span>{res.guest_count} Tamu</span>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 3. Customer & Contact */}
+                                                    <div className="col-span-4 sm:col-span-3 hidden md:block min-w-0">
+                                                        <span className="text-xs font-semibold text-[#1A1615] block truncate">
+                                                            {auth.user.name}
+                                                        </span>
+                                                        <span className="text-[11px] text-[#7C7169] font-mono truncate block">
+                                                            {customer?.phone_normalized || auth.user.email}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* 4. Time Range (08:00 - 10:00 style) */}
+                                                    <div className="col-span-4 sm:col-span-2 text-right sm:text-left">
+                                                        <span className="font-mono text-xs font-bold text-[#1A1615] block">
+                                                            {res.reservation_datetime.split(',')[1] || res.reservation_datetime}
+                                                        </span>
+                                                        <span className="text-[10px] text-[#7C7169] block">
+                                                            {res.reservation_datetime.split(',')[0]}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* 5. Status Badge */}
+                                                    <div className="col-span-12 sm:col-span-1 flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-none border-[#F2E8DC]">
+                                                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                                                             isConfirmed ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
                                                             isPending ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse' :
                                                             'bg-stone-100 text-stone-700'
                                                         }`}>
-                                                            {res.status}
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${isConfirmed ? 'bg-emerald-600' : isPending ? 'bg-amber-600' : 'bg-stone-500'}`} />
+                                                            <span>{res.status}</span>
                                                         </span>
-                                                        <span className="text-[11px] font-bold text-[#1A1615]">
-                                                            {res.table_number || 'Meja Alokasi Staf'}
-                                                        </span>
-                                                    </div>
-                                                    <h5 className="font-bold text-sm text-[#1A1615]">
-                                                        {res.experience_name || 'Santap Meja Reguler'}
-                                                    </h5>
-                                                    <div className="flex items-center gap-3 text-xs text-[#7C7169]">
-                                                        <span className="flex items-center gap-1">
-                                                            <CalendarIcon className="w-3.5 h-3.5 text-[#B99A65]" />
-                                                            <span>{res.reservation_datetime}</span>
-                                                        </span>
-                                                        <span>·</span>
-                                                        <span className="flex items-center gap-1">
-                                                            <Users className="w-3.5 h-3.5 text-[#B99A65]" />
-                                                            <span>{res.guest_count} Tamu</span>
-                                                        </span>
-                                                    </div>
-                                                </div>
 
-                                                <div className="text-right sm:self-center">
-                                                    <span className="text-[10px] text-[#7C7169] block">
-                                                        Dibuat: {new Date(res.created_at).toLocaleDateString('id-ID')}
-                                                    </span>
+                                                        <ChevronRight className="w-4 h-4 text-[#7C7169] opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* VIEW C: ATURAN & KEBIJAKAN MEJA */}
-                    {sidebarTab === 'policy' && (
-                        <div className="p-6 rounded-3xl bg-white border border-[#E8DFD3] shadow-sm space-y-4">
-                            <div className="pb-3 border-b border-[#F2E8DC]">
-                                <h3 className="font-heading font-bold text-lg text-[#1A1615]">
-                                    Kebijakan & Ketentuan Reservasi Restoran
-                                </h3>
-                                <p className="text-xs text-[#7C7169]">
-                                    Standar operasional Senopati Flagship Dining NUSARA demi kenyamanan seluruh tamu.
-                                </p>
-                            </div>
+                    {/* ========================================================
+                        CONTENT VIEW B: EXPERIENCES CATALOG
+                    ======================================================== */}
+                    {activeTab === 'experiences' && (
+                        <div className="p-4 sm:p-6 space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {experiences.map(exp => (
+                                    <div
+                                        key={exp.id}
+                                        className="bg-white rounded-3xl border border-[#E8DFD3] overflow-hidden shadow-xs hover:border-[#B99A65] transition-all flex flex-col justify-between"
+                                    >
+                                        <div>
+                                            {exp.image_url ? (
+                                                <img
+                                                    src={exp.image_url}
+                                                    alt={exp.name}
+                                                    className="w-full h-48 object-cover border-b border-[#E8DFD3]"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-48 bg-[#FAF4ED] flex items-center justify-center text-[#B99A65] font-bold text-2xl">
+                                                    NUSARA
+                                                </div>
+                                            )}
+                                            <div className="p-5 space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] uppercase font-bold tracking-widest text-[#B99A65]">
+                                                        Set Kurasi Chef
+                                                    </span>
+                                                    <span className="text-xs text-[#7C7169] flex items-center gap-1 font-mono">
+                                                        <Clock className="w-3.5 h-3.5 text-[#B99A65]" />
+                                                        <span>{exp.duration_minutes} Menit</span>
+                                                    </span>
+                                                </div>
+                                                <h3 className="font-heading font-bold text-base text-[#1A1615]">
+                                                    {exp.name}
+                                                </h3>
+                                                <p className="text-xs text-[#7C7169] leading-relaxed line-clamp-3">
+                                                    {exp.description}
+                                                </p>
+                                            </div>
+                                        </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-[#4A1525]">
-                                <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E8DFD3] space-y-1.5">
-                                    <h4 className="font-bold text-sm text-[#1A1615] flex items-center gap-1.5">
-                                        <Clock className="w-4 h-4 text-[#B99A65]" />
-                                        <span>Batas Reservasi 3 Jam (WIB)</span>
-                                    </h4>
-                                    <p className="text-[#7C7169] leading-relaxed">
-                                        Reservasi untuk hari yang sama wajib diajukan minimal 3 jam sebelum jadwal jamuan agar tim dapur dan pramusaji dapat menyiapkan meja serta bahan segar optimal.
-                                    </p>
-                                </div>
-
-                                <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E8DFD3] space-y-1.5">
-                                    <h4 className="font-bold text-sm text-[#1A1615] flex items-center gap-1.5">
-                                        <ShieldCheck className="w-4 h-4 text-[#B99A65]" />
-                                        <span>Toleransi Keterlambatan</span>
-                                    </h4>
-                                    <p className="text-[#7C7169] leading-relaxed">
-                                        Meja akan disimpan hingga maksimal 15 menit dari jam reservasi yang dipilih. Setelahnya, alokasi meja dapat dialihkan kepada tamu waiting list.
-                                    </p>
-                                </div>
-
-                                <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E8DFD3] space-y-1.5">
-                                    <h4 className="font-bold text-sm text-[#1A1615] flex items-center gap-1.5">
-                                        <Users className="w-4 h-4 text-[#B99A65]" />
-                                        <span>Kapasitas Meja 1 s/d 10</span>
-                                    </h4>
-                                    <p className="text-[#7C7169] leading-relaxed">
-                                        Setiap meja memiliki kapasitas ideal 5 kursi tamu. Untuk rombongan di atas 5 orang, dapat memesan meja berdampingan atau menghubungi konsierge kami.
-                                    </p>
-                                </div>
-
-                                <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E8DFD3] space-y-1.5">
-                                    <h4 className="font-bold text-sm text-[#1A1615] flex items-center gap-1.5">
-                                        <Phone className="w-4 h-4 text-[#B99A65]" />
-                                        <span>Konfirmasi WhatsApp</span>
-                                    </h4>
-                                    <p className="text-[#7C7169] leading-relaxed">
-                                        Staf kasir / konsierge kami akan mengirimkan pesan konfirmasi status meja melalui nomor WhatsApp yang terdaftar dalam waktu 15 menit.
-                                    </p>
-                                </div>
+                                        <div className="p-5 pt-0 border-t border-[#F2E8DC] mt-4 flex items-center justify-between">
+                                            <div className="pt-3">
+                                                <span className="text-[10px] text-[#7C7169] block">Harga Per Orang:</span>
+                                                <span className="font-mono font-bold text-[#4A1525] text-sm">
+                                                    {exp.price_per_person ? `${formatRupiah(exp.price_per_person)} / pax` : 'A La Carte'}
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setData('experience_id', exp.id);
+                                                    setIsBookingDrawerOpen(true);
+                                                }}
+                                                className="mt-3 px-4 py-2 rounded-xl bg-[#32151F] text-[#D4B886] font-bold text-xs uppercase tracking-wider hover:bg-[#4A1525] transition-all shadow-sm"
+                                            >
+                                                Pilih Paket Ini
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     )}
-                </main>
 
-                {/* ========================================================
-                    COLUMN 3: RIGHT SCHEDULE & CALENDAR PANEL (APP SHELL 4)
-                ======================================================== */}
-                <aside className={`w-full lg:w-80 shrink-0 space-y-4 ${isRightPanelOpen ? 'block' : 'hidden'}`}>
-                    <div className="flex items-center justify-between pb-1">
-                        <div className="flex items-center gap-2">
-                            <CalendarIcon className="w-4 h-4 text-[#B99A65]" />
-                            <span className="text-xs font-bold text-[#1A1615]">Jadwal & Voucher</span>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setIsRightPanelOpen(false)}
-                            className="p-1 rounded-lg text-[#7C7169] hover:text-[#1A1615] hover:bg-[#FAF4ED] transition-colors"
-                            title="Tutup Panel Jadwal"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    </div>
+                    {/* ========================================================
+                        CONTENT VIEW C: DIGITAL MENU (A LA CARTE EXPLORER)
+                    ======================================================== */}
+                    {activeTab === 'menu' && (
+                        <div className="p-4 sm:p-6 space-y-6">
+                            <div className="bg-white rounded-2xl border border-[#E8DFD3] p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+                                <div className="relative w-full sm:w-80">
+                                    <Search className="w-4 h-4 text-[#7C7169] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    <input
+                                        type="text"
+                                        value={menuSearchQuery}
+                                        onChange={(e) => setMenuSearchQuery(e.target.value)}
+                                        placeholder="Cari masakan khas nusantara..."
+                                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#FAF7F2] border border-[#E8DFD3] text-xs text-[#1A1615] focus:outline-none focus:border-[#B99A65]"
+                                    />
+                                </div>
 
-                    {/* Visual Month Calendar Widget */}
-                    <div className="p-4 rounded-2xl bg-white border border-[#E8DFD3] shadow-sm space-y-3">
-                        <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs text-[#1A1615]">
-                                {monthNames[viewMonth]} {viewYear}
-                            </span>
-                            <div className="flex items-center gap-1">
-                                <button
-                                    type="button"
-                                    onClick={prevMonth}
-                                    className="p-1 rounded-md hover:bg-[#FAF4ED] text-[#7C7169]"
-                                >
-                                    <ChevronLeft className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={nextMonth}
-                                    className="p-1 rounded-md hover:bg-[#FAF4ED] text-[#7C7169]"
-                                >
-                                    <ChevronRight className="w-3.5 h-3.5" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Calendar Week Header */}
-                        <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[#7C7169]">
-                            {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((dh, i) => (
-                                <span key={i}>{dh}</span>
-                            ))}
-                        </div>
-
-                        {/* Calendar Grid */}
-                        <div className="grid grid-cols-7 gap-1 text-center text-xs">
-                            {calendarDays.map((cDay, idx) => {
-                                const isSelected = data.date === cDay.dateStr;
-                                return (
+                                <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
                                     <button
-                                        key={idx}
                                         type="button"
-                                        disabled={cDay.isPast}
-                                        onClick={() => handleSelectDate(cDay.dateStr)}
-                                        className={`h-7 rounded-lg flex items-center justify-center font-mono text-[11px] transition-all ${
-                                            isSelected
-                                                ? 'bg-[#32151F] text-[#D4B886] font-bold shadow'
-                                                : cDay.isPast
-                                                ? 'text-[#C5BCB3] cursor-not-allowed'
-                                                : cDay.isCurrentMonth
-                                                ? 'text-[#1A1615] hover:bg-[#FAF4ED] font-semibold'
-                                                : 'text-[#9E938B]'
+                                        onClick={() => setSelectedMenuCategory('all')}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                                            selectedMenuCategory === 'all'
+                                                ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                                : 'bg-white text-[#7C7169] hover:text-[#1A1615] border border-[#E8DFD3]'
                                         }`}
                                     >
-                                        {cDay.day}
+                                        Semua ({menus.length})
                                     </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Booking Voucher Ticket Summary */}
-                    <div className="p-5 rounded-3xl bg-gradient-to-br from-[#FFFDF9] to-[#FAF5EC] border-2 border-[#D4B886]/40 shadow-md space-y-4 relative overflow-hidden">
-                        <div className="space-y-1 pb-3 border-b border-[#E8DFD3]">
-                            <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#B99A65] block">
-                                Voucher Reservasi
-                            </span>
-                            <h4 className="font-heading font-bold text-base text-[#1A1615]">
-                                {selectedExpObj?.name || 'Paket Bersantap'}
-                            </h4>
-                        </div>
-
-                        <div className="space-y-2 text-xs">
-                            <div className="flex items-center justify-between text-[#7C7169]">
-                                <span>Tanggal Reservasi:</span>
-                                <span className="font-mono font-bold text-[#1A1615]">{data.date}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-[#7C7169]">
-                                <span>Waktu Kedatangan:</span>
-                                <span className="font-mono font-bold text-[#4A1525]">{data.time} WIB</span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-[#7C7169]">
-                                <span>Alokasi Meja:</span>
-                                <span className="font-bold text-[#1A1615] bg-white px-2 py-0.5 rounded border border-[#E8DFD3]">
-                                    {selectedTableObj?.table_number || 'Pilih Meja'}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-[#7C7169]">
-                                <span>Jumlah Tamu:</span>
-                                <span className="font-mono font-bold text-[#1A1615]">{data.guest_count} Orang</span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-[#7C7169]">
-                                <span>Durasi Sesi:</span>
-                                <span className="font-mono text-[#7C7169]">120 Menit (2 Jam)</span>
-                            </div>
-                        </div>
-
-                        <div className="pt-3 border-t border-[#E8DFD3] space-y-2">
-                            <div className="flex items-center justify-between text-xs font-bold text-[#1A1615]">
-                                <span>Estimasi Paket:</span>
-                                <span className="font-mono text-[#4A1525]">
-                                    {selectedExpObj?.price_per_person 
-                                        ? formatRupiah(selectedExpObj.price_per_person * data.guest_count) 
-                                        : 'A la Carte'}
-                                </span>
-                            </div>
-                            <p className="text-[10px] text-[#7C7169] italic">
-                                *Pembayaran dilakukan langsung di restoran kasir POS saat selesai bersantap.
-                            </p>
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={handleSubmit}
-                            disabled={processing || !data.table_id}
-                            className="w-full py-3 rounded-full bg-[#32151F] text-[#D4B886] font-bold text-xs uppercase tracking-wider hover:bg-[#4A1525] transition-all shadow flex items-center justify-center gap-1.5 disabled:opacity-40"
-                        >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            <span>{processing ? 'Menyimpan...' : 'Ajukan Reservasi Ini'}</span>
-                        </button>
-                    </div>
-
-                    {/* Upcoming Booking Quick Pill */}
-                    {customerReservations.length > 0 && (
-                        <div className="p-4 rounded-2xl bg-white border border-[#E8DFD3] shadow-sm space-y-2">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-[#B99A65] block">
-                                Reservasi Terdekat Anda
-                            </span>
-                            <div className="p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E8DFD3] text-xs">
-                                <div className="flex items-center justify-between">
-                                    <span className="font-mono font-bold text-[#4A1525]">{customerReservations[0].reservation_code}</span>
-                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
-                                        {customerReservations[0].status}
-                                    </span>
+                                    {menuCategories.map((cat, i) => (
+                                        <button
+                                            key={i}
+                                            type="button"
+                                            onClick={() => setSelectedMenuCategory(cat)}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                                                selectedMenuCategory === cat
+                                                    ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                                    : 'bg-white text-[#7C7169] hover:text-[#1A1615] border border-[#E8DFD3]'
+                                            }`}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
                                 </div>
-                                <p className="text-[11px] text-[#1A1615] font-semibold mt-1">
-                                    {customerReservations[0].table_number || 'Meja Dipersiapkan'} · {customerReservations[0].reservation_datetime}
-                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {filteredMenus.map(m => (
+                                    <div
+                                        key={m.id}
+                                        className="p-3.5 rounded-2xl bg-white border border-[#E8DFD3] hover:border-[#D4B886] transition-all flex gap-3 shadow-xs"
+                                    >
+                                        {m.image_path ? (
+                                            <img
+                                                src={`/storage/${m.image_path}`}
+                                                alt={m.name}
+                                                className="w-20 h-20 rounded-xl object-cover border border-[#E8DFD3] shrink-0"
+                                            />
+                                        ) : (
+                                            <div className="w-20 h-20 rounded-xl bg-[#FAF4ED] border border-[#E8DFD3] flex items-center justify-center text-[#B99A65] shrink-0">
+                                                <UtensilsCrossed className="w-6 h-6" />
+                                            </div>
+                                        )}
+
+                                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <h4 className="font-bold text-xs text-[#1A1615] truncate">
+                                                        {m.name}
+                                                    </h4>
+                                                    <span className="font-mono text-xs font-bold text-[#4A1525] shrink-0">
+                                                        {formatRupiah(m.price)}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[11px] text-[#7C7169] line-clamp-2 mt-0.5 leading-relaxed">
+                                                    {m.description}
+                                                </p>
+                                            </div>
+
+                                            <div className="pt-2 flex items-center justify-between gap-2">
+                                                <span className="text-[10px] text-[#B99A65] font-semibold bg-[#FAF4ED] px-2 py-0.5 rounded border border-[#EBD7BE]">
+                                                    {m.category_name || 'A La Carte'}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        handleAddDishToRequest(m.name);
+                                                        setIsBookingDrawerOpen(true);
+                                                    }}
+                                                    className="px-2.5 py-1 rounded-lg bg-[#FAF4ED] hover:bg-[#32151F] text-[#4A1525] hover:text-[#D4B886] border border-[#E8DFD3] text-[11px] font-bold transition-all flex items-center gap-1 shrink-0"
+                                                >
+                                                    <Plus className="w-3 h-3" />
+                                                    <span>Pre-Order</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     )}
-                </aside>
 
+                    {/* ========================================================
+                        CONTENT VIEW D: FLOOR PLAN (MEJA 01-10)
+                    ======================================================== */}
+                    {activeTab === 'tables' && (
+                        <div className="p-4 sm:p-6 space-y-6">
+                            <div className="p-5 rounded-3xl bg-white border border-[#E8DFD3] shadow-xs space-y-2">
+                                <h3 className="font-heading font-bold text-base text-[#1A1615]">
+                                    Denah Ruang Bersantap (Meja 01 s/d 10)
+                                </h3>
+                                <p className="text-xs text-[#7C7169]">
+                                    Setiap meja di Senopati Flagship dirancang berjarak nyaman dengan kapasitas 4 hingga 5 tamu. Status ketersediaan diperbarui langsung dari jadwal reservasi.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                                {tables.map(t => {
+                                    const avail = tableAvailabilityMap.get(t.id);
+                                    const isAvail = avail ? avail.isAvailable : true;
+                                    return (
+                                        <div
+                                            key={t.id}
+                                            className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                                                isAvail
+                                                    ? 'bg-white border-[#E8DFD3] hover:border-[#B99A65]'
+                                                    : 'bg-[#FAF4ED] border-[#EBD7BE] opacity-80'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between pb-2 border-b border-[#F2E8DC]">
+                                                <span className="font-heading font-bold text-sm text-[#1A1615]">
+                                                    {t.table_number}
+                                                </span>
+                                                <span className={`w-2.5 h-2.5 rounded-full ${isAvail ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                                            </div>
+                                            <div className="py-3 space-y-1">
+                                                <span className="text-[11px] text-[#7C7169] block">
+                                                    Kapasitas: {t.capacity} Tamu
+                                                </span>
+                                                <span className="text-[11px] font-semibold text-[#1A1615] block">
+                                                    {t.location || 'Main Hall Dining'}
+                                                </span>
+                                            </div>
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider py-1 text-center rounded-lg ${
+                                                isAvail ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'
+                                            }`}>
+                                                {isAvail ? 'Siap Dipesan' : 'Terjadwal'}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ========================================================
+                        CONTENT VIEW E: RESERVATION POLICY
+                    ======================================================== */}
+                    {activeTab === 'policy' && (
+                        <div className="p-4 sm:p-6 space-y-6 max-w-4xl">
+                            <div className="p-6 rounded-3xl bg-white border border-[#E8DFD3] shadow-xs space-y-4">
+                                <h3 className="font-heading font-bold text-lg text-[#1A1615]">
+                                    Standar Operasional & Kebijakan Reservasi NUSARA
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                    <div className="p-4 rounded-2xl bg-[#FFFDF9] border border-[#EBD7BE] space-y-2">
+                                        <div className="flex items-center gap-2 font-bold text-[#805315]">
+                                            <Clock className="w-4 h-4 text-[#B99A65]" />
+                                            <span>Aturan Pemesanan Minimal 3 Jam (WIB)</span>
+                                        </div>
+                                        <p className="text-[#7C7169] leading-relaxed">
+                                            Untuk reservasi pada hari yang sama, pemesanan wajib diajukan minimal 3 jam sebelumnya agar tim dapur dan pramusaji dapat mempersiapkan bahan segar dan meja terbaik Anda.
+                                        </p>
+                                    </div>
+
+                                    <div className="p-4 rounded-2xl bg-[#FFFDF9] border border-[#EBD7BE] space-y-2">
+                                        <div className="flex items-center gap-2 font-bold text-[#805315]">
+                                            <ShieldCheck className="w-4 h-4 text-[#B99A65]" />
+                                            <span>Batas Toleransi Kedatangan</span>
+                                        </div>
+                                        <p className="text-[#7C7169] leading-relaxed">
+                                            Meja reservasi disimpan hingga maksimal 15 menit dari jam yang dijadwalkan. Mohon konfirmasi konsierge kami via WhatsApp jika mengalami keterlambatan di perjalanan.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </main>
             </div>
 
             {/* ============================================================
-                DIGITAL MENU MODAL (A LA CARTE EXPLORER & PRE-ORDER)
+                SLIDE-OVER / MODAL BOOKING DRAWER ("+ Book job" Style)
             ============================================================ */}
-            {isMenuModalOpen && (
-                <div className="fixed inset-0 z-50 bg-[#1A1615]/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="w-full max-w-4xl max-h-[90vh] bg-white rounded-3xl border border-[#E8DFD3] shadow-2xl flex flex-col overflow-hidden animate-in fade-in duration-200">
-                        {/* Modal Header */}
-                        <div className="p-6 border-b border-[#F2E8DC] flex items-center justify-between bg-[#FFFDF9]">
+            {isBookingDrawerOpen && (
+                <div className="fixed inset-0 z-50 overflow-hidden bg-[#1A1615]/50 backdrop-blur-xs flex justify-end">
+                    <div className="w-full max-w-2xl bg-white h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+                        {/* Drawer Header */}
+                        <div className="p-5 border-b border-[#F2E8DC] bg-[#FFFDF9] flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-[#FAF4ED] border border-[#E8DFD3] flex items-center justify-center text-[#B99A65]">
-                                    <BookOpen className="w-5 h-5" />
+                                <div className="w-9 h-9 rounded-xl bg-[#FAF4ED] text-[#B99A65] flex items-center justify-center border border-[#E8DFD3]">
+                                    <CalendarIcon className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h3 className="font-heading font-bold text-lg text-[#1A1615]">
-                                        Buku Menu NUSARA (Katalog A La Carte)
+                                    <h3 className="font-heading font-bold text-base text-[#1A1615]">
+                                        Formulir Reservasi Meja Baru
                                     </h3>
                                     <p className="text-xs text-[#7C7169]">
-                                        Menu ini dapat dipesan leluasa di meja melalui Scan QR saat kedatangan, atau dicatat sebagai pre-order.
+                                        Senopati Flagship Dining · Batas 3 Jam WIB Berlaku
                                     </p>
                                 </div>
                             </div>
                             <button
                                 type="button"
-                                onClick={() => setIsMenuModalOpen(false)}
+                                onClick={() => setIsBookingDrawerOpen(false)}
                                 className="p-2 rounded-xl text-[#7C7169] hover:text-[#1A1615] hover:bg-[#FAF4ED] transition-colors"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        {/* Search and Category Filters */}
-                        <div className="p-4 bg-[#FAF7F2] border-b border-[#E8DFD3] flex flex-col sm:flex-row gap-3 items-center justify-between">
-                            <div className="relative w-full sm:w-72">
-                                <Search className="w-4 h-4 text-[#7C7169] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                <input
-                                    type="text"
-                                    value={menuSearchQuery}
-                                    onChange={(e) => setMenuSearchQuery(e.target.value)}
-                                    placeholder="Cari menu nusantara..."
-                                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-[#E8DFD3] text-xs text-[#1A1615] placeholder-[#7C7169] focus:outline-none focus:border-[#B99A65]"
-                                />
-                            </div>
+                        {/* Drawer Form Body */}
+                        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
 
-                            <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedMenuCategory('all')}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                                        selectedMenuCategory === 'all'
-                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
-                                            : 'bg-white text-[#7C7169] hover:text-[#1A1615] border border-[#E8DFD3]'
-                                    }`}
-                                >
-                                    Semua Kategori ({menus.length})
-                                </button>
-                                {menuCategories.map((cat, i) => (
-                                    <button
-                                        key={i}
-                                        type="button"
-                                        onClick={() => setSelectedMenuCategory(cat)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                                            selectedMenuCategory === cat
-                                                ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
-                                                : 'bg-white text-[#7C7169] hover:text-[#1A1615] border border-[#E8DFD3]'
+                            {/* 1. Pengalaman Bersantap */}
+                            <div className="space-y-3">
+                                <label className="block text-xs font-bold text-[#1A1615] uppercase tracking-wider">
+                                    1. Pilih Pengalaman Bersantap
+                                </label>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {/* Opsi Santap Reguler */}
+                                    <div
+                                        onClick={() => setData('experience_id', '')}
+                                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                                            !data.experience_id
+                                                ? 'bg-[#FDF9F3] border-[#B99A65] ring-2 ring-[#B99A65]/40 shadow-sm'
+                                                : 'bg-white border-[#E8DFD3] hover:border-[#D4B886]'
                                         }`}
                                     >
-                                        {cat}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Menus Grid */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                            {filteredMenus.length === 0 ? (
-                                <div className="py-12 text-center text-[#7C7169] text-xs">
-                                    Tidak ada hidangan yang cocok dengan pencarian Anda.
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {filteredMenus.map(m => (
-                                        <div
-                                            key={m.id}
-                                            className="p-3.5 rounded-2xl bg-white border border-[#E8DFD3] hover:border-[#D4B886] transition-all flex gap-3 shadow-xs"
-                                        >
-                                            {m.image_path ? (
-                                                <img
-                                                    src={`/storage/${m.image_path}`}
-                                                    alt={m.name}
-                                                    className="w-20 h-20 rounded-xl object-cover border border-[#E8DFD3] shrink-0"
-                                                />
-                                            ) : (
-                                                <div className="w-20 h-20 rounded-xl bg-[#FAF4ED] border border-[#E8DFD3] flex items-center justify-center text-[#B99A65] shrink-0">
-                                                    <UtensilsCrossed className="w-6 h-6" />
-                                                </div>
-                                            )}
-
-                                            <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                                <div>
-                                                    <div className="flex items-center justify-between gap-1">
-                                                        <h4 className="font-bold text-xs text-[#1A1615] truncate">
-                                                            {m.name}
-                                                        </h4>
-                                                        <span className="font-mono text-xs font-bold text-[#4A1525] shrink-0">
-                                                            {formatRupiah(m.price)}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-[11px] text-[#7C7169] line-clamp-2 mt-0.5 leading-relaxed">
-                                                        {m.description}
-                                                    </p>
-                                                </div>
-
-                                                <div className="pt-2 flex items-center justify-between gap-2">
-                                                    <span className="text-[10px] text-[#B99A65] font-semibold bg-[#FAF4ED] px-2 py-0.5 rounded border border-[#EBD7BE]">
-                                                        {m.category_name || 'A La Carte'}
-                                                    </span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleAddDishToRequest(m.name)}
-                                                        className="px-2.5 py-1 rounded-lg bg-[#FAF4ED] hover:bg-[#32151F] text-[#4A1525] hover:text-[#D4B886] border border-[#E8DFD3] text-[11px] font-bold transition-all flex items-center gap-1 shrink-0"
-                                                        title="Sertakan ke Catatan Khusus Reservasi"
-                                                    >
-                                                        <Plus className="w-3 h-3" />
-                                                        <span>Pre-Order</span>
-                                                    </button>
-                                                </div>
+                                        <div className="flex gap-3">
+                                            <div className="w-12 h-12 rounded-xl bg-[#32151F] text-[#D4B886] flex items-center justify-center shrink-0">
+                                                <UtensilsCrossed className="w-6 h-6" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="font-bold text-xs text-[#1A1615] truncate">
+                                                    Santap Reguler (A La Carte)
+                                                </h4>
+                                                <p className="text-[11px] text-[#7C7169] mt-0.5 line-clamp-2">
+                                                    Pesan bebas di meja lewat Scan QR saat hadir.
+                                                </p>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                                        <div className="mt-2 pt-2 border-t border-[#F2E8DC] flex items-center justify-between text-[11px]">
+                                            <span className="font-bold text-[#4A1525]">A La Carte</span>
+                                            <span className="text-[#7C7169]">120 Menit</span>
+                                        </div>
+                                    </div>
 
-                        {/* Modal Footer */}
-                        <div className="p-4 border-t border-[#F2E8DC] bg-[#FFFDF9] flex items-center justify-between">
-                            <span className="text-xs text-[#7C7169]">
-                                Klik <strong>+ Pre-Order</strong> untuk menambahkan hidangan ke Catatan Khusus reservasi.
-                            </span>
+                                    {/* Opsi Paket Kurasi */}
+                                    {experiences.map(exp => {
+                                        const isSelected = Number(data.experience_id) === exp.id;
+                                        return (
+                                            <div
+                                                key={exp.id}
+                                                onClick={() => setData('experience_id', exp.id)}
+                                                className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                                                    isSelected
+                                                        ? 'bg-[#FDF9F3] border-[#B99A65] ring-2 ring-[#B99A65]/40 shadow-sm'
+                                                        : 'bg-white border-[#E8DFD3] hover:border-[#D4B886]'
+                                                }`}
+                                            >
+                                                <div className="flex gap-3">
+                                                    {exp.image_url ? (
+                                                        <img
+                                                            src={exp.image_url}
+                                                            alt={exp.name}
+                                                            className="w-12 h-12 rounded-xl object-cover border border-[#E8DFD3] shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-12 h-12 rounded-xl bg-[#FAF4ED] text-[#B99A65] font-bold flex items-center justify-center shrink-0">
+                                                            N
+                                                        </div>
+                                                    )}
+                                                    <div className="min-w-0">
+                                                        <h4 className="font-bold text-xs text-[#1A1615] truncate">
+                                                            {exp.name}
+                                                        </h4>
+                                                        <p className="text-[11px] text-[#7C7169] mt-0.5 line-clamp-2">
+                                                            {exp.description}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-2 pt-2 border-t border-[#F2E8DC] flex items-center justify-between text-[11px]">
+                                                    <span className="font-bold text-[#4A1525]">
+                                                        {exp.price_per_person ? `${formatRupiah(exp.price_per_person)} / pax` : 'Paket Kurasi'}
+                                                    </span>
+                                                    <span className="text-[#7C7169]">{exp.duration_minutes} Menit</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* 2. Tanggal & Jam Kedatangan (WIB) */}
+                            <div className="space-y-3">
+                                <label className="block text-xs font-bold text-[#1A1615] uppercase tracking-wider">
+                                    2. Tanggal & Jam Kedatangan (WIB)
+                                </label>
+
+                                <div className="flex items-center gap-2 pb-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setQuickDate(0)}
+                                        className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                                            isSelectedDateToday ? 'bg-[#32151F] text-[#D4B886] font-bold' : 'bg-[#FAF4ED] text-[#7C7169] border border-[#E8DFD3]'
+                                        }`}
+                                    >
+                                        Hari Ini
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setQuickDate(1)}
+                                        className="px-3 py-1 rounded-lg text-xs font-semibold bg-[#FAF4ED] text-[#7C7169] border border-[#E8DFD3]"
+                                    >
+                                        Besok
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setQuickDate(2)}
+                                        className="px-3 py-1 rounded-lg text-xs font-semibold bg-[#FAF4ED] text-[#7C7169] border border-[#E8DFD3]"
+                                    >
+                                        Lusa
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="relative">
+                                        <CalendarIcon className="w-4 h-4 text-[#B99A65] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                        <input
+                                            type="date"
+                                            value={data.date}
+                                            min={nowJakarta?.date}
+                                            onChange={(e) => setData('date', e.target.value)}
+                                            className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-[#E8DFD3] text-xs font-bold font-mono text-[#1A1615] focus:outline-none focus:border-[#B99A65]"
+                                        />
+                                    </div>
+
+                                    <div className="relative">
+                                        <Users className="w-4 h-4 text-[#B99A65] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                        <select
+                                            value={data.guest_count}
+                                            onChange={(e) => setData('guest_count', Number(e.target.value))}
+                                            className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-[#E8DFD3] text-xs font-bold text-[#1A1615] focus:outline-none focus:border-[#B99A65]"
+                                        >
+                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                                                <option key={n} value={n}>{n} Orang Tamu</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Time Slot Selector with 3-hour buffer */}
+                                <div className="space-y-1.5 pt-1">
+                                    <span className="text-[11px] text-[#7C7169]">Pilih Jam Kedatangan:</span>
+                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                                        {timeSlots.map(slot => {
+                                            const isSelected = data.time === slot.time;
+                                            return (
+                                                <button
+                                                    key={slot.time}
+                                                    type="button"
+                                                    disabled={slot.isPastOrCutoff}
+                                                    onClick={() => setData('time', slot.time)}
+                                                    className={`py-2 px-1 rounded-xl text-center font-mono text-xs transition-all ${
+                                                        isSelected
+                                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-sm'
+                                                            : slot.isPastOrCutoff
+                                                            ? 'bg-[#F2ECE4] text-[#A89E96] cursor-not-allowed opacity-50'
+                                                            : 'bg-white border border-[#E8DFD3] text-[#1A1615] hover:border-[#B99A65]'
+                                                    }`}
+                                                    title={slot.reason || slot.label}
+                                                >
+                                                    {slot.time}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 3. Alokasi Meja 01 s/d 10 */}
+                            <div className="space-y-3">
+                                <label className="block text-xs font-bold text-[#1A1615] uppercase tracking-wider">
+                                    3. Pilih Meja Makan (01–10)
+                                </label>
+
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                                    {tables.map(t => {
+                                        const avail = tableAvailabilityMap.get(t.id);
+                                        const isAvail = avail ? avail.isAvailable : true;
+                                        const isSelected = Number(data.table_id) === t.id;
+                                        return (
+                                            <button
+                                                key={t.id}
+                                                type="button"
+                                                disabled={!isAvail}
+                                                onClick={() => setData('table_id', t.id)}
+                                                className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center ${
+                                                    isSelected
+                                                        ? 'bg-[#32151F] text-[#D4B886] border-[#32151F] shadow-sm font-bold'
+                                                        : !isAvail
+                                                        ? 'bg-[#F2ECE4] border-[#E8DFD3] text-[#A89E96] opacity-40 cursor-not-allowed'
+                                                        : 'bg-white border-[#E8DFD3] text-[#1A1615] hover:border-[#B99A65]'
+                                                }`}
+                                            >
+                                                <span className="font-heading font-bold text-xs">{t.table_number}</span>
+                                                <span className="text-[10px] opacity-75">{isAvail ? `${t.capacity} Kursi` : 'Terisi'}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* 4. Data Tamu & Catatan Khusus */}
+                            <div className="space-y-3">
+                                <label className="block text-xs font-bold text-[#1A1615] uppercase tracking-wider">
+                                    4. Data Tamu & Catatan Khusus
+                                </label>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <span className="text-[11px] text-[#7C7169] block mb-1">Nama Lengkap:</span>
+                                        <input
+                                            type="text"
+                                            value={data.customer_name}
+                                            onChange={(e) => setData('customer_name', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-white border border-[#E8DFD3] text-xs text-[#1A1615] focus:outline-none focus:border-[#B99A65]"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <span className="text-[11px] text-[#7C7169] block mb-1">Nomor WhatsApp:</span>
+                                        <input
+                                            type="tel"
+                                            value={data.customer_phone}
+                                            onChange={(e) => setData('customer_phone', e.target.value)}
+                                            className="w-full px-3 py-2 rounded-xl bg-white border border-[#E8DFD3] text-xs font-mono text-[#1A1615] focus:outline-none focus:border-[#B99A65]"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <span className="text-[11px] text-[#7C7169] block mb-1">Catatan / Pre-Order Hidangan:</span>
+                                    <textarea
+                                        rows={2}
+                                        value={data.special_request}
+                                        onChange={(e) => setData('special_request', e.target.value)}
+                                        placeholder="Contoh: Meja dekat jendela, perayaan ulang tahun, atau pre-order menu..."
+                                        className="w-full px-3 py-2 rounded-xl bg-white border border-[#E8DFD3] text-xs text-[#1A1615] focus:outline-none focus:border-[#B99A65]"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Summary Voucher Card */}
+                            <div className="p-4 rounded-2xl bg-[#FFFDF9] border border-[#EBD7BE] space-y-2">
+                                <span className="text-[10px] uppercase font-bold tracking-widest text-[#B99A65] block">
+                                    Ringkasan Jadwal Reservasi
+                                </span>
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-[#7C7169]">Tanggal & Waktu:</span>
+                                    <span className="font-mono font-bold text-[#1A1615]">{data.date} pukul {data.time} WIB</span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-[#7C7169]">Alokasi Meja:</span>
+                                    <span className="font-bold text-[#4A1525]">{selectedTableObj?.table_number || 'Pilih Meja'}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-[#7C7169]">Pengalaman Bersantap:</span>
+                                    <span className="font-semibold text-[#1A1615]">{selectedExpObj?.name || 'Santap Reguler A La Carte'}</span>
+                                </div>
+                            </div>
+
+                            {/* Submit Button */}
+                            <button
+                                type="submit"
+                                disabled={processing || !data.table_id}
+                                className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:brightness-105 active:scale-98 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-40"
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                <span>{processing ? 'Menyimpan...' : 'Konfirmasi Reservasi Sekarang'}</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ============================================================
+                DETAIL RESERVATION VOUCHER MODAL (CLICK ON ROW)
+            ============================================================ */}
+            {selectedReservationDetail && (
+                <div className="fixed inset-0 z-50 bg-[#1A1615]/60 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="w-full max-w-md bg-white rounded-3xl border border-[#E8DFD3] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-5 border-b border-[#F2E8DC] bg-[#FFFDF9] flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <QrCode className="w-5 h-5 text-[#B99A65]" />
+                                <h3 className="font-heading font-bold text-base text-[#1A1615]">
+                                    Voucher Reservasi Tamu
+                                </h3>
+                            </div>
                             <button
                                 type="button"
-                                onClick={() => setIsMenuModalOpen(false)}
-                                className="px-5 py-2 rounded-xl bg-[#32151F] text-[#D4B886] font-bold text-xs uppercase tracking-wider hover:bg-[#4A1525] transition-all"
+                                onClick={() => setSelectedReservationDetail(null)}
+                                className="p-1.5 rounded-xl text-[#7C7169] hover:bg-[#FAF4ED]"
                             >
-                                Tutup & Kembali
+                                <X className="w-4 h-4" />
                             </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div className="text-center p-4 rounded-2xl bg-[#FAF7F2] border border-[#E8DFD3] space-y-1">
+                                <span className="text-[10px] uppercase font-bold tracking-widest text-[#B99A65] block">
+                                    Kode Reservasi Resmi
+                                </span>
+                                <h4 className="font-mono font-bold text-xl text-[#4A1525]">
+                                    {selectedReservationDetail.reservation_code}
+                                </h4>
+                                <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    {selectedReservationDetail.status}
+                                </span>
+                            </div>
+
+                            <div className="space-y-2 text-xs">
+                                <div className="flex items-center justify-between text-[#7C7169]">
+                                    <span>Jadwal Kedatangan:</span>
+                                    <span className="font-mono font-bold text-[#1A1615]">
+                                        {selectedReservationDetail.reservation_datetime}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between text-[#7C7169]">
+                                    <span>Alokasi Meja:</span>
+                                    <span className="font-bold text-[#1A1615]">
+                                        {selectedReservationDetail.table_number || 'Dipersiapkan Staf'}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between text-[#7C7169]">
+                                    <span>Jumlah Tamu:</span>
+                                    <span className="font-bold text-[#1A1615]">
+                                        {selectedReservationDetail.guest_count} Orang
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between text-[#7C7169]">
+                                    <span>Pengalaman Bersantap:</span>
+                                    <span className="font-bold text-[#4A1525]">
+                                        {selectedReservationDetail.experience_name || 'Santap Reguler (A La Carte)'}
+                                    </span>
+                                </div>
+                                {selectedReservationDetail.special_request && (
+                                    <div className="pt-2 border-t border-[#F2E8DC] text-[11px]">
+                                        <span className="text-[#7C7169] block">Catatan Khusus:</span>
+                                        <p className="font-semibold text-[#1A1615] mt-0.5">
+                                            {selectedReservationDetail.special_request}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="pt-3 border-t border-[#F2E8DC] flex items-center justify-between">
+                                <a
+                                    href={`https://wa.me/6281299998888?text=${encodeURIComponent(`Halo Konsierge NUSARA, saya ingin menanyakan kode reservasi saya: ${selectedReservationDetail.reservation_code}`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:underline"
+                                >
+                                    <Phone className="w-3.5 h-3.5" />
+                                    <span>Chat Konsierge Meja</span>
+                                </a>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedReservationDetail(null)}
+                                    className="px-4 py-2 rounded-xl bg-[#32151F] text-[#D4B886] font-bold text-xs uppercase tracking-wider"
+                                >
+                                    Tutup
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
