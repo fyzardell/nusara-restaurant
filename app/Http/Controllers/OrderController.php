@@ -388,7 +388,6 @@ class OrderController extends Controller
 
         return response()->json(['success' => true]);
     }
-    }
 
     public function toggleFavorite(Request $request)
     {

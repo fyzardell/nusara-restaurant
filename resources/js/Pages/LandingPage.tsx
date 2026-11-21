@@ -4,7 +4,6 @@ import Navbar from '../Components/Navbar';
 import Footer from '../Components/Footer';
 import MenuCard from '../Components/MenuCard';
 import ExperienceCard from '../Components/ExperienceCard';
-import ReservationModal from '../Components/ReservationModal';
 import OrderTypeModal from '../Components/OrderTypeModal';
 import FavoriteLoginPromptModal from '../Components/FavoriteLoginPromptModal';
 import NusaraSplashScreen from '../Components/NusaraSplashScreen';
@@ -55,12 +54,24 @@ export default function LandingPage({
     const { auth, flash } = usePage<{ auth: { user: User | null }; flash: { success?: string; error?: string } }>().props;
 
     // Modals state
-    const [reservationModalOpen, setReservationModalOpen] = useState(false);
     const [orderTypeModalOpen, setOrderTypeModalOpen] = useState(false);
     const [favoritePromptMenu, setFavoritePromptMenu] = useState<Menu | null>(null);
     const [selectedExperience, setSelectedExperience] = useState<DiningExperience | null>(null);
     const [sidePanelOpen, setSidePanelOpen] = useState<boolean>(false);
     const [splashFading, setSplashFading] = useState<boolean>(false);
+
+    // Navigasi ke Halaman Reservasi Terpisah:
+    // Jika belum login -> arahkan login terlebih dahulu lalu otomatis redirect ke /reservation
+    // Jika sudah login -> langsung menuju halaman reservasi
+    const handleGoToReservation = (experienceSlugOrId?: string | number | null) => {
+        const queryParam = experienceSlugOrId ? `?exp=${experienceSlugOrId}` : '';
+        const targetUrl = `/reservation${queryParam}`;
+        if (!auth?.user) {
+            router.visit(`/login?redirect=${encodeURIComponent(targetUrl)}`);
+        } else {
+            router.visit(targetUrl);
+        }
+    };
     
     // Splash screen animation:
     // SELALU muncul setiap kali halaman landing page di-refresh (F5, reload, dll) atau saat kunjungan pertama.
@@ -208,10 +219,7 @@ export default function LandingPage({
                 sidePanelOpen={sidePanelOpen}
                 onToggleSidePanel={() => setSidePanelOpen(prev => !prev)}
                 onCloseSidePanel={() => setSidePanelOpen(false)}
-                onOpenReservation={() => {
-                    setSelectedExperience(null);
-                    setReservationModalOpen(true);
-                }}
+                onOpenReservation={() => handleGoToReservation(null)}
                 onOpenOrderType={() => setOrderTypeModalOpen(true)}
                 onSelectDineIn={() => setOrderTypeModalOpen(true)}
                 onSelectTakeaway={() => setOrderTypeModalOpen(true)}
@@ -273,14 +281,11 @@ export default function LandingPage({
 
                         {/* 2. Reservasi */}
                         <button
-                            onClick={() => {
-                                setSelectedExperience(null);
-                                setReservationModalOpen(true);
-                            }}
+                            onClick={() => handleGoToReservation(null)}
                             className="w-full sm:w-auto px-8 py-4 rounded-full bg-[#32151F]/90 border border-[#B99A65]/60 text-[#F4EFE6] font-semibold text-xs uppercase tracking-widest hover:bg-[#B99A65] hover:text-[#211D1B] hover:border-[#D4B886] transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-105 active:scale-95"
                         >
                             <Calendar className="w-4 h-4 text-[#D4B886]" />
-                            <span>Reservasi</span>
+                            <span>Reservasi Meja</span>
                         </button>
                     </div>
 
@@ -500,10 +505,7 @@ export default function LandingPage({
                         <ExperienceCard
                             key={exp.id}
                             experience={exp}
-                            onSelectExperience={(selected) => {
-                                setSelectedExperience(selected);
-                                setReservationModalOpen(true);
-                            }}
+                            onSelectExperience={(selected) => handleGoToReservation(selected.id)}
                         />
                     ))}
                 </div>
@@ -662,10 +664,7 @@ export default function LandingPage({
 
                             <div className="flex flex-col sm:flex-row gap-4 pt-2">
                                 <button
-                                    onClick={() => {
-                                        setSelectedExperience(null);
-                                        setReservationModalOpen(true);
-                                    }}
+                                    onClick={() => handleGoToReservation(null)}
                                     className="px-8 py-3.5 rounded-full bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#B99A65]/20 flex items-center justify-center gap-2"
                                 >
                                     <Calendar className="w-4 h-4" />
@@ -718,13 +717,6 @@ export default function LandingPage({
             </div>
 
             {/* Interactive Modals */}
-            <ReservationModal
-                isOpen={reservationModalOpen}
-                onClose={() => setReservationModalOpen(false)}
-                experiences={experiences}
-                selectedExperience={selectedExperience}
-            />
-
             <OrderTypeModal
                 isOpen={orderTypeModalOpen}
                 onClose={() => setOrderTypeModalOpen(false)}

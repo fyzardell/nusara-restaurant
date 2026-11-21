@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CashierController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\WaiterController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -22,7 +23,9 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Quick simulated action routes from PRD
 Route::get('/menu', [LandingPageController::class, 'index'])->name('menu');
-Route::get('/reservation', [LandingPageController::class, 'index'])->name('reservation');
+// Dedicated Luxury Reservation Page (Customer Flow)
+Route::get('/reservation', [ReservationController::class, 'index'])->name('reservation');
+Route::post('/reservation', [ReservationController::class, 'store'])->name('reservation.store');
 
 // Customer Ordering App (Akses Publik / Tamu Meja & Member)
 Route::get('/order', [OrderController::class, 'index'])->name('order.app');
