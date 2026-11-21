@@ -1,213 +1,257 @@
-
-import { useEffect, useRef, useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Send, UserRound } from 'lucide-react';
-import { AdminHeader } from './Dashboard';
-import { User } from '@/types';
+import { useEffect, useRef } from 'react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft, Send, Utensils, Receipt, UserCheck, Shield } from 'lucide-react';
+import AdminSidebar from '../../Components/AdminSidebar';
+import { User } from '../../types';
 
 interface Message {
     id: number;
-    sender: 'customer' | 'admin';
+    user_id: number;
     message: string;
-    time: string;
+    is_admin: boolean;
+    created_at: string;
+    user?: {
+        id: number;
+        name: string;
+        email: string;
+        role: string;
+    };
 }
 
 interface Props {
     customer: {
         id: number;
         name: string;
+        email?: string;
+        phone?: string;
+        role?: string;
     };
     messages: Message[];
     adminUser: User;
 }
 
-export default function ChatShow({
-    customer,
-    messages,
-    adminUser,
-}: Props) {
-    const [message, setMessage] = useState('');
-    const [processing, setProcessing] = useState(false);
+export default function ChatShow({ customer, messages, adminUser }: Props) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const { data, setData, post, processing, reset } = useForm({
+        message: '',
+    });
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({
-            behavior: 'smooth',
-        });
+        scrollToBottom();
     }, [messages]);
 
+    // Polling auto-refresh setiap 4 detik agar admin langsung melihat pesan pelanggan baru
     useEffect(() => {
-    const interval = setInterval(() => {
-        router.reload({
-            only: ['messages'],
+        const interval = setInterval(() => {
+            router.reload({ only: ['messages'] });
+        }, 4000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const sendMessage = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!data.message.trim() || processing) return;
+
+        post(`/admin/chats/${customer.id}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                reset('message');
+                scrollToBottom();
+            },
         });
-    }, 5000);
+    };
 
-    return () => clearInterval(interval);
-}, []);
-
-    const sendMessage = async () => {
-        if (!message.trim() || processing) return;
-
-        setProcessing(true);
-
-        try {
-            const response = await fetch(
-                `/admin/chats/${customer.id}/send`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN':
-                            document.querySelector<HTMLMetaElement>(
-                                'meta[name="csrf-token"]'
-                            )?.content ?? '',
-                    },
-                    body: JSON.stringify({
-                        message: message,
-                    }),
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error('Gagal mengirim pesan');
-            }
-
-            setMessage('');
-
-            router.reload({
-                only: ['messages'],
-            });
-        } catch (error) {
-            alert('Pesan gagal dikirim.');
-        } finally {
-            setProcessing(false);
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage(e);
         }
     };
 
+    const formatTime = (dateStr: string) => {
+        return new Date(dateStr).toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
+    const getRoleBadge = (role?: string) => {
+        switch (role) {
+            case 'waiter':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        <Utensils className="w-3 h-3" /> Waiter Staff
+                    </span>
+                );
+            case 'cashier':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        <Receipt className="w-3 h-3" /> Kasir Restoran
+                    </span>
+                );
+            case 'kitchen':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs bg-orange-500/20 text-orange-300 border border-orange-500/30">
+                        <Utensils className="w-3 h-3" /> Dapur / Kitchen
+                    </span>
+                );
+            case 'admin':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs bg-[#B99A65]/20 text-[#D4B886] border border-[#B99A65]/40">
+                        <Shield className="w-3 h-3" /> Rekan Admin
+                    </span>
+                );
+            default:
+                return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs bg-stone-700/50 text-stone-300 border border-stone-600/30">
+                        <UserCheck className="w-3 h-3" /> Pelanggan / Tamu
+                    </span>
+                );
+        }
+    };
+
+    const quickReplies = [
+        'Baik, segera kami koordinasikan dengan tim operasional.',
+        'Meja dan hidangan siap diproses.',
+        'Terima kasih laporannya, sudah kami konfirmasi.',
+        'Ada pesanan khusus atau alergi yang perlu dicatat?'
+    ];
+
     return (
-        <>
-            <Head title={`Chat - ${customer.name}`} />
+        <div className="h-screen w-screen bg-[#110F0E] text-[#F4EFE6] font-dashboard selection:bg-[#B99A65] selection:text-[#110F0E] flex overflow-hidden">
+            <Head title={`Chat ${customer.name} — NUSARA Admin`} />
+            
+            {/* Left Sidebar (App Shell 4 Persistent Sidebar) */}
+            <AdminSidebar adminUser={adminUser} activeNav="chats" />
 
-            <div className="min-h-screen bg-black text-white">
-                <AdminHeader adminUser={adminUser} />
+            {/* Main Chat Workspace */}
+            <main className="flex-1 flex flex-col h-screen overflow-y-auto bg-[#181413] p-4 sm:p-8 space-y-5">
+                <div className="max-w-4xl mx-auto w-full space-y-5">
+                    <Link
+                        href="/admin/chats"
+                        className="inline-flex items-center gap-1.5 text-xs text-[#D4B886] hover:text-[#F4EFE6] transition-colors"
+                    >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Kembali ke Semua Percakapan</span>
+                    </Link>
 
-                <div className="mx-auto max-w-6xl px-4 py-6">
-                    <div className="overflow-hidden rounded-2xl border border-gray-800 bg-[#121212] shadow-xl">
-
-                        {/* Header Chat */}
-                        <div className="flex items-center gap-4 border-b border-gray-800 bg-[#181818] px-5 py-4">
-
-                            <Link
-                                href="/admin/chats"
-                                className="rounded-full p-2 text-gray-400 transition hover:bg-gray-800 hover:text-white"
-                            >
-                                <ArrowLeft size={22} />
-                            </Link>
-
-                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#32151F] text-[#D4B886]">
-                                <UserRound size={22} />
-                            </div>
-
-                            <div>
-                                <h2 className="font-semibold text-white">
-                                    {customer.name}
-                                </h2>
-
-                                <p className="text-xs text-gray-500">
-                                    Customer NUSARA
-                                </p>
-                            </div>
+                    {/* Customer card */}
+                    <div className="flex items-center gap-4 p-5 rounded-3xl bg-gradient-to-r from-[#32151F] via-[#211D1B] to-[#32151F] border border-[#B99A65]/40 shadow-2xl">
+                        <div className="w-14 h-14 shrink-0 rounded-full bg-gradient-to-br from-[#D4B886] to-[#987B49] text-[#211D1B] flex items-center justify-center font-heading text-2xl font-bold shadow">
+                            {customer.name?.charAt(0).toUpperCase()}
                         </div>
 
-                        {/* Area Pesan */}
-                        <div className="flex h-[65vh] flex-col gap-4 overflow-y-auto bg-black px-5 py-6">
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                                {getRoleBadge(customer.role)}
+                            </div>
 
-                            {messages.map((msg) => {
-                                const isAdmin =
-                                    msg.sender === 'admin';
+                            <h1 className="font-heading text-2xl sm:text-3xl font-bold leading-tight mt-1 text-white truncate">
+                                {customer.name}
+                            </h1>
 
+                            <p className="text-xs text-[#F4EFE6]/65 mt-0.5">
+                                {messages.length} pesan dalam percakapan · {customer.email || 'Akun Restoran'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Chat Bubble Area */}
+                    <div className="rounded-3xl bg-[#211D1B] border border-[#B99A65]/20 p-4 sm:p-6 min-h-[380px] max-h-[520px] overflow-y-auto space-y-3.5 shadow-inner">
+                        {messages.length === 0 ? (
+                            <div className="h-48 flex flex-col items-center justify-center text-center text-stone-500">
+                                <p className="text-sm">Belum ada percakapan dengan pengguna ini.</p>
+                                <p className="text-xs text-stone-600 mt-1">Kirim pesan di bawah untuk memulai koordinasi.</p>
+                            </div>
+                        ) : (
+                            messages.map((msg) => {
+                                const isAdmin = msg.is_admin || msg.user?.role === 'admin';
                                 return (
                                     <div
                                         key={msg.id}
-                                        className={`flex ${
-                                            isAdmin
-                                                ? 'justify-end'
-                                                : 'justify-start'
-                                        }`}
+                                        className={`flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}
                                     >
+                                        <div className="flex items-center gap-1.5 mb-1 text-[11px] text-stone-400 px-1">
+                                            <span className="font-medium text-stone-300">
+                                                {isAdmin ? 'Anda (Admin)' : (msg.user?.name || customer.name)}
+                                            </span>
+                                            <span>·</span>
+                                            <span>{formatTime(msg.created_at)}</span>
+                                        </div>
+
                                         <div
-                                            className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                                            className={`max-w-[85%] sm:max-w-md px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                                                 isAdmin
-                                                    ? 'rounded-br-md bg-[#32151F] text-white'
-                                                    : 'rounded-bl-md bg-[#292929] text-white'
+                                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-medium rounded-tr-none shadow-md'
+                                                    : 'bg-[#181413] text-[#F4EFE6] border border-[#B99A65]/20 rounded-tl-none shadow'
                                             }`}
                                         >
-                                            <p className="whitespace-pre-wrap break-words text-sm">
-                                                {msg.message}
-                                            </p>
-
-                                            <p
-                                                className={`mt-2 text-right text-[10px] ${
-                                                    isAdmin
-                                                        ? 'text-[#D4B886]'
-                                                        : 'text-gray-500'
-                                                }`}
-                                            >
-                                                {msg.time}
-                                            </p>
+                                            <p className="whitespace-pre-wrap break-words">{msg.message}</p>
                                         </div>
                                     </div>
                                 );
-                            })}
-
-                            <div ref={messagesEndRef} />
-                        </div>
-
-                        {/* Input Pesan */}
-                        <div className="border-t border-gray-800 bg-[#181818] p-4">
-                            <div className="flex items-end gap-3">
-
-                                <textarea
-                                    value={message}
-                                    onChange={(e) =>
-                                        setMessage(e.target.value)
-                                    }
-                                    onKeyDown={(e) => {
-                                        if (
-                                            e.key === 'Enter' &&
-                                            !e.shiftKey
-                                        ) {
-                                            e.preventDefault();
-                                            sendMessage();
-                                        }
-                                    }}
-                                    placeholder="Ketik pesan..."
-                                    rows={1}
-                                    className="max-h-32 min-h-[44px] flex-1 resize-none rounded-xl border border-gray-700 bg-[#252525] px-4 py-3 text-sm text-white outline-none placeholder:text-gray-500 focus:border-[#D4B886]"
-                                />
-
-                                <button
-                                    onClick={sendMessage}
-                                    disabled={
-                                        processing ||
-                                        !message.trim()
-                                    }
-                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#D4B886] text-[#32151F] transition hover:bg-[#B99A65] disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    <Send size={18} />
-                                </button>
-                            </div>
-
-                            <p className="mt-2 text-xs text-gray-600">
-                                Enter untuk mengirim · Shift + Enter untuk baris baru
-                            </p>
-                        </div>
-
+                            })
+                        )}
+                        <div ref={messagesEndRef} />
                     </div>
+
+                    {/* Quick Reply Suggestions */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+                        {quickReplies.map((qr, i) => (
+                            <button
+                                key={i}
+                                type="button"
+                                onClick={() => setData('message', qr)}
+                                className="px-3 py-1.5 rounded-full bg-[#211D1B] border border-[#B99A65]/20 hover:border-[#D4B886] text-stone-300 hover:text-white whitespace-nowrap transition-colors"
+                            >
+                                {qr}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Form kirim pesan admin */}
+                    <form
+                        onSubmit={sendMessage}
+                        className="rounded-2xl bg-[#211D1B] border border-[#B99A65]/30 p-3 shadow-xl"
+                    >
+                        <div className="flex items-end gap-3">
+                            <textarea
+                                value={data.message}
+                                onChange={(e) => setData('message', e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Ketik balasan koordinasi admin..."
+                                rows={2}
+                                disabled={processing}
+                                className="flex-1 resize-none bg-[#181413] border border-[#B99A65]/20 rounded-xl px-4 py-3 text-sm text-[#F4EFE6] placeholder:text-stone-500 focus:outline-none focus:border-[#B99A65] disabled:opacity-50"
+                            />
+
+                            <button
+                                type="submit"
+                                disabled={processing || !data.message.trim()}
+                                className="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br from-[#D4B886] to-[#B99A65] text-[#211D1B] flex items-center justify-center hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+                            >
+                                <Send className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="flex justify-between items-center mt-2 px-1">
+                            <span className="text-[10px] text-stone-500">
+                                Tekan Enter untuk mengirim · Shift + Enter untuk baris baru
+                            </span>
+
+                            {processing && (
+                                <span className="text-[10px] text-[#D4B886]">
+                                    Mengirim balasan...
+                                </span>
+                            )}
+                        </div>
+                    </form>
                 </div>
-            </div>
-        </>
+            </main>
+        </div>
     );
 }
