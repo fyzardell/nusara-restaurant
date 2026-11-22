@@ -29,9 +29,12 @@ import {
     Copy,
     History,
     RefreshCw,
-    ExternalLink
+    ExternalLink,
+    ArrowLeft,
+    LogOut
 } from 'lucide-react';
 import FlashToast from '../../Components/FlashToast';
+import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
 import { DiningExperience, RestaurantTable, OperatingHour, RestaurantSettings, User, Menu } from '../../types';
 
 interface ReservationItem {
@@ -111,6 +114,9 @@ export default function Reservation({
 
     // Salin nomor rekening state
     const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
+
+    // Logout Confirmation Modal
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
     // Initial Date in Jakarta time
     const initialDate = nowJakarta?.date || new Date().toISOString().split('T')[0];
@@ -494,51 +500,66 @@ export default function Reservation({
             <Head title="Reservasi Meja & Dining Experience — NUSARA" />
             <FlashToast />
 
-            {/* Top Navigation Bar */}
-            <header className="sticky top-0 z-40 bg-[#FFFFFF]/90 backdrop-blur-md border-b border-[#E8DFD3] transition-all">
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-4">
-                    <Link href="/" className="flex items-center gap-3 group">
-                        <img 
-                            src="/images/nusara-logo.png" 
-                            alt="NUSARA Logo" 
-                            className="h-9 w-auto object-contain transition-transform group-hover:scale-105"
-                        />
-                        <div className="border-l border-[#E8DFD3] pl-3">
-                            <span className="font-heading text-lg font-bold text-[#32151F] tracking-wide block leading-none">
-                                NUSARA
-                            </span>
-                            <span className="text-[10px] uppercase font-semibold text-[#B99A65] tracking-widest">
-                                Indonesian Dining Experience
-                            </span>
-                        </div>
-                    </Link>
+            {/* Top Brand Accent Line (Burgundy - Gold) */}
+            <div className="h-1 bg-gradient-to-r from-[#32151F] via-[#B99A65] to-[#32151F] w-full shrink-0"></div>
 
-                    {/* Navigation Tab: Booking Wizard vs History */}
-                    <div className="flex items-center gap-2 p-1 bg-[#FAF6F0] border border-[#E8DFD3] rounded-full text-xs font-semibold">
+            {/* Top Navigation Bar */}
+            <header className="sticky top-0 z-40 bg-[#FFFFFF]/95 backdrop-blur-md border-b border-[#32151F]/10 transition-all shadow-xs">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-3 sm:gap-4">
+                    {/* Left: Back to Home + Logo */}
+                    <div className="flex items-center gap-2.5 sm:gap-4">
+                        <Link 
+                            href="/" 
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#B99A65]/40 bg-[#FAF6F0] hover:bg-[#32151F] text-[#32151F] hover:text-[#D4B886] text-xs font-semibold transition-all group shadow-xs shrink-0"
+                            title="Kembali ke Beranda NUSARA"
+                        >
+                            <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
+                            <span className="hidden sm:inline">Beranda</span>
+                        </Link>
+
+                        <Link href="/" className="flex items-center gap-2.5 group">
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA Logo" 
+                                className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
+                            />
+                            <div className="border-l border-[#E8DFD3] pl-2.5 hidden md:block">
+                                <span className="font-heading text-lg font-bold text-[#32151F] tracking-wide block leading-none">
+                                    NUSARA
+                                </span>
+                                <span className="text-[9px] uppercase font-semibold text-[#B99A65] tracking-widest">
+                                    Indonesian Dining Experience
+                                </span>
+                            </div>
+                        </Link>
+                    </div>
+
+                    {/* Center: Navigation Tab (Booking Wizard vs History) */}
+                    <div className="flex items-center gap-1 sm:gap-2 p-1 bg-[#FAF6F0] border border-[#32151F]/15 rounded-full text-xs font-semibold">
                         <button
                             type="button"
                             onClick={() => setPageView('booking')}
-                            className={`px-4 py-2 rounded-full transition-all flex items-center gap-1.5 ${
+                            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all flex items-center gap-1.5 ${
                                 pageView === 'booking'
                                     ? 'bg-[#32151F] text-[#D4B886] shadow-xs'
                                     : 'text-[#6E625A] hover:text-[#1A1615]'
                             }`}
                         >
                             <CalendarIcon className="w-3.5 h-3.5" />
-                            <span>Formulir Pemesanan</span>
+                            <span>Pemesanan</span>
                         </button>
 
                         <button
                             type="button"
                             onClick={() => setPageView('history')}
-                            className={`px-4 py-2 rounded-full transition-all flex items-center gap-1.5 ${
+                            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all flex items-center gap-1.5 ${
                                 pageView === 'history'
                                     ? 'bg-[#32151F] text-[#D4B886] shadow-xs'
                                     : 'text-[#6E625A] hover:text-[#1A1615]'
                             }`}
                         >
                             <History className="w-3.5 h-3.5" />
-                            <span>Riwayat Saya</span>
+                            <span>Riwayat</span>
                             {customerReservations.length > 0 && (
                                 <span className="ml-1 px-1.5 py-0.2 bg-[#B99A65] text-[#32151F] text-[10px] font-bold rounded-full">
                                     {customerReservations.length}
@@ -547,15 +568,41 @@ export default function Reservation({
                         </button>
                     </div>
 
-                    {/* Concierge Help Shortcut */}
-                    <Link
-                        href="/order?open_chat=1"
-                        className="hidden md:inline-flex items-center gap-2 text-xs font-semibold text-[#4A1525] hover:text-[#B99A65] transition-colors"
-                        title="Bantuan Konsierge"
-                    >
-                        <MessageSquare className="w-4 h-4 text-[#B99A65]" />
-                        <span>Chat Admin Konsierge</span>
-                    </Link>
+                    {/* Right: Concierge Help & User Account / Logout */}
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <Link
+                            href="/order?open_chat=1"
+                            className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF6F0] border border-[#B99A65]/30 text-xs font-semibold text-[#32151F] hover:text-[#B99A65] transition-colors"
+                            title="Bantuan Konsierge"
+                        >
+                            <MessageSquare className="w-3.5 h-3.5 text-[#B99A65]" />
+                            <span>Chat Admin</span>
+                        </Link>
+
+                        {auth?.user && (
+                            <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-[#32151F]/15">
+                                <div className="w-8 h-8 rounded-full bg-[#32151F] text-[#D4B886] font-bold text-xs flex items-center justify-center shadow-xs shrink-0 ring-1 ring-[#B99A65]/40">
+                                    {auth.user.name?.charAt(0).toUpperCase() || 'U'}
+                                </div>
+                                <div className="hidden xl:block text-left">
+                                    <p className="text-xs font-bold text-[#32151F] leading-tight truncate max-w-[110px]">
+                                        {auth.user.name}
+                                    </p>
+                                    <p className="text-[10px] text-[#8C734B] leading-none">
+                                        Tamu Terdaftar
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsLogoutModalOpen(true)}
+                                    className="p-1.5 rounded-xl text-stone-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                    title="Keluar dari Akun"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -682,7 +729,10 @@ export default function Reservation({
                                                     </h4>
                                                     <p className="text-xs text-[#6E625A]">
                                                         {availableTablesCount > 0 ? (
-                                                            <span>✨ <strong>{availableTablesCount} dari 10 Meja Tersedia</strong> untuk dipilih.</span>
+                                                            <span className="inline-flex items-center gap-1.5">
+                                                                <Sparkles className="w-3.5 h-3.5 text-[#B99A65] shrink-0" />
+                                                                <span><strong>{availableTablesCount} dari 10 Meja Tersedia</strong> untuk dipilih.</span>
+                                                            </span>
                                                         ) : (
                                                             <span className="text-rose-600 font-semibold">Semua meja penuh pada jam ini.</span>
                                                         )}
@@ -805,10 +855,10 @@ export default function Reservation({
                                             type="button"
                                             disabled={!isStep1Valid}
                                             onClick={() => setCurrentStep(2)}
-                                            className="px-6 py-3.5 rounded-full bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-wider hover:brightness-105 transition-all shadow-md flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            className="px-6 py-3.5 rounded-full bg-[#32151F] hover:bg-[#4A1525] text-[#D4B886] hover:text-[#FAF6F0] border border-[#B99A65]/40 font-bold text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed group"
                                         >
                                             <span>Lanjut: Pilih Meja & Tamu</span>
-                                            <ArrowRight className="w-4 h-4" />
+                                            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                                         </button>
                                     </div>
                                 </div>
@@ -986,10 +1036,10 @@ export default function Reservation({
                                             type="button"
                                             disabled={!isStep2Valid}
                                             onClick={() => setCurrentStep(3)}
-                                            className="px-6 py-3.5 rounded-full bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-wider hover:brightness-105 transition-all shadow-md flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            className="px-6 py-3.5 rounded-full bg-[#32151F] hover:bg-[#4A1525] text-[#D4B886] hover:text-[#FAF6F0] border border-[#B99A65]/40 font-bold text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed group"
                                         >
                                             <span>Lanjut: Pilih Paket & Menu</span>
-                                            <ArrowRight className="w-4 h-4" />
+                                            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                                         </button>
                                     </div>
                                 </div>
@@ -1165,10 +1215,10 @@ export default function Reservation({
                                         <button
                                             type="button"
                                             onClick={() => setCurrentStep(4)}
-                                            className="px-6 py-3.5 rounded-full bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-wider hover:brightness-105 transition-all shadow-md flex items-center gap-2"
+                                            className="px-6 py-3.5 rounded-full bg-[#32151F] hover:bg-[#4A1525] text-[#D4B886] hover:text-[#FAF6F0] border border-[#B99A65]/40 font-bold text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-lg flex items-center gap-2 group"
                                         >
                                             <span>Lanjut: Data Pemesan</span>
-                                            <ArrowRight className="w-4 h-4" />
+                                            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                                         </button>
                                     </div>
                                 </div>
@@ -1271,10 +1321,10 @@ export default function Reservation({
                                             type="button"
                                             disabled={!isStep4Valid}
                                             onClick={() => setCurrentStep(5)}
-                                            className="px-6 py-3.5 rounded-full bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-wider hover:brightness-105 transition-all shadow-md flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            className="px-6 py-3.5 rounded-full bg-[#32151F] hover:bg-[#4A1525] text-[#D4B886] hover:text-[#FAF6F0] border border-[#B99A65]/40 font-bold text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed group"
                                         >
                                             <span>Lanjut: Ringkasan & Pembayaran DP</span>
-                                            <ArrowRight className="w-4 h-4" />
+                                            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                                         </button>
                                     </div>
                                 </div>
@@ -1361,16 +1411,16 @@ export default function Reservation({
                                                 </span>
                                             </div>
 
-                                            <div className="flex items-center justify-between text-sm sm:text-base font-bold text-[#32151F] bg-white p-4 rounded-2xl border border-[#B99A65]/40 shadow-xs">
+                                            <div className="flex items-center justify-between text-sm sm:text-base font-bold bg-gradient-to-br from-[#32151F] via-[#3D1A27] to-[#211D1B] text-[#FAF6F0] p-5 rounded-2xl border border-[#B99A65]/40 shadow-md">
                                                 <div className="space-y-0.5">
-                                                    <span className="text-xs uppercase tracking-wider text-[#946E2D] block">
+                                                    <span className="text-xs uppercase tracking-wider text-[#D4B886] block font-semibold">
                                                         Uang Muka (DP) yang Dibayar Sekarang
                                                     </span>
-                                                    <span className="text-xs text-[#9E938B] font-normal">
-                                                        * Untuk penguncian alokasi meja resmi
+                                                    <span className="text-xs text-[#FAF6F0]/70 font-normal">
+                                                        * Untuk penguncian alokasi meja & jadwal resmi
                                                     </span>
                                                 </div>
-                                                <span className="font-mono text-xl sm:text-2xl text-[#4A1525]">
+                                                <span className="font-mono text-xl sm:text-2xl text-[#D4B886] font-extrabold">
                                                     {formatRupiah(calculatedDpAmount)}
                                                 </span>
                                             </div>
@@ -1537,7 +1587,7 @@ export default function Reservation({
                                         <button
                                             type="submit"
                                             disabled={!isStep5Valid}
-                                            className="px-8 py-4 rounded-full bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-wider hover:brightness-105 transition-all shadow-lg flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            className="px-8 py-4 rounded-full bg-gradient-to-r from-[#32151F] via-[#4A1525] to-[#32151F] text-[#D4B886] hover:text-[#FAF6F0] border border-[#B99A65]/50 hover:border-[#D4B886] font-bold text-xs uppercase tracking-wider transition-all shadow-xl hover:shadow-2xl flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed group"
                                         >
                                             {processing ? (
                                                 <>
@@ -1547,7 +1597,7 @@ export default function Reservation({
                                             ) : (
                                                 <>
                                                     <span>Kirim & Konfirmasi Reservasi</span>
-                                                    <ShieldCheck className="w-4 h-4" />
+                                                    <ShieldCheck className="w-4 h-4 text-[#D4B886] transition-transform group-hover:scale-110" />
                                                 </>
                                             )}
                                         </button>
@@ -1596,7 +1646,7 @@ export default function Reservation({
                                 <button
                                     type="button"
                                     onClick={() => setPageView('booking')}
-                                    className="px-6 py-3 rounded-full bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-wider shadow"
+                                    className="px-6 py-3 rounded-full bg-[#32151F] hover:bg-[#4A1525] text-[#D4B886] hover:text-[#FAF6F0] border border-[#B99A65]/40 font-bold text-xs uppercase tracking-wider shadow transition-all"
                                 >
                                     Mulai Buat Reservasi
                                 </button>
@@ -1684,6 +1734,14 @@ export default function Reservation({
                     </div>
                 )}
             </main>
+
+            {/* Logout Confirmation Modal */}
+            <LogoutConfirmModal
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+                userName={auth?.user?.name}
+                userRole={auth?.user?.role}
+            />
         </div>
     );
 }

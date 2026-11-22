@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
 import CircularFloorPlan from '../../Components/CircularFloorPlan';
 import OperationalChatModal from '../../Components/OperationalChatModal';
+import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
 import { 
     UtensilsCrossed, 
     CheckCircle2, 
@@ -93,6 +94,7 @@ export default function WaiterDashboard({
     const [currentCalMonth, setCurrentCalMonth] = useState<number>(today.getMonth());
     const [currentCalYear, setCurrentCalYear] = useState<number>(today.getFullYear());
     const [selectedCalDate, setSelectedCalDate] = useState<Date>(today);
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
     // Manual Refresh
     const handleRefresh = () => {
@@ -104,9 +106,7 @@ export default function WaiterDashboard({
 
     // Logout with confirmation alert
     const handleLogout = () => {
-        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin mengakhiri sesi kerja Waiter? Pastikan seluruh pesanan siap saji telah dikoordinasikan.')) {
-            router.post('/logout');
-        }
+        setIsLogoutModalOpen(true);
     };
 
     // Format Rupiah
@@ -1256,6 +1256,15 @@ export default function WaiterDashboard({
                 role="waiter"
                 userName={waiterUser.name}
                 messages={chatMessages}
+            />
+
+            {/* Waiter Logout Confirmation Modal */}
+            <LogoutConfirmModal
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+                userName={waiterUser.name}
+                userRole="Pramusaji / Waiter"
+                customNotice="Pastikan seluruh pesanan siap saji telah dikoordinasikan ke meja tamu sebelum mengakhiri sesi kerja."
             />
         </div>
     );

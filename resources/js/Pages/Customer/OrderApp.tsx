@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Head, Link, usePage, router } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
+import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
 import { 
     Category, 
     Menu, 
@@ -2115,55 +2116,12 @@ export default function OrderApp({
             {/* ========================================================
                 MODAL 5: CONFIRMATION LOGOUT (CEGAH KEPENCET KELUAR)
             ======================================================== */}
-            {isLogoutModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-                    <div className="relative w-full max-w-sm bg-[#211D1B] border border-[#B99A65]/40 rounded-3xl p-6 shadow-2xl text-[#F4EFE6] text-center">
-                        <div className="w-14 h-14 rounded-full bg-rose-500/10 border border-rose-500/40 text-rose-400 mx-auto flex items-center justify-center mb-3">
-                            <LogOut className="w-6 h-6" />
-                        </div>
-
-                        <h3 className="font-heading text-xl font-bold text-[#F4EFE6] mb-1">
-                            Konfirmasi Keluar Akun
-                        </h3>
-                        <p className="text-xs text-[#F4EFE6]/70 mb-4">
-                            Apakah Anda yakin ingin keluar dari akun Anda?
-                        </p>
-
-                        {cartCount > 0 ? (
-                            <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs text-left mb-4 flex items-start gap-2">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                                <span>
-                                    Tenang! <strong>{cartCount} pesanan</strong> di keranjang Anda telah disimpan dengan aman dan tidak akan hilang saat Anda kembali.
-                                </span>
-                            </div>
-                        ) : (
-                            <div className="p-3 rounded-2xl bg-[#32151F]/50 border border-[#B99A65]/20 text-[#F4EFE6]/70 text-xs text-left mb-4 flex items-start gap-2">
-                                <Info className="w-4 h-4 text-[#D4B886] flex-shrink-0 mt-0.5" />
-                                <span>
-                                    Sesi pesanan Anda saat ini akan ditutup. Anda dapat masuk kembali kapan saja.
-                                </span>
-                            </div>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-2.5">
-                            <button
-                                type="button"
-                                onClick={() => setIsLogoutModalOpen(false)}
-                                className="py-2.5 px-4 rounded-xl border border-stone-700 bg-stone-900/60 hover:bg-stone-800 text-[#F4EFE6] text-xs font-semibold transition-colors"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => router.post('/logout')}
-                                className="py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shadow-md"
-                            >
-                                Ya, Keluar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <LogoutConfirmModal
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+                cartCount={cartCount}
+                userName={auth?.user?.name}
+            />
 
             {/* ========================================================
                 MODAL 6: CONFIRMATION EXIT TO HOME (BERANDA)

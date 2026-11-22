@@ -393,7 +393,8 @@ export default function AdminDashboard({
         const map = new Map<string, Reservation[]>();
         initialReservations.forEach(res => {
             if (!res.reservation_datetime) return;
-            const dateStr = (res.reservation_datetime.includes('T')
+            const match = res.reservation_datetime.match(/^(\d{4}-\d{2}-\d{2})/);
+            const dateStr = match ? match[1] : (res.reservation_datetime.includes('T')
                 ? res.reservation_datetime.split('T')[0]
                 : res.reservation_datetime.split(' ')[0]).trim();
             if (!map.has(dateStr)) {
@@ -1597,12 +1598,12 @@ export default function AdminDashboard({
                                                         </span>
                                                     </td>
                                                     <td className="py-3 px-4 text-[#9E938B]">
-                                                        {new Date(res.reservation_datetime).toLocaleDateString('id-ID', {
+                                                        {new Date(res.reservation_datetime.replace(' ', 'T')).toLocaleDateString('id-ID', {
                                                             weekday: 'short',
                                                             day: 'numeric',
                                                             month: 'short',
                                                             year: 'numeric'
-                                                        })}, {new Date(res.reservation_datetime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                                                        })}, {new Date(res.reservation_datetime.replace(' ', 'T')).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                                                     </td>
                                                     <td className="py-3 px-4 font-bold text-white">
                                                         {res.guest_count} Orang
