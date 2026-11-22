@@ -21,10 +21,18 @@ jobs:
           script_stop: true
           script: |
             # 1. Environment & Path Resolution (aaPanel compatible)
-            export PATH=$PATH:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/www/server/php/82/bin:/www/server/php/83/bin:/www/server/php/84/bin:/www/server/php/85/bin:/www/server/nodejs/v*/bin
+            export PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/www/server/php/85/bin:/www/server/php/84/bin:/www/server/php/83/bin:/www/server/php/82/bin:/www/server/nodejs/v*/bin:$PATH
             export NVM_DIR="$HOME/.nvm"
             if [ -s "$NVM_DIR/nvm.sh" ]; then
               . "$NVM_DIR/nvm.sh"
+            fi
+
+            # 2. Update Composer binary jika masih versi lama (kompatibilitas PHP 8.4/8.5)
+            if ! composer --version 2>/dev/null | grep -q "Composer version 2\.[7-9]\|Composer version 2\.[1-9][0-9]"; then
+              echo "Memperbarui binary Composer ke versi terbaru yang kompatibel dengan PHP 8.5..."
+              curl -sS https://getcomposer.org/composer.phar -o /usr/local/bin/composer || true
+              chmod +x /usr/local/bin/composer || true
+              cp /usr/local/bin/composer /usr/bin/composer 2>/dev/null || true
             fi
 
             # Git safe directory
