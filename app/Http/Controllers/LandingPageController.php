@@ -17,6 +17,7 @@ class LandingPageController extends Controller
 
         $categories = DB::table('categories')
             ->where('is_active', true)
+            ->orderByRaw("FIELD(slug, 'hidangan-pembuka', 'hidangan-utama', 'hidangan-penutup', 'minuman', 'khas-aceh', 'khas-sunda', 'khas-jawa')")
             ->get();
 
         $menus = DB::table('menus')
@@ -46,11 +47,14 @@ class LandingPageController extends Controller
                 $menu->is_best_seller = in_array($menu->slug, [
                     'rendang-wagyu-tokusen-48-jam',
                     'bebek-betutu-gianyar-asap-bambu',
-                    'rawon-iga-bakar-kluwek-hitam',
+                    'rawon-iga-sapi-bakar-kluwek-hitam-jawa',
                     'cendol-nangka-gelato-madu-hutan',
                     'es-bir-pletok-keraton-royale',
                     'sop-buntut-bakar-rempah-pala',
-                    'iga-sapi-bakar-madu-hutan-sumbawa'
+                    'iga-sapi-bakar-madu-hutan-sumbawa',
+                    'mie-aceh-wagyu-kepiting-soka',
+                    'nasi-liwet-kastrol-parahyangan-gurih',
+                    'gudeg-yu-djogja-keraton-krecek'
                 ]);
                 return $menu;
             });

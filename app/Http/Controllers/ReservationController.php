@@ -139,6 +139,12 @@ class ReservationController extends Controller
                 return $r;
             });
 
+        // Categories
+        $categories = DB::table('categories')
+            ->where('is_active', true)
+            ->orderByRaw("FIELD(slug, 'hidangan-pembuka', 'hidangan-utama', 'hidangan-penutup', 'minuman', 'khas-aceh', 'khas-sunda', 'khas-jawa')")
+            ->get();
+
         // Restaurant Menus (for optional menu pre-order preview)
         $menus = DB::table('menus')
             ->join('categories', 'menus.category_id', '=', 'categories.id')
@@ -151,6 +157,7 @@ class ReservationController extends Controller
             ->select(
                 'menus.id',
                 'menus.category_id',
+                'categories.slug as category_slug',
                 'categories.name as category_name',
                 'menus.name',
                 'menus.slug',
@@ -171,6 +178,7 @@ class ReservationController extends Controller
             'customer' => $customer,
             'tables' => $tables,
             'experiences' => $experiences,
+            'categories' => $categories,
             'menus' => $menus,
             'operatingHours' => $operatingHours,
             'settings' => $settings,

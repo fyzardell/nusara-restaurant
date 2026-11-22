@@ -404,7 +404,7 @@ export default function LandingPage({
                                     type="text"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Cari menu (misal: Wagyu, Bebek, Rawon)..."
+                                    placeholder="Cari menu (misal: Mie Aceh, Nasi Liwet, Gudeg, Wagyu)..."
                                     className="w-full pl-11 pr-4 py-2.5 rounded-full bg-[#32151F]/90 border border-[#B99A65]/40 text-xs text-[#F4EFE6] placeholder-[#F4EFE6]/40 focus:outline-none focus:border-[#D4B886]"
                                 />
                             </div>
@@ -434,19 +434,31 @@ export default function LandingPage({
                             >
                                 Semua Menu ({menus.length})
                             </button>
-                            {categories.map((cat) => (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => setSelectedCategory(cat.slug)}
-                                    className={`px-5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                                        selectedCategory === cat.slug
-                                            ? 'bg-[#B99A65] text-[#211D1B] font-bold shadow-md'
-                                            : 'bg-[#32151F]/70 text-[#F4EFE6]/70 hover:text-[#F4EFE6] border border-[#B99A65]/20'
-                                    }`}
-                                >
-                                    {cat.name}
-                                </button>
-                            ))}
+                            {categories.map((cat) => {
+                                const count = menus.filter(m => m.category_slug === cat.slug).length;
+                                return (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => setSelectedCategory(cat.slug)}
+                                        className={`px-5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                                            selectedCategory === cat.slug
+                                                ? 'bg-[#B99A65] text-[#211D1B] font-bold shadow-md'
+                                                : 'bg-[#32151F]/70 text-[#F4EFE6]/70 hover:text-[#F4EFE6] border border-[#B99A65]/20'
+                                        }`}
+                                    >
+                                        <span>{cat.name}</span>
+                                        {count > 0 && (
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                                                selectedCategory === cat.slug
+                                                    ? 'bg-[#211D1B]/20 text-[#211D1B]'
+                                                    : 'bg-[#B99A65]/20 text-[#D4B886]'
+                                            }`}>
+                                                {count}
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
