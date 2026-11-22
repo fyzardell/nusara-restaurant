@@ -20,6 +20,11 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script_stop: true
           script: |
+            # Pastikan binary PHP, Composer, dan Node.js terbaca di non-interactive SSH aaPanel
+            export PATH=$PATH:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/www/server/php/82/bin:/www/server/php/83/bin
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
             # Pindah ke direktori project website di aaPanel
             cd ${{ secrets.APP_DIR || '/www/wwwroot/nusara' }}
 
