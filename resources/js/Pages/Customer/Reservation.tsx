@@ -117,6 +117,16 @@ export default function Reservation({
 
     // Logout Confirmation Modal
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+
+    // Close user dropdown on outside click
+    useEffect(() => {
+        const handleWindowClick = () => setUserDropdownOpen(false);
+        if (userDropdownOpen) {
+            window.addEventListener('click', handleWindowClick);
+            return () => window.removeEventListener('click', handleWindowClick);
+        }
+    }, [userDropdownOpen]);
 
     // Initial Date in Jakarta time
     const initialDate = nowJakarta?.date || new Date().toISOString().split('T')[0];
@@ -500,128 +510,163 @@ export default function Reservation({
             <Head title="Reservasi Meja & Dining Experience — NUSARA" />
             <FlashToast />
 
-            {/* Top Brand Accent Line (Burgundy - Gold) */}
-            <div className="h-1 bg-gradient-to-r from-[#32151F] via-[#B99A65] to-[#32151F] w-full shrink-0"></div>
+            {/* Top Navigation Bar (Sama seperti Navbar Hero Landing Page: Burgundy #32151F Mewah & Aksen Gold) */}
+            <header className="sticky top-0 left-0 right-0 z-40 bg-[#32151F]/95 backdrop-blur-md shadow-2xl py-3.5 sm:py-4 border-b border-[#B99A65]/20 text-[#F4EFE6] transition-all duration-300">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between gap-4">
+                        {/* Left: Logo NUSARA Resmi */}
+                        <div className="flex items-center">
+                            <Link href="/" className="group flex items-center">
+                                <img 
+                                    src="/images/nusara-logo.png" 
+                                    alt="NUSARA — Nusantara & Rasa" 
+                                    className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform group-hover:scale-105 drop-shadow-md" 
+                                />
+                            </Link>
+                        </div>
 
-            {/* Top Navigation Bar */}
-            <header className="sticky top-0 z-40 bg-[#FFFFFF]/95 backdrop-blur-md border-b border-[#32151F]/10 transition-all shadow-xs">
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-3 sm:gap-4">
-                    {/* Left: Back to Home + Logo */}
-                    <div className="flex items-center gap-2.5 sm:gap-4">
-                        <Link 
-                            href="/" 
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#B99A65]/40 bg-[#FAF6F0] hover:bg-[#32151F] text-[#32151F] hover:text-[#D4B886] text-xs font-semibold transition-all group shadow-xs shrink-0"
-                            title="Kembali ke Beranda NUSARA"
-                        >
-                            <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
-                            <span className="hidden sm:inline">Beranda</span>
-                        </Link>
+                        {/* Center: Navigation Tab (Pemesanan vs Riwayat) */}
+                        <div className="flex items-center gap-1 sm:gap-2 p-1 bg-[#211D1B]/90 border border-[#B99A65]/30 rounded-full text-xs font-semibold shadow-inner">
+                            <button
+                                type="button"
+                                onClick={() => setPageView('booking')}
+                                className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all flex items-center gap-1.5 ${
+                                    pageView === 'booking'
+                                        ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold shadow-sm'
+                                        : 'text-[#F4EFE6]/70 hover:text-[#F4EFE6]'
+                                }`}
+                            >
+                                <CalendarIcon className="w-3.5 h-3.5" />
+                                <span>Pemesanan</span>
+                            </button>
 
-                        <Link href="/" className="flex items-center gap-2.5 group">
-                            <img 
-                                src="/images/nusara-logo.png" 
-                                alt="NUSARA Logo" 
-                                className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
-                            />
-                            <div className="border-l border-[#E8DFD3] pl-2.5 hidden md:block">
-                                <span className="font-heading text-lg font-bold text-[#32151F] tracking-wide block leading-none">
-                                    NUSARA
-                                </span>
-                                <span className="text-[9px] uppercase font-semibold text-[#B99A65] tracking-widest">
-                                    Indonesian Dining Experience
-                                </span>
-                            </div>
-                        </Link>
-                    </div>
+                            <button
+                                type="button"
+                                onClick={() => setPageView('history')}
+                                className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all flex items-center gap-1.5 ${
+                                    pageView === 'history'
+                                        ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold shadow-sm'
+                                        : 'text-[#F4EFE6]/70 hover:text-[#F4EFE6]'
+                                }`}
+                            >
+                                <History className="w-3.5 h-3.5" />
+                                <span>Riwayat</span>
+                                {customerReservations.length > 0 && (
+                                    <span className={`ml-1 px-1.5 py-0.2 text-[10px] font-bold rounded-full ${
+                                        pageView === 'history' ? 'bg-[#32151F] text-[#D4B886]' : 'bg-[#B99A65] text-[#211D1B]'
+                                    }`}>
+                                        {customerReservations.length}
+                                    </span>
+                                )}
+                            </button>
+                        </div>
 
-                    {/* Center: Navigation Tab (Booking Wizard vs History) */}
-                    <div className="flex items-center gap-1 sm:gap-2 p-1 bg-[#FAF6F0] border border-[#32151F]/15 rounded-full text-xs font-semibold">
-                        <button
-                            type="button"
-                            onClick={() => setPageView('booking')}
-                            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all flex items-center gap-1.5 ${
-                                pageView === 'booking'
-                                    ? 'bg-[#32151F] text-[#D4B886] shadow-xs'
-                                    : 'text-[#6E625A] hover:text-[#1A1615]'
-                            }`}
-                        >
-                            <CalendarIcon className="w-3.5 h-3.5" />
-                            <span>Pemesanan</span>
-                        </button>
+                        {/* Right: Concierge Help & User Account / Login */}
+                        <div className="flex items-center gap-2 sm:gap-3">
+                            <Link
+                                href="/order?open_chat=1"
+                                className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#211D1B]/80 border border-[#B99A65]/40 text-xs font-semibold text-[#D4B886] hover:text-[#F4EFE6] hover:border-[#D4B886] transition-all shadow-xs"
+                                title="Bantuan Konsierge"
+                            >
+                                <MessageSquare className="w-3.5 h-3.5 text-[#B99A65]" />
+                                <span>Chat Admin</span>
+                            </Link>
 
-                        <button
-                            type="button"
-                            onClick={() => setPageView('history')}
-                            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all flex items-center gap-1.5 ${
-                                pageView === 'history'
-                                    ? 'bg-[#32151F] text-[#D4B886] shadow-xs'
-                                    : 'text-[#6E625A] hover:text-[#1A1615]'
-                            }`}
-                        >
-                            <History className="w-3.5 h-3.5" />
-                            <span>Riwayat</span>
-                            {customerReservations.length > 0 && (
-                                <span className="ml-1 px-1.5 py-0.2 bg-[#B99A65] text-[#32151F] text-[10px] font-bold rounded-full">
-                                    {customerReservations.length}
-                                </span>
-                            )}
-                        </button>
-                    </div>
+                            {auth?.user ? (
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setUserDropdownOpen(!userDropdownOpen);
+                                        }}
+                                        className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#211D1B] border border-[#B99A65]/50 text-[#F4EFE6] text-xs font-medium hover:border-[#D4B886] transition-colors shadow-sm"
+                                    >
+                                        <div className="w-6 h-6 rounded-full bg-[#32151F] text-[#D4B886] flex items-center justify-center font-bold text-xs border border-[#B99A65]/30">
+                                            {auth.user.name?.charAt(0).toUpperCase() || 'U'}
+                                        </div>
+                                        <span className="hidden md:inline max-w-[120px] truncate">{auth.user.name}</span>
+                                    </button>
 
-                    {/* Right: Concierge Help & User Account / Logout */}
-                    <div className="flex items-center gap-2 sm:gap-3">
-                        <Link
-                            href="/order?open_chat=1"
-                            className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF6F0] border border-[#B99A65]/30 text-xs font-semibold text-[#32151F] hover:text-[#B99A65] transition-colors"
-                            title="Bantuan Konsierge"
-                        >
-                            <MessageSquare className="w-3.5 h-3.5 text-[#B99A65]" />
-                            <span>Chat Admin</span>
-                        </Link>
-
-                        {auth?.user && (
-                            <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-[#32151F]/15">
-                                <div className="w-8 h-8 rounded-full bg-[#32151F] text-[#D4B886] font-bold text-xs flex items-center justify-center shadow-xs shrink-0 ring-1 ring-[#B99A65]/40">
-                                    {auth.user.name?.charAt(0).toUpperCase() || 'U'}
+                                    {userDropdownOpen && (
+                                        <div 
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="absolute right-0 mt-2 w-56 bg-[#211D1B] border border-[#B99A65]/40 rounded-2xl shadow-2xl py-2 z-50 text-xs animate-fade-in text-left text-[#F4EFE6]"
+                                        >
+                                            <div className="px-4 py-2 border-b border-[#32151F]">
+                                                <p className="font-bold text-[#F4EFE6] truncate">{auth.user.name}</p>
+                                                <p className="text-[11px] text-[#B99A65] truncate font-mono">{auth.user.email}</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setUserDropdownOpen(false);
+                                                    setPageView('history');
+                                                }}
+                                                className="w-full text-left px-4 py-2.5 text-[#F4EFE6] hover:bg-[#32151F] transition-colors flex items-center gap-2"
+                                            >
+                                                <History className="w-3.5 h-3.5 text-[#D4B886]" />
+                                                <span>Riwayat Reservasi Saya</span>
+                                            </button>
+                                            <Link
+                                                href="/order"
+                                                onClick={() => setUserDropdownOpen(false)}
+                                                className="block px-4 py-2.5 text-[#F4EFE6] hover:bg-[#32151F] transition-colors"
+                                            >
+                                                Menu Pemesanan Makanan
+                                            </Link>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setUserDropdownOpen(false);
+                                                    setIsLogoutModalOpen(true);
+                                                }}
+                                                className="w-full text-left px-4 py-2.5 text-rose-300 hover:bg-rose-950/40 flex items-center gap-2 transition-colors border-t border-[#32151F] mt-1"
+                                            >
+                                                <LogOut className="w-3.5 h-3.5" />
+                                                <span>Keluar (Logout)</span>
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="hidden xl:block text-left">
-                                    <p className="text-xs font-bold text-[#32151F] leading-tight truncate max-w-[110px]">
-                                        {auth.user.name}
-                                    </p>
-                                    <p className="text-[10px] text-[#8C734B] leading-none">
-                                        Tamu Terdaftar
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsLogoutModalOpen(true)}
-                                    className="p-1.5 rounded-xl text-stone-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                    title="Keluar dari Akun"
+                            ) : (
+                                <Link
+                                    href="/login"
+                                    className="px-4 sm:px-5 py-2 text-xs font-semibold tracking-wider text-[#F4EFE6] hover:text-[#211D1B] bg-[#211D1B]/80 hover:bg-gradient-to-r hover:from-[#B99A65] hover:to-[#D4B886] border border-[#B99A65]/40 rounded-full transition-all shadow-md flex items-center gap-1.5"
                                 >
-                                    <LogOut className="w-4 h-4" />
-                                </button>
-                            </div>
-                        )}
+                                    <UserIcon className="w-3.5 h-3.5 text-[#D4B886]" />
+                                    <span>Log In</span>
+                                </Link>
+                            )}
+                        </div>
                     </div>
                 </div>
             </header>
 
             {/* MAIN CONTENT AREA */}
             <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12">
+                {/* Tombol Navigasi Kembali ke Beranda (Ditaruh di Body Halaman di atas Card Reservasi) */}
+                <div className="mb-6">
+                    <Link 
+                        href="/" 
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#B99A65]/40 bg-white hover:bg-[#32151F] text-[#32151F] hover:text-[#D4B886] text-xs font-semibold transition-all duration-300 shadow-xs hover:shadow-md group active:scale-98"
+                        title="Kembali ke Beranda NUSARA"
+                    >
+                        <ArrowLeft className="w-3.5 h-3.5 text-[#B99A65] transition-transform duration-300 group-hover:-translate-x-1" />
+                        <span>Kembali ke Beranda</span>
+                    </Link>
+                </div>
+
                 {pageView === 'booking' ? (
                     <div className="space-y-8">
                         {/* Stepper Progress Bar (App Shell Header) */}
-                        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E8DFD3] shadow-xs">
+                        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#32151F]/15 shadow-xs relative overflow-hidden before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-[#32151F] before:via-[#B99A65] before:to-[#32151F]">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-[#FAF6F0]">
                                 <div>
-                                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF6F0] border border-[#E8DFD3] text-[#946E2D] text-xs font-bold uppercase tracking-wider mb-2">
-                                        <Sparkles className="w-3.5 h-3.5" />
-                                        <span>Alur Pemesanan Bertahap</span>
-                                    </div>
                                     <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#32151F]">
                                         Reservasi Meja & Dining Experience
                                     </h1>
-                                    <p className="text-xs sm:text-sm text-[#6E625A] mt-1">
+                                    <p className="text-xs sm:text-sm text-[#4A1525]/80 mt-1">
                                         Langkah demi langkah terstruktur. Lengkapi setiap tahap untuk mengamankan jamuan istimewa Anda.
                                     </p>
                                 </div>
@@ -632,7 +677,7 @@ export default function Reservation({
                                     </span>
                                     <div className="w-24 h-2 rounded-full bg-[#FAF6F0] overflow-hidden border border-[#E8DFD3]">
                                         <div 
-                                            className="h-full bg-gradient-to-r from-[#B99A65] to-[#D4B886] transition-all duration-500"
+                                            className="h-full bg-gradient-to-r from-[#32151F] via-[#4A1525] to-[#B99A65] transition-all duration-500"
                                             style={{ width: `${(currentStep / 5) * 100}%` }}
                                         />
                                     </div>
@@ -653,7 +698,7 @@ export default function Reservation({
                                             onClick={() => setCurrentStep(s.step as BookingStep)}
                                             className={`flex flex-col items-center sm:items-start p-2 sm:p-3 rounded-2xl transition-all text-left group ${
                                                 isActive 
-                                                    ? 'bg-[#FAF6F0] border border-[#B99A65]/50 shadow-xs' 
+                                                    ? 'bg-[#FAF6F0] border-2 border-[#32151F]/30 shadow-xs' 
                                                     : isDone
                                                     ? 'cursor-pointer hover:bg-[#FAF6F0]/60'
                                                     : 'opacity-40 cursor-not-allowed'
@@ -662,15 +707,15 @@ export default function Reservation({
                                             <div className="flex items-center gap-2 mb-1.5">
                                                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                                                     isActive 
-                                                        ? 'bg-[#32151F] text-[#D4B886] ring-2 ring-[#B99A65]/40' 
+                                                        ? 'bg-[#32151F] text-[#D4B886] ring-2 ring-[#B99A65]/50 shadow-sm' 
                                                         : isDone 
-                                                        ? 'bg-emerald-600 text-white' 
+                                                        ? 'bg-[#4A1525] text-[#D4B886]' 
                                                         : 'bg-[#E8DFD3] text-[#6E625A]'
                                                 }`}>
                                                     {isDone ? <Check className="w-3.5 h-3.5" /> : s.step}
                                                 </div>
                                                 <span className={`hidden sm:inline text-xs font-bold ${
-                                                    isActive ? 'text-[#32151F]' : isDone ? 'text-emerald-700' : 'text-[#6E625A]'
+                                                    isActive ? 'text-[#32151F]' : isDone ? 'text-[#4A1525]' : 'text-[#6E625A]'
                                                 }`}>
                                                     {s.title}
                                                 </span>
@@ -691,7 +736,7 @@ export default function Reservation({
                                 LANGKAH 1: TANGGAL & SESI WAKTU (REAL-TIME AVAILABILITY)
                             ======================================================== */}
                             {currentStep === 1 && (
-                                <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#E8DFD3] shadow-xs space-y-8 animate-fadeIn">
+                                <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#32151F]/15 shadow-xs space-y-8 animate-fadeIn relative overflow-hidden before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-[#32151F] before:via-[#B99A65] before:to-[#32151F]">
                                     <div>
                                         <span className="text-xs font-bold text-[#B99A65] uppercase tracking-wider block mb-1">
                                             Langkah 1 dari 5
@@ -868,7 +913,7 @@ export default function Reservation({
                                 LANGKAH 2: JUMLAH TAMU & PEMILIHAN MEJA
                             ======================================================== */}
                             {currentStep === 2 && (
-                                <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#E8DFD3] shadow-xs space-y-8 animate-fadeIn">
+                                <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#32151F]/15 shadow-xs space-y-8 animate-fadeIn relative overflow-hidden before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-[#32151F] before:via-[#B99A65] before:to-[#32151F]">
                                     <div>
                                         <span className="text-xs font-bold text-[#B99A65] uppercase tracking-wider block mb-1">
                                             Langkah 2 dari 5
@@ -1049,7 +1094,7 @@ export default function Reservation({
                                 LANGKAH 3: PAKET DINING & MENU NUSANTARA
                             ======================================================== */}
                             {currentStep === 3 && (
-                                <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#E8DFD3] shadow-xs space-y-8 animate-fadeIn">
+                                <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#32151F]/15 shadow-xs space-y-8 animate-fadeIn relative overflow-hidden before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-[#32151F] before:via-[#B99A65] before:to-[#32151F]">
                                     <div>
                                         <span className="text-xs font-bold text-[#B99A65] uppercase tracking-wider block mb-1">
                                             Langkah 3 dari 5
@@ -1228,7 +1273,7 @@ export default function Reservation({
                                 LANGKAH 4: DATA PEMESAN & PREFERENSI KHUSUS
                             ======================================================== */}
                             {currentStep === 4 && (
-                                <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#E8DFD3] shadow-xs space-y-8 animate-fadeIn">
+                                <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#32151F]/15 shadow-xs space-y-8 animate-fadeIn relative overflow-hidden before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-[#32151F] before:via-[#B99A65] before:to-[#32151F]">
                                     <div>
                                         <span className="text-xs font-bold text-[#B99A65] uppercase tracking-wider block mb-1">
                                             Langkah 4 dari 5
@@ -1334,7 +1379,7 @@ export default function Reservation({
                                 LANGKAH 5: KESIMPULAN LENGKAP & PEMBAYARAN DOWN PAYMENT
                             ======================================================== */}
                             {currentStep === 5 && (
-                                <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#E8DFD3] shadow-xs space-y-8 animate-fadeIn">
+                                <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#32151F]/15 shadow-xs space-y-8 animate-fadeIn relative overflow-hidden before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-[#32151F] before:via-[#B99A65] before:to-[#32151F]">
                                     <div>
                                         <span className="text-xs font-bold text-[#B99A65] uppercase tracking-wider block mb-1">
                                             Langkah 5 dari 5 (Langkah Terakhir)
