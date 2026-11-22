@@ -16,6 +16,9 @@ class MidtransService
         Config::$isProduction = config('midtrans.is_production', false);
         Config::$isSanitized = config('midtrans.is_sanitized', true);
         Config::$is3ds = config('midtrans.is_3ds', true);
+
+        // Otomatis arahkan webhook notifikasi ke domain produksi nusara.my.id
+        Config::$appendNotifUrl = 'https://nusara.my.id/api/midtrans/webhook';
     }
 
     /**
