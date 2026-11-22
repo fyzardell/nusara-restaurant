@@ -14,19 +14,20 @@ jobs:
       - name: Executing remote SSH commands for deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
+          host: ${{ secrets.VPS_HOST || secrets.SSH_HOST }}
+          username: ${{ secrets.VPS_USERNAME || secrets.SSH_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
+          port: ${{ secrets.VPS_PORT || secrets.SSH_PORT || 22 }}
           script_stop: true
           script: |
             # Pastikan binary PHP, Composer, dan Node.js terbaca di non-interactive SSH aaPanel
-            export PATH=$PATH:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/www/server/php/82/bin:/www/server/php/83/bin
+            export PATH=$PATH:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/www/server/php/82/bin:/www/server/php/83/bin:/www/server/php/84/bin:/www/server/php/85/bin
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
             # Pindah ke direktori project website di aaPanel
-            cd ${{ secrets.APP_DIR || '/www/wwwroot/nusara' }}
+            cd ${{ secrets.APP_DIR || '/www/wwwroot/nusara.my.id' }}
 
             echo "================================================="
             echo "🚀 1. MENARIK PERUBAHAN DARI GITHUB (ANTI-CONFLICT)"
