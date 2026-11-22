@@ -1,6 +1,7 @@
 // resources/js/Components/AdminSidebar.tsx
 import React, { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
+import LogoutConfirmModal from './LogoutConfirmModal';
 import { 
     LayoutDashboard, 
     ShoppingBag, 
@@ -45,6 +46,7 @@ export default function AdminSidebar({
     onTabSelect
 }: Props) {
     const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
     const handleNavClick = (tabKey: string, href: string) => {
         setIsMobileOpen(false);
@@ -302,7 +304,7 @@ export default function AdminSidebar({
                             </div>
                             <button
                                 type="button"
-                                onClick={() => router.post('/logout')}
+                                onClick={() => setIsLogoutModalOpen(true)}
                                 className="p-1.5 rounded-lg text-[#9E938B] hover:text-rose-400 hover:bg-[#2A2421] transition-colors"
                                 title="Keluar dari sesi Admin"
                             >
@@ -312,6 +314,15 @@ export default function AdminSidebar({
                     </div>
                 </div>
             </aside>
+
+            {/* Admin Logout Confirmation Modal */}
+            <LogoutConfirmModal
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+                userName={adminUser.name}
+                userRole="Administrator"
+                customNotice="Pastikan seluruh verifikasi reservasi dan pesanan aktif telah disimpan sebelum mengakhiri sesi Admin."
+            />
         </>
     );
 }

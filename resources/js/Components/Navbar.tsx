@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
+import LogoutConfirmModal from './LogoutConfirmModal';
 import { User } from '../types';
 import { 
     PanelLeft, 
@@ -46,6 +47,7 @@ export default function Navbar({
     const { auth } = usePage<{ auth: { user: User | null } }>().props;
     const [scrolled, setScrolled] = useState(false);
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -72,9 +74,8 @@ export default function Navbar({
 
     const handleLogout = (e: React.FormEvent) => {
         e.preventDefault();
-        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin keluar dari akun NUSARA?')) {
-            router.post('/logout');
-        }
+        setUserDropdownOpen(false);
+        setIsLogoutModalOpen(true);
     };
 
     const handleNavClick = (href: string) => {
@@ -510,6 +511,14 @@ export default function Navbar({
                     </div>
                 </div>
             </aside>
+
+            {/* Logout Confirmation Modal */}
+            <LogoutConfirmModal
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+                userName={auth?.user?.name}
+                userRole={auth?.user?.role}
+            />
         </>
     );
 }

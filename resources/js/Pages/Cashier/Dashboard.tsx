@@ -3,6 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
 import CircularFloorPlan from '../../Components/CircularFloorPlan';
 import OperationalChatModal from '../../Components/OperationalChatModal';
+import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
 import { 
     Clock, 
     Search, 
@@ -159,12 +160,11 @@ export default function CashierDashboard({
     const [currentCalMonth, setCurrentCalMonth] = useState<number>(today.getMonth());
     const [currentCalYear, setCurrentCalYear] = useState<number>(today.getFullYear());
     const [selectedCalDate, setSelectedCalDate] = useState<Date>(today);
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
     // Logout with confirmation alert
     const handleLogout = () => {
-        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin mengakhiri sesi Kasir? Pastikan seluruh transaksi aktif telah diverifikasi.')) {
-            router.post('/logout');
-        }
+        setIsLogoutModalOpen(true);
     };
 
     // Format currency IDR
@@ -1492,6 +1492,15 @@ export default function CashierDashboard({
                     </div>
                 </div>
             )}
+
+            {/* Cashier Logout Modal */}
+            <LogoutConfirmModal
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+                userName={cashierUser?.name}
+                userRole="Kasir"
+                customNotice="Pastikan seluruh transaksi aktif telah diverifikasi dan dicetak sebelum mengakhiri sesi kasir."
+            />
         </div>
     );
 }
