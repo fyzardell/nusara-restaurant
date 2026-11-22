@@ -27,14 +27,6 @@ jobs:
               . "$NVM_DIR/nvm.sh"
             fi
 
-            # 2. Update Composer binary jika masih versi lama (kompatibilitas PHP 8.4/8.5)
-            if ! composer --version 2>/dev/null | grep -q "Composer version 2\.[7-9]\|Composer version 2\.[1-9][0-9]"; then
-              echo "Memperbarui binary Composer ke versi terbaru yang kompatibel dengan PHP 8.5..."
-              curl -sS https://getcomposer.org/composer.phar -o /usr/local/bin/composer || true
-              chmod +x /usr/local/bin/composer || true
-              cp /usr/local/bin/composer /usr/bin/composer 2>/dev/null || true
-            fi
-
             # Git safe directory
             git config --global --add safe.directory "*" || true
 
@@ -51,11 +43,25 @@ jobs:
             echo "2. INSTALL DEPENDENSI PHP (COMPOSER)"
             echo "================================================="
             export COMPOSER_ALLOW_SUPERUSER=1
-            composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev --ignore-platform-reqs
+            # Download composer.phar resmi terbaru langsung untuk menjamin kompatibilitas PHP 8.5
+            curl -sS https://getcomposer.org/composer.phar -o composer.phar
+            chmod +x composer.phar
+            cp composer.phar /usr/bin/composer 2>/dev/null || true
+            cp composer.phar /usr/local/bin/composer 2>/dev/null || true
+
+            php composer.phar install --no-interaction --prefer-dist --optimize-autoloader --no-dev --ignore-platform-reqs
 
             echo "================================================="
             echo "3. BUILD ASSET FRONTEND (VITE / INERTIA REACT)"
             echo "================================================="
+            if ! command -v npm >/dev/null 2>&1; then
+              for node_bin in /www/server/nodejs/v*/bin /usr/local/bin /root/.nvm/versions/node/*/bin; do
+                if [ -f "$node_bin/npm" ]; then
+                  export PATH="$node_bin:$PATH"
+                  break
+                fi
+              done
+            fi
             npm install
             npm run build
 
