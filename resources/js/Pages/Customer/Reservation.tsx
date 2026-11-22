@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 import FlashToast from '../../Components/FlashToast';
 import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
-import { DiningExperience, RestaurantTable, OperatingHour, RestaurantSettings, User, Menu } from '../../types';
+import { DiningExperience, RestaurantTable, OperatingHour, RestaurantSettings, User, Menu, Category } from '../../types';
 
 interface ReservationItem {
     id: number;
@@ -73,6 +73,7 @@ interface Props {
     } | null;
     tables: RestaurantTable[];
     experiences: DiningExperience[];
+    categories?: Category[];
     menus?: Menu[];
     operatingHours: OperatingHour[];
     settings?: RestaurantSettings | null;
@@ -95,6 +96,7 @@ export default function Reservation({
     customer,
     tables = [],
     experiences = [],
+    categories = [],
     menus = [],
     operatingHours = [],
     settings,
@@ -111,6 +113,10 @@ export default function Reservation({
 
     // Filter kategori paket pada langkah 3
     const [expFilter, setExpFilter] = useState<'all' | 'chef' | 'buyout' | 'alacarte'>('all');
+
+    // Menu catalog preview state pada langkah 3
+    const [showMenuCatalog, setShowMenuCatalog] = useState<boolean>(false);
+    const [menuCatalogCategory, setMenuCatalogCategory] = useState<string>('all');
 
     // Salin nomor rekening state
     const [copiedAccount, setCopiedAccount] = useState<string | null>(null);
@@ -1245,6 +1251,105 @@ export default function Reservation({
                                                 );
                                             })}
                                     </div>
+
+                                    {/* Pratinjau Buku Menu Restoran */}
+                                    {menus.length > 0 && (
+                                        <div className="pt-6 border-t border-[#FAF6F0] space-y-4">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                <div>
+                                                    <h4 className="font-heading text-base font-bold text-[#32151F]">
+                                                        Buku Menu & Ragam Kuliner Nusantara
+                                                    </h4>
+                                                    <p className="text-xs text-[#6E625A]">
+                                                        Jelajahi seluruh hidangan autentik Nusantara dan masakan khas daerah yang siap disajikan saat kunjungan Anda.
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowMenuCatalog(!showMenuCatalog)}
+                                                    className="px-4 py-2 rounded-full border border-[#B99A65]/40 text-[#32151F] bg-[#FAF6F0] hover:bg-[#32151F] hover:text-[#D4B886] font-bold text-xs transition-all flex items-center justify-center gap-2 self-start sm:self-auto shadow-xs"
+                                                >
+                                                    <Utensils className="w-3.5 h-3.5 text-[#B99A65]" />
+                                                    <span>{showMenuCatalog ? 'Tutup Daftar Menu' : `Lihat Buku Menu (${menus.length})`}</span>
+                                                </button>
+                                            </div>
+
+                                            {showMenuCatalog && (
+                                                <div className="p-5 rounded-2xl bg-[#FAF6F0]/80 border border-[#E8DFD3] space-y-4 animate-fadeIn">
+                                                    {/* Category pills */}
+                                                    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setMenuCatalogCategory('all')}
+                                                            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                                                                menuCatalogCategory === 'all'
+                                                                    ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                                                    : 'bg-white text-[#6E625A] hover:text-[#1A1615] border border-[#E8DFD3]'
+                                                            }`}
+                                                        >
+                                                            Semua ({menus.length})
+                                                        </button>
+                                                        {categories.map(cat => {
+                                                            const count = menus.filter(m => m.category_slug === cat.slug).length;
+                                                            return (
+                                                                <button
+                                                                    key={cat.id}
+                                                                    type="button"
+                                                                    onClick={() => setMenuCatalogCategory(cat.slug)}
+                                                                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                                                                        menuCatalogCategory === cat.slug
+                                                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                                                            : 'bg-white text-[#6E625A] hover:text-[#1A1615] border border-[#E8DFD3]'
+                                                                    }`}
+                                                                >
+                                                                    <span>{cat.name}</span>
+                                                                    {count > 0 && (
+                                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                                                                            menuCatalogCategory === cat.slug
+                                                                                ? 'bg-[#D4B886]/20 text-[#D4B886]'
+                                                                                : 'bg-stone-100 text-stone-600'
+                                                                        }`}>
+                                                                            {count}
+                                                                        </span>
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+
+                                                    {/* Menu grid */}
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[460px] overflow-y-auto pr-1">
+                                                        {menus
+                                                            .filter(m => menuCatalogCategory === 'all' || m.category_slug === menuCatalogCategory)
+                                                            .map(m => (
+                                                                <div key={m.id} className="p-3 rounded-2xl bg-white border border-[#E8DFD3] flex gap-3 items-center hover:border-[#B99A65]/60 transition-all shadow-xs">
+                                                                    <img
+                                                                        src={getMenuImageUrl(m.image_path)}
+                                                                        alt={m.name}
+                                                                        onError={(e) => { e.currentTarget.src = '/images/menus/sate-lilit.jpg'; }}
+                                                                        className="w-16 h-16 rounded-xl object-cover shrink-0 bg-stone-100 border border-stone-200"
+                                                                    />
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <span className="text-[9px] uppercase font-bold tracking-wider text-[#B99A65] block truncate">
+                                                                            {m.category_name}
+                                                                        </span>
+                                                                        <h5 className="font-heading text-xs font-bold text-[#32151F] truncate" title={m.name}>
+                                                                            {m.name}
+                                                                        </h5>
+                                                                        <p className="text-[10px] text-[#6E625A] line-clamp-1 mt-0.5">
+                                                                            {m.description}
+                                                                        </p>
+                                                                        <span className="font-mono text-xs font-bold text-[#946E2D] block mt-1">
+                                                                            {formatRupiah(m.price)}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Action Bar Langkah 3 */}
                                     <div className="pt-6 border-t border-[#FAF6F0] flex items-center justify-between">

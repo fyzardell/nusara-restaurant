@@ -996,7 +996,7 @@ export default function OrderApp({
                                     type="text"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Cari hidangan favorit (Wagyu, Bebek Betutu, Rawon, Es Bir Pletok)..."
+                                    placeholder="Cari hidangan favorit (Mie Aceh, Nasi Liwet, Gudeg, Wagyu, Bebek Betutu)..."
                                     className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white border border-[#B99A65]/40 text-xs text-[#211D1B] placeholder-stone-400 focus:outline-none focus:border-[#32151F] shadow-sm"
                                 />
                             </div>
@@ -1011,21 +1011,33 @@ export default function OrderApp({
                                             : 'bg-white text-[#211D1B]/70 hover:text-[#211D1B] border border-stone-300'
                                     }`}
                                 >
-                                    Semua Kategori
+                                    Semua Kategori ({menus.length})
                                 </button>
-                                {categories.map(cat => (
-                                    <button
-                                        key={cat.id}
-                                        onClick={() => setSelectedCategory(cat.slug)}
-                                        className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                                            selectedCategory === cat.slug
-                                                ? 'bg-[#32151F] text-[#D4B886] shadow-md font-bold'
-                                                : 'bg-white text-[#211D1B]/70 hover:text-[#211D1B] border border-stone-300'
-                                        }`}
-                                    >
-                                        {cat.name}
-                                    </button>
-                                ))}
+                                {categories.map(cat => {
+                                    const count = menus.filter(m => m.category_slug === cat.slug).length;
+                                    return (
+                                        <button
+                                            key={cat.id}
+                                            onClick={() => setSelectedCategory(cat.slug)}
+                                            className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                                                selectedCategory === cat.slug
+                                                    ? 'bg-[#32151F] text-[#D4B886] shadow-md font-bold'
+                                                    : 'bg-white text-[#211D1B]/70 hover:text-[#211D1B] border border-stone-300'
+                                            }`}
+                                        >
+                                            <span>{cat.name}</span>
+                                            {count > 0 && (
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                                                    selectedCategory === cat.slug
+                                                        ? 'bg-[#D4B886]/20 text-[#D4B886]'
+                                                        : 'bg-stone-100 text-stone-600'
+                                                }`}>
+                                                    {count}
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
