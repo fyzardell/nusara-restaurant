@@ -30,10 +30,13 @@ jobs:
             # Git safe directory
             git config --global --add safe.directory "*" || true
 
-            # Aktifkan fungsi chown, chgrp, proc_open, putenv di php.ini aaPanel untuk Composer
-            for ini_file in /www/server/php/*/etc/php.ini /etc/php/*/cli/php.ini; do
+            # Aktifkan fungsi chown, chgrp, proc_open, putenv di semua php.ini untuk Composer
+            ACTIVE_INI=$(php -r "echo php_ini_loaded_file();" 2>/dev/null || true)
+            ALL_INIS="$ACTIVE_INI $(find /www/server/php /etc/php -name '*.ini' 2>/dev/null || true)"
+            for ini_file in $ALL_INIS; do
               if [ -f "$ini_file" ]; then
-                sed -i 's/,chgrp//g; s/chgrp,//g; s/,chown//g; s/chown,//g; s/,proc_open//g; s/proc_open,//g; s/,putenv//g; s/putenv,//g' "$ini_file"
+                sed -i 's/chgrp//g; s/chown//g; s/proc_open//g; s/putenv//g' "$ini_file"
+                sed -i 's/,\s*,/,/g; s/=\s*,/=/g; s/,\s*$//g' "$ini_file"
               fi
             done
 
@@ -45,6 +48,25 @@ jobs:
             echo "================================================="
             git fetch origin main
             git reset --hard origin/main
+
+            # Pastikan file .env ada dan terkonfigurasi dengan benar
+            if [ ! -f .env ]; then
+              echo "Membuat file .env dari .env.example..."
+              cp .env.example .env
+              sed -i 's/APP_ENV=local/APP_ENV=production/g' .env
+              sed -i 's/APP_DEBUG=true/APP_DEBUG=false/g' .env
+              sed -i 's|APP_URL=http://localhost:8000|APP_URL=https://nusara.my.id|g' .env
+              sed -i 's/DB_CONNECTION=mysql/DB_CONNECTION=sqlite/g' .env
+              php artisan key:generate --force
+            fi
+
+            # Pastikan database sqlite ada jika menggunakan sqlite
+            mkdir -p database
+            if [ ! -f database/database.sqlite ]; then
+              touch database/database.sqlite
+            fi
+            chmod -R 775 database
+            chmod 664 database/database.sqlite 2>/dev/null || true
 
             echo "================================================="
             echo "2. INSTALL DEPENDENSI PHP (COMPOSER)"
@@ -73,9 +95,10 @@ jobs:
             npm run build
 
             echo "================================================="
-            echo "4. MIGRASI DATABASE"
+            echo "4. MIGRASI & SEED DATABASE"
             echo "================================================="
             php artisan migrate --force
+            php artisan db:seed --force || true
 
             echo "================================================="
             echo "5. OPTIMASI CACHE LARAVEL"
@@ -90,7 +113,8 @@ jobs:
             echo "6. PERBAIKI HAK AKSES FOLDER (CHOWN WWW)"
             echo "================================================="
             chown -R www:www .
-            chmod -R 775 storage bootstrap/cache
+            chmod -R 775 storage bootstrap/cache database
+            chmod 664 database/database.sqlite 2>/dev/null || true
 
             echo "================================================="
             echo "DEPLOYMENT SELESAI DENGAN SUKSES & AMAN!"

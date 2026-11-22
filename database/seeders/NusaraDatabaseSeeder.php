@@ -21,19 +21,25 @@ class NusaraDatabaseSeeder extends Seeder
 
         $roleIds = [];
         foreach ($roles as $role) {
-            $id = DB::table('roles')->insertGetId([
-                'name' => $role['name'],
-                'description' => $role['description'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            $roleIds[$role['name']] = $id;
+            $existing = DB::table('roles')->where('name', $role['name'])->first();
+            if ($existing) {
+                $roleIds[$role['name']] = $existing->id;
+            } else {
+                $id = DB::table('roles')->insertGetId([
+                    'name' => $role['name'],
+                    'description' => $role['description'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $roleIds[$role['name']] = $id;
+            }
         }
 
         // 2. Users
         $password = Hash::make('password123');
 
-        $adminId = DB::table('users')->insertGetId([
+        $admin = DB::table('users')->where('email', 'admin@nusara.id')->first();
+        $adminId = $admin ? $admin->id : DB::table('users')->insertGetId([
             'role_id' => $roleIds['admin'],
             'name' => 'Raden Mas Haryo (Admin)',
             'email' => 'admin@nusara.id',
@@ -43,7 +49,8 @@ class NusaraDatabaseSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
-        $cashierId = DB::table('users')->insertGetId([
+        $cashier = DB::table('users')->where('email', 'cashier@nusara.id')->first();
+        $cashierId = $cashier ? $cashier->id : DB::table('users')->insertGetId([
             'role_id' => $roleIds['cashier'],
             'name' => 'Dewi Anggraini (Kasir)',
             'email' => 'cashier@nusara.id',
@@ -53,7 +60,8 @@ class NusaraDatabaseSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
-        $waiterId = DB::table('users')->insertGetId([
+        $waiter = DB::table('users')->where('email', 'waiter@nusara.id')->first();
+        $waiterId = $waiter ? $waiter->id : DB::table('users')->insertGetId([
             'role_id' => $roleIds['waiter'],
             'name' => 'Bagus Wicaksono (Waiter)',
             'email' => 'waiter@nusara.id',
@@ -63,7 +71,8 @@ class NusaraDatabaseSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
-        $customerId = DB::table('users')->insertGetId([
+        $customer = DB::table('users')->where('email', 'pelanggan@nusara.id')->first();
+        $customerId = $customer ? $customer->id : DB::table('users')->insertGetId([
             'role_id' => $roleIds['customer'],
             'name' => 'Anindya Laksmi',
             'email' => 'pelanggan@nusara.id',
@@ -74,32 +83,38 @@ class NusaraDatabaseSeeder extends Seeder
         ]);
 
         // Customer profile
-        DB::table('customers')->insert([
-            'user_id' => $customerId,
-            'name' => 'Anindya Laksmi',
-            'phone_normalized' => '+6281234567890',
-            'email' => 'pelanggan@nusara.id',
-            'phone_verified_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $custProfile = DB::table('customers')->where('user_id', $customerId)->first();
+        if (!$custProfile) {
+            DB::table('customers')->insert([
+                'user_id' => $customerId,
+                'name' => 'Anindya Laksmi',
+                'phone_normalized' => '+6281234567890',
+                'email' => 'pelanggan@nusara.id',
+                'phone_verified_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         // 3. Restaurant Settings
-        DB::table('restaurant_settings')->insert([
-            'restaurant_name' => 'NUSARA — Indonesian Dining Experience',
-            'address' => 'Jl. Senopati No. 88, Kebayoran Baru, Jakarta Selatan 12190',
-            'phone' => '+62 21 5567 8900',
-            'email' => 'concierge@nusara.id',
-            'social_links' => json_encode([
-                'instagram' => 'https://instagram.com/nusara.dining',
-                'facebook' => 'https://facebook.com/nusara.dining',
-                'tiktok' => 'https://tiktok.com/@nusara.dining',
-            ]),
-            'tax_percentage' => 11.00,
-            'reservation_policy' => 'Reservasi disarankan 24 jam sebelumnya. Meja disimpan selama 15 menit dari jam yang dijadwalkan.',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $settingExists = DB::table('restaurant_settings')->first();
+        if (!$settingExists) {
+            DB::table('restaurant_settings')->insert([
+                'restaurant_name' => 'NUSARA — Indonesian Dining Experience',
+                'address' => 'Jl. Senopati No. 88, Kebayoran Baru, Jakarta Selatan 12190',
+                'phone' => '+62 21 5567 8900',
+                'email' => 'concierge@nusara.id',
+                'social_links' => json_encode([
+                    'instagram' => 'https://instagram.com/nusara.dining',
+                    'facebook' => 'https://facebook.com/nusara.dining',
+                    'tiktok' => 'https://tiktok.com/@nusara.dining',
+                ]),
+                'tax_percentage' => 11.00,
+                'reservation_policy' => 'Reservasi disarankan 24 jam sebelumnya. Meja disimpan selama 15 menit dari jam yang dijadwalkan.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         // 4. Operating Hours
         $days = [
@@ -156,10 +171,12 @@ class NusaraDatabaseSeeder extends Seeder
         ];
 
         foreach ($experiences as $exp) {
-            DB::table('dining_experiences')->insert(array_merge($exp, [
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]));
+            DB::table('dining_experiences')->updateOrInsert(
+                ['slug' => $exp['slug']],
+                array_merge($exp, [
+                    'updated_at' => now(),
+                ])
+            );
         }
 
         // 6. Categories
@@ -175,15 +192,26 @@ class NusaraDatabaseSeeder extends Seeder
 
         $categoryIds = [];
         foreach ($categories as $cat) {
-            $id = DB::table('categories')->insertGetId([
-                'name' => $cat['name'],
-                'slug' => $cat['slug'],
-                'description' => $cat['description'],
-                'is_active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            $categoryIds[$cat['slug']] = $id;
+            $existing = DB::table('categories')->where('slug', $cat['slug'])->first();
+            if ($existing) {
+                DB::table('categories')->where('id', $existing->id)->update([
+                    'name' => $cat['name'],
+                    'description' => $cat['description'],
+                    'is_active' => true,
+                    'updated_at' => now(),
+                ]);
+                $categoryIds[$cat['slug']] = $existing->id;
+            } else {
+                $id = DB::table('categories')->insertGetId([
+                    'name' => $cat['name'],
+                    'slug' => $cat['slug'],
+                    'description' => $cat['description'],
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $categoryIds[$cat['slug']] = $id;
+            }
         }
 
         // 7. Menus
@@ -517,48 +545,66 @@ class NusaraDatabaseSeeder extends Seeder
 
         foreach ($menus as $m) {
             $catId = $categoryIds[$m['category_slug']];
-            $menuId = DB::table('menus')->insertGetId([
-                'category_id' => $catId,
-                'name' => $m['name'],
-                'slug' => $m['slug'],
-                'description' => $m['description'],
-                'price' => $m['price'],
-                'stock_quantity' => $m['stock_quantity'],
-                'is_available' => $m['is_available'],
-                'is_featured' => $m['is_featured'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            $existing = DB::table('menus')->where('slug', $m['slug'])->first();
+            if ($existing) {
+                $menuId = $existing->id;
+                DB::table('menus')->where('id', $menuId)->update([
+                    'category_id' => $catId,
+                    'name' => $m['name'],
+                    'description' => $m['description'],
+                    'price' => $m['price'],
+                    'stock_quantity' => $m['stock_quantity'],
+                    'is_available' => $m['is_available'],
+                    'is_featured' => $m['is_featured'],
+                    'updated_at' => now(),
+                ]);
+            } else {
+                $menuId = DB::table('menus')->insertGetId([
+                    'category_id' => $catId,
+                    'name' => $m['name'],
+                    'slug' => $m['slug'],
+                    'description' => $m['description'],
+                    'price' => $m['price'],
+                    'stock_quantity' => $m['stock_quantity'],
+                    'is_available' => $m['is_available'],
+                    'is_featured' => $m['is_featured'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
 
-            DB::table('menu_images')->insert([
-                'menu_id' => $menuId,
-                'image_path' => $m['image_path'],
-                'is_primary' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+                DB::table('menu_images')->insert([
+                    'menu_id' => $menuId,
+                    'image_path' => $m['image_path'],
+                    'is_primary' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
 
         // 8. Restaurant Tables
         for ($i = 1; $i <= 8; $i++) {
-            $tableNum = sprintf('%02d', $i);
-            $tableId = DB::table('restaurant_tables')->insertGetId([
-                'table_number' => 'Meja ' . $tableNum,
-                'capacity' => ($i <= 4) ? 4 : (($i <= 6) ? 2 : 8),
-                'location' => ($i <= 6) ? 'Main Dining Hall' : 'VIP Private Room',
-                'status' => 'Available',
-                'is_active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            $tableNum = 'Meja ' . sprintf('%02d', $i);
+            $existingTable = DB::table('restaurant_tables')->where('table_number', $tableNum)->first();
+            if (!$existingTable) {
+                $tableId = DB::table('restaurant_tables')->insertGetId([
+                    'table_number' => $tableNum,
+                    'capacity' => ($i <= 4) ? 4 : (($i <= 6) ? 2 : 8),
+                    'location' => ($i <= 6) ? 'Main Dining Hall' : 'VIP Private Room',
+                    'status' => 'Available',
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
 
-            DB::table('table_qr_codes')->insert([
-                'table_id' => $tableId,
-                'token_hash' => hash('sha256', 'nusara-table-' . $tableNum . '-' . Str::random(16)),
-                'is_active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+                DB::table('table_qr_codes')->insert([
+                    'table_id' => $tableId,
+                    'token_hash' => hash('sha256', 'nusara-table-' . sprintf('%02d', $i) . '-' . Str::random(16)),
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
     }
 }
