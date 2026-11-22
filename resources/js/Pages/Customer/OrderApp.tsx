@@ -39,7 +39,8 @@ import {
     Coffee,
     User as UserIcon,
     RefreshCw,
-    PanelLeft
+    PanelLeft,
+    CreditCard
 } from 'lucide-react';
 
 function TypingGreeting({ name }: { name: string }) {
@@ -354,8 +355,38 @@ export default function OrderApp({
         });
     };
 
+    // Pay with Midtrans Snap
+    const handlePayNow = (snapToken: string) => {
+        if (!snapToken) {
+            alert('Token pembayaran tidak valid.');
+            return;
+        }
+        if (!(window as any).snap) {
+            alert('Modul pembayaran Midtrans sedang dimuat. Silakan tunggu beberapa detik dan coba lagi.');
+            return;
+        }
+
+        (window as any).snap.pay(snapToken, {
+            onSuccess: function (result: any) {
+                alert('Pembayaran Berhasil! Pesanan Anda segera disiapkan.');
+                router.reload();
+            },
+            onPending: function (result: any) {
+                alert('Silakan selesaikan pembayaran sesuai petunjuk QRIS / Virtual Account.');
+                router.reload();
+            },
+            onError: function (result: any) {
+                alert('Pembayaran gagal atau dibatalkan.');
+                router.reload();
+            },
+            onClose: function () {
+                router.reload();
+            }
+        });
+    };
+
     // Submit Checkout
-    const handleCheckout = (e: React.FormEvent) => {
+    const handleCheckout = async (e: React.FormEvent) => {
         e.preventDefault();
         if (cart.length === 0) return;
 
@@ -376,31 +407,76 @@ export default function OrderApp({
         }
 
         setIsCheckingOut(true);
-        router.post('/order/checkout', {
-            order_type: orderType,
-            customer_name: customerName.trim(),
-            table_number: orderType === 'dine_in' ? selectedTable.trim() : null,
-            customer_notes: generalNotes,
-            payment_method: paymentMethod,
-            items: cart.map(item => ({
-                menu_id: item.menu.id,
-                quantity: item.quantity,
-                item_notes: item.item_notes,
-            })),
-        }, {
-            onSuccess: () => {
-                setCart([]);
-                try {
-                    localStorage.removeItem('nusara_customer_cart');
-                } catch {}
-                setIsCartOpen(false);
-                setIsCheckingOut(false);
-                setActiveTab('history');
-            },
-            onError: () => {
-                setIsCheckingOut(false);
+
+        try {
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+            const response = await fetch('/order/checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({
+                    order_type: orderType,
+                    customer_name: customerName.trim(),
+                    table_number: orderType === 'dine_in' ? selectedTable.trim() : null,
+                    customer_notes: generalNotes,
+                    payment_method: paymentMethod,
+                    items: cart.map(item => ({
+                        menu_id: item.menu.id,
+                        quantity: item.quantity,
+                        item_notes: item.item_notes,
+                    })),
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Gagal memproses pesanan.');
             }
-        });
+
+            // Bersihkan keranjang
+            setCart([]);
+            try {
+                localStorage.removeItem('nusara_customer_cart');
+            } catch {}
+            setIsCartOpen(false);
+
+            // Jika Midtrans Snap Token tersedia (QRIS atau Bank Transfer)
+            if (data.snap_token && (window as any).snap) {
+                (window as any).snap.pay(data.snap_token, {
+                    onSuccess: function (result: any) {
+                        alert('Pembayaran Berhasil! Pesanan Anda segera disiapkan oleh dapur NUSARA.');
+                        router.reload();
+                        setActiveTab('history');
+                    },
+                    onPending: function (result: any) {
+                        alert('Pesanan tersimpan! Silakan selesaikan pembayaran QRIS / Virtual Account Anda.');
+                        router.reload();
+                        setActiveTab('history');
+                    },
+                    onError: function (result: any) {
+                        alert('Pembayaran belum terselesaikan.');
+                        router.reload();
+                        setActiveTab('history');
+                    },
+                    onClose: function () {
+                        router.reload();
+                        setActiveTab('history');
+                    }
+                });
+            } else {
+                alert(`Pesanan #${data.order_code} berhasil dibuat! Silakan lakukan pembayaran di kasir.`);
+                router.reload();
+                setActiveTab('history');
+            }
+        } catch (error: any) {
+            alert(error.message || 'Terjadi gangguan saat memproses pesanan.');
+        } finally {
+            setIsCheckingOut(false);
+        }
     };
 
     // Submit Rating
@@ -1348,39 +1424,65 @@ export default function OrderApp({
 
                                             <div className="pt-3 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3">
                                                 <div>
-                                                    <span className="text-[11px] text-stone-500 block">Total Pembayaran (Termasuk PB1 11%)</span>
-                                                    <span className="font-heading text-xl font-bold text-[#32151F]">
-                                                        {formatRupiah(order.total)}
-                                                    </span>
+                                                    <span className="text-[11px] text-stone-500 block">Total Tagihan (Termasuk PB1 11%)</span>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className="font-heading text-xl font-bold text-[#32151F]">
+                                                            {formatRupiah(order.total)}
+                                                        </span>
+                                                        {order.payment?.payment_status === 'Paid' ? (
+                                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                                Lunas ({order.payment.payment_method === 'qris' ? 'QRIS' : order.payment.payment_method === 'bank_transfer' ? 'Virtual Account' : 'Kasir'})
+                                                            </span>
+                                                        ) : (
+                                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                                                                Menunggu Bayar ({order.payment?.payment_method === 'qris' ? 'QRIS' : order.payment?.payment_method === 'bank_transfer' ? 'Virtual Account' : 'Kasir'})
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
 
-                                                {/* Rating & Review Action */}
-                                                {order.rating ? (
-                                                    <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-semibold">
-                                                        <div className="flex text-amber-500">
-                                                            {Array.from({ length: order.rating.rating }).map((_, i) => (
-                                                                <Star key={i} className="w-3.5 h-3.5 fill-current" />
-                                                            ))}
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {/* Bayar Ulang via Snap jika pending */}
+                                                    {order.payment?.payment_status !== 'Paid' && order.transaction?.payment_url && order.order_status !== 'Cancelled' && (
+                                                        <button
+                                                            onClick={() => handlePayNow(order.transaction!.payment_url!)}
+                                                            className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-extrabold text-xs uppercase tracking-wider hover:shadow-md active:scale-95 transition-all flex items-center gap-1.5"
+                                                        >
+                                                            <CreditCard className="w-3.5 h-3.5" />
+                                                            <span>Bayar Sekarang (Snap)</span>
+                                                        </button>
+                                                    )}
+
+                                                    {/* Rating & Review Action */}
+                                                    {order.rating ? (
+                                                        <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-semibold">
+                                                            <div className="flex text-amber-500">
+                                                                {Array.from({ length: order.rating.rating }).map((_, i) => (
+                                                                    <Star key={i} className="w-3.5 h-3.5 fill-current" />
+                                                                ))}
+                                                            </div>
+                                                            <span>Ulasan Diterima</span>
                                                         </div>
-                                                        <span>Ulasan Diterima</span>
-                                                    </div>
-                                                ) : isServedOrDone ? (
-                                                    <button
-                                                        onClick={() => {
-                                                            setRatingOrder(order);
-                                                            setSelectedStars(5);
-                                                            setReviewComment('');
-                                                        }}
-                                                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-wider hover:shadow-md transition-all flex items-center gap-1.5"
-                                                    >
-                                                        <Star className="w-3.5 h-3.5 fill-current" />
-                                                        <span>Beri Rating & Ulasan</span>
-                                                    </button>
-                                                ) : (
-                                                    <span className="text-[11px] text-stone-500 italic">
-                                                        Rating dapat diberikan setelah pesanan selesai disajikan.
-                                                    </span>
-                                                )}
+                                                    ) : isServedOrDone ? (
+                                                        <button
+                                                            onClick={() => {
+                                                                setRatingOrder(order);
+                                                                setSelectedStars(5);
+                                                                setReviewComment('');
+                                                            }}
+                                                            className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-wider hover:shadow-md transition-all flex items-center gap-1.5"
+                                                        >
+                                                            <Star className="w-3.5 h-3.5 fill-current" />
+                                                            <span>Beri Rating & Ulasan</span>
+                                                        </button>
+                                                    ) : (
+                                                        order.payment?.payment_status === 'Paid' && (
+                                                            <span className="text-[11px] text-stone-500 italic">
+                                                                Rating dapat diberikan setelah pesanan selesai disajikan.
+                                                            </span>
+                                                        )
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     );

@@ -19,6 +19,12 @@
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.tsx'])
         @inertiaHead
+
+        <!-- Midtrans Snap Script (Sandbox) -->
+        <script 
+            src="https://app.sandbox.midtrans.com/snap/snap.js" 
+            data-client-key="{{ config('midtrans.client_key') }}"
+        ></script>
     </head>
     <body class="font-body antialiased bg-[#F4EFE6] text-[#211D1B] selection:bg-[#B99A65] selection:text-[#32151F]">
         @inertia

@@ -31,6 +31,10 @@ Route::post('/reservation', [ReservationController::class, 'store'])->name('rese
 Route::get('/order', [OrderController::class, 'index'])->name('order.app');
 Route::post('/order/checkout', [OrderController::class, 'checkout'])->name('order.checkout');
 
+// Midtrans Webhook Notification Handler (Public & CSRF Exempted)
+Route::post('/api/midtrans/webhook', [OrderController::class, 'handleWebhook'])->name('midtrans.webhook');
+Route::post('/midtrans/webhook', [OrderController::class, 'handleWebhook']);
+
 // Fitur Khusus Member Terdaftar
 Route::middleware('auth')->group(function () {
     Route::post('/order/{id}/rating', [OrderController::class, 'submitRating'])->name('order.rating');

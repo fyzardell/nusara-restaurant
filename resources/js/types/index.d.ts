@@ -120,6 +120,12 @@ export interface Order {
         amount: number;
         paid_at: string | null;
     } | null;
+    transaction?: {
+        id?: number;
+        payment_url?: string;
+        provider_transaction_id?: string;
+        transaction_status?: string;
+    } | null;
     rating?: OrderRating | null;
 }
 

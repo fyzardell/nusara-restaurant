@@ -110,6 +110,9 @@ class OrderController extends Controller
             $order->payment = DB::table('payments')
                 ->where('order_id', $order->id)
                 ->first();
+            $order->transaction = $order->payment ? DB::table('payment_transactions')
+                ->where('payment_id', $order->payment->id)
+                ->first() : null;
             $order->rating = DB::table('order_ratings')
                 ->where('order_id', $order->id)
                 ->first();
@@ -274,15 +277,48 @@ class OrderController extends Controller
             }
             DB::table('order_items')->insert($itemsData);
 
-            DB::table('payments')->insert([
+            $paymentStatus = 'Pending';
+
+            $paymentId = DB::table('payments')->insertGetId([
                 'order_id' => $orderId,
                 'payment_method' => $request->payment_method,
-                'payment_status' => 'Paid',
+                'payment_status' => $paymentStatus,
                 'amount' => $total,
-                'paid_at' => now(),
+                'paid_at' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            $snapToken = null;
+            if (in_array($request->payment_method, ['qris', 'bank_transfer'])) {
+                try {
+                    $midtrans = app(\App\Services\MidtransService::class);
+                    $snapToken = $midtrans->createSnapToken(
+                        orderCode: $orderCode,
+                        grossAmount: (int) $total,
+                        items: $itemsData,
+                        taxAmount: (int) $tax,
+                        customerName: $customerName,
+                        customerEmail: $user?->email,
+                        customerPhone: null,
+                        paymentMethod: $request->payment_method
+                    );
+
+                    DB::table('payment_transactions')->insert([
+                        'payment_id' => $paymentId,
+                        'provider' => 'midtrans',
+                        'provider_transaction_id' => null,
+                        'transaction_status' => 'pending',
+                        'payment_url' => $snapToken,
+                        'expires_at' => now()->addHours(24),
+                        'response_data' => json_encode(['snap_token' => $snapToken]),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                } catch (\Exception $midtransEx) {
+                    \Illuminate\Support\Facades\Log::error('Midtrans Snap Error: ' . $midtransEx->getMessage());
+                }
+            }
 
             DB::commit();
 
@@ -293,10 +329,42 @@ class OrderController extends Controller
                 session(['guest_order_ids' => $guestOrderIds]);
             }
 
+            if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'order_code' => $orderCode,
+                    'order_id' => $orderId,
+                    'snap_token' => $snapToken,
+                    'payment_method' => $request->payment_method,
+                    'total' => $total,
+                    'message' => "Pesanan #{$orderCode} berhasil dibuat!",
+                ]);
+            }
+
             return redirect()->back()->with('success', "Pesanan #{$orderCode} untuk {$customerName} ({$finalTableNumber}) berhasil dibuat dan diteruskan ke dapur!");
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
             return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function handleWebhook(Request $request, \App\Services\MidtransService $midtransService)
+    {
+        try {
+            $result = $midtransService->processNotification($request->all());
+            return response()->json($result);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Midtrans Webhook Error: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 400);
         }
     }
 
