@@ -30,6 +30,13 @@ jobs:
             # Git safe directory
             git config --global --add safe.directory "*" || true
 
+            # Aktifkan fungsi chown, chgrp, proc_open, putenv di php.ini aaPanel untuk Composer
+            for ini_file in /www/server/php/*/etc/php.ini /etc/php/*/cli/php.ini; do
+              if [ -f "$ini_file" ]; then
+                sed -i 's/,chgrp//g; s/chgrp,//g; s/,chown//g; s/chown,//g; s/,proc_open//g; s/proc_open,//g; s/,putenv//g; s/putenv,//g' "$ini_file"
+              fi
+            done
+
             # Pindah ke direktori project website di aaPanel
             cd "${{ secrets.APP_DIR || '/www/wwwroot/nusara.my.id' }}"
 
@@ -49,7 +56,7 @@ jobs:
             cp composer.phar /usr/bin/composer 2>/dev/null || true
             cp composer.phar /usr/local/bin/composer 2>/dev/null || true
 
-            php composer.phar install --no-interaction --prefer-dist --optimize-autoloader --no-dev --ignore-platform-reqs
+            php -d disable_functions="" composer.phar install --no-interaction --prefer-dist --optimize-autoloader --no-dev --ignore-platform-reqs
 
             echo "================================================="
             echo "3. BUILD ASSET FRONTEND (VITE / INERTIA REACT)"
