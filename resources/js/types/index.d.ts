@@ -154,6 +154,14 @@ export interface RestaurantTable {
         status: string;
         started_at?: string;
     } | null;
+    current_status?: 'available' | 'occupied' | 'reserved' | 'private' | string;
+    status_label?: string;
+    occupied_until?: string | null;
+    reserved_until?: string | null;
+    private_until?: string | null;
+    status_schedule?: string | null;
+    status_description?: string | null;
+    is_selectable?: boolean;
 }
 
 export interface WaiterMetrics {
