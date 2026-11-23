@@ -110,7 +110,7 @@ export default function OrderTypeModal({ isOpen, onClose, onSelectDineIn, onSele
                             onClick={() => onSelectDineIn(tableInput)}
                             className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:shadow-xl transition-all flex items-center justify-center gap-2 active:scale-[0.99]"
                         >
-                            <span>Mulai Pesan di Meja {tableInput}</span>
+                            <span>Mulai Pesan di Meja {tableInput} (Mode Tamu / Tanpa Login)</span>
                             <ArrowRight className="w-4 h-4" />
                         </button>
                     </div>
