@@ -327,12 +327,12 @@ class ReservationController extends Controller
 
         $code = 'RSV-' . strtoupper(Str::random(6));
 
-        // Format Special Request dengan info DP terbayar (Menunggu Validasi Kasir)
+        // Format Special Request dengan info DP Jaminan Midtrans
         $specialRequest = $request->special_request ?? '';
         if ($request->filled('dp_amount') && floatval($request->dp_amount) > 0) {
             $dpFmt = number_format(floatval($request->dp_amount), 0, ',', '.');
             $method = strtoupper($request->dp_payment_method ?? 'QRIS');
-            $specialRequest = "[DP TERBAYAR: Rp {$dpFmt} via {$method} - Menunggu Validasi Kasir] " . $specialRequest;
+            $specialRequest = "[DP Jaminan Meja: Rp {$dpFmt} via {$method} Midtrans] " . $specialRequest;
         }
 
         $reservationId = DB::table('reservations')->insertGetId([
@@ -362,6 +362,7 @@ class ReservationController extends Controller
 
         // Generate Midtrans Snap Token for Reservation DP
         $snapToken = null;
+        $midtransError = null;
         if ($request->filled('dp_amount') && floatval($request->dp_amount) > 0) {
             try {
                 $midtrans = app(\App\Services\MidtransService::class);
@@ -384,6 +385,7 @@ class ReservationController extends Controller
                     paymentMethod: $request->dp_payment_method ?? 'all'
                 );
             } catch (\Exception $ex) {
+                $midtransError = $ex->getMessage();
                 \Illuminate\Support\Facades\Log::error("Midtrans Snap Reservation Error: " . $ex->getMessage());
             }
         }
@@ -394,7 +396,7 @@ class ReservationController extends Controller
             'action' => 'reservation.create',
             'entity_type' => 'Reservation',
             'entity_id' => $reservationId,
-            'description' => "Reservasi online dibuat dengan kode {$code} untuk {$request->guest_count} tamu pada {$request->date} {$request->time} WIB (Menunggu Validasi Kasir).",
+            'description' => "Reservasi online dibuat dengan kode {$code} untuk {$request->guest_count} tamu pada {$request->date} {$request->time} WIB (DP Non-Tunai Midtrans).",
             'created_at' => now(),
         ]);
 
@@ -408,6 +410,7 @@ class ReservationController extends Controller
                 'success' => true,
                 'reservation_code' => $code,
                 'snap_token' => $snapToken,
+                'midtrans_error' => $midtransError,
                 'table_names' => $tableNames,
                 'message' => "Reservasi {$code} ({$tableNames}) berhasil diajukan!",
             ]);
