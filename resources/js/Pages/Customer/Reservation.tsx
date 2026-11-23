@@ -590,7 +590,7 @@ export default function Reservation({
     const ensureSnapLoaded = async (): Promise<boolean> => {
         if ((window as any).snap) return true;
         return new Promise<boolean>((resolve) => {
-            const clientKey = 'Mid-client-vRlZ-ZTbkviZQkzo';
+            const clientKey = 'Mid-client-vRIZ-ZTbkviZQkzo';
             const script = document.createElement('script');
             script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
             script.setAttribute('data-client-key', clientKey);

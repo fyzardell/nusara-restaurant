@@ -31,6 +31,7 @@ Route::post('/reservation/{id}/refund', [ReservationController::class, 'requestR
 // Customer Ordering App (Akses Publik / Tamu Meja & Member)
 Route::get('/order', [OrderController::class, 'index'])->name('order.app');
 Route::post('/order/checkout', [OrderController::class, 'checkout'])->name('order.checkout');
+Route::post('/order/{id}/refund', [OrderController::class, 'requestRefund'])->name('order.refund');
 
 // Midtrans Webhook Notification Handler (Public & CSRF Exempted)
 Route::post('/api/midtrans/webhook', [OrderController::class, 'handleWebhook'])->name('midtrans.webhook');
@@ -53,6 +54,8 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     Route::post('/categories', [AdminController::class, 'storeCategory'])->name('admin.category.store');
     Route::post('/table/{id}/status', [AdminController::class, 'updateTableStatus'])->name('admin.table.status');
     Route::post('/reservation/{id}/status', [AdminController::class, 'updateReservationStatus'])->name('admin.reservation.status');
+    Route::post('/refund/{type}/{id}/approve', [AdminController::class, 'approveRefund'])->name('admin.refund.approve');
+    Route::post('/refund/{type}/{id}/reject', [AdminController::class, 'rejectRefund'])->name('admin.refund.reject');
     Route::get('/chats', [AdminController::class, 'chats'])->name('admin.chats');
     Route::get('/chats/{user}', [AdminController::class, 'chatShow'])->name('admin.chats.show');
     Route::post('/chats/{user}', [AdminController::class, 'sendChatMessage'])->name('admin.chats.send_direct');

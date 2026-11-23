@@ -23,9 +23,17 @@ interface TableSessionInfo {
     started_at?: string;
 }
 
+interface ActiveOrderInfo {
+    order_code: string;
+    customer_name: string;
+    order_status: string;
+    total: number;
+}
+
 interface TableWithSessionInfo extends RestaurantTable {
     active_session?: TableSessionInfo | null;
     active_orders_count?: number;
+    active_order?: ActiveOrderInfo | null;
 }
 
 interface ReservationData {
@@ -173,15 +181,21 @@ export default function CircularFloorPlan({
             };
         }
 
-        if (rawStatus === 'occupied') {
+        // Check Occupied: either rawStatus is occupied OR table has active orders
+        const hasActiveOrders = (tbl.active_orders_count && tbl.active_orders_count > 0) || rawStatus === 'occupied';
+
+        if (hasActiveOrders) {
+            const customerName = tbl.active_order?.customer_name || (tbl.active_session?.session_code ? `Sesi ${tbl.active_session.session_code}` : 'Tamu Santap');
+            const timeInfo = tbl.active_order ? `Order #${tbl.active_order.order_code}` : (tbl.active_orders_count ? `${tbl.active_orders_count} Pesanan Aktif` : 'Santap di Tempat');
+
             return {
                 status: 'Occupied',
                 label: 'Terisi',
-                customer: tbl.active_session?.session_code ? `Sesi ${tbl.active_session.session_code}` : 'Tamu Santap',
-                time: tbl.active_orders_count ? `${tbl.active_orders_count} Order` : 'Santap',
-                bgClass: 'bg-rose-950/60 border-rose-600/70 text-rose-200 shadow-rose-950/40',
-                dotClass: 'bg-rose-400',
-                badgeClass: 'bg-rose-950 text-rose-300 border border-rose-700/60'
+                customer: customerName,
+                time: timeInfo,
+                bgClass: 'bg-rose-950/80 border-rose-500 text-rose-100 shadow-rose-950/60 ring-2 ring-rose-500/50',
+                dotClass: 'bg-rose-500 animate-pulse',
+                badgeClass: 'bg-rose-950 text-rose-300 border border-rose-600 font-bold'
             };
         }
 
@@ -594,6 +608,27 @@ export default function CircularFloorPlan({
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Active Dine-in Order Information */}
+                                {selectedTable.active_order && (
+                                    <div className="p-3.5 rounded-2xl bg-rose-950/40 border border-rose-500/50 space-y-1.5 text-xs text-rose-100 animate-fadeIn">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] uppercase font-bold tracking-wider text-rose-400">
+                                                Pesanan Aktif di Meja Ini:
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-900 text-rose-200 border border-rose-700">
+                                                {selectedTable.active_order.order_status}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-mono font-bold text-white">#{selectedTable.active_order.order_code}</span>
+                                            <span className="font-bold text-[#D4B886]">Rp {Number(selectedTable.active_order.total).toLocaleString('id-ID')}</span>
+                                        </div>
+                                        <p className="text-[11px] text-[#E8DFD3]/80">
+                                            Pelanggan: <strong className="text-white">{selectedTable.active_order.customer_name}</strong>
+                                        </p>
+                                    </div>
+                                )}
 
                                 {/* Scheduled Reservations for this table */}
                                 {tableResList.length > 0 && (
