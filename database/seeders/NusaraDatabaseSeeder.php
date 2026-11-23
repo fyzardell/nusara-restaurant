@@ -127,16 +127,38 @@ class NusaraDatabaseSeeder extends Seeder
             ['day' => 0, 'name' => 'Minggu', 'open' => '10:30', 'close' => '22:30', 'closed' => false],
         ];
 
+        // Deduplicate operating_hours: keep the first ID for each day_of_week, delete the rest
+        $allOh = DB::table('operating_hours')->orderBy('id', 'asc')->get();
+        $keptDays = [];
+        foreach ($allOh as $oh) {
+            if (in_array($oh->day_of_week, $keptDays)) {
+                DB::table('operating_hours')->where('id', $oh->id)->delete();
+            } else {
+                $keptDays[] = $oh->day_of_week;
+            }
+        }
+
         foreach ($days as $d) {
-            DB::table('operating_hours')->insert([
-                'day_of_week' => $d['day'],
-                'day_name' => $d['name'],
-                'open_time' => $d['open'],
-                'close_time' => $d['close'],
-                'is_closed' => $d['closed'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            $existing = DB::table('operating_hours')->where('day_of_week', $d['day'])->first();
+            if ($existing) {
+                DB::table('operating_hours')->where('id', $existing->id)->update([
+                    'day_name' => $d['name'],
+                    'open_time' => $d['open'],
+                    'close_time' => $d['close'],
+                    'is_closed' => $d['closed'],
+                    'updated_at' => now(),
+                ]);
+            } else {
+                DB::table('operating_hours')->insert([
+                    'day_of_week' => $d['day'],
+                    'day_name' => $d['name'],
+                    'open_time' => $d['open'],
+                    'close_time' => $d['close'],
+                    'is_closed' => $d['closed'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
 
         // 5. Dining Experiences

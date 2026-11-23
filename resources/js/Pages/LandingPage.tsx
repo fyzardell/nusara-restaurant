@@ -209,12 +209,8 @@ export default function LandingPage({
                 const inner = contactRef.current.querySelector('.contact-inner');
                 if (inner) {
                     gsap.from(inner, {
-                        scale: 0.94, opacity: 0, duration: 1.1, ease: 'power3.out',
-                        scrollTrigger: { trigger: contactRef.current, start: 'top 78%' },
-                    });
-                    gsap.from(inner.querySelectorAll('h2, p, button, a'), {
-                        y: 24, opacity: 0, duration: 0.8, stagger: 0.1, ease: 'power2.out',
-                        scrollTrigger: { trigger: contactRef.current, start: 'top 72%' },
+                        y: 32, opacity: 0, duration: 0.9, ease: 'power2.out',
+                        scrollTrigger: { trigger: contactRef.current, start: 'top 85%' },
                     });
                 }
             }
@@ -353,6 +349,16 @@ export default function LandingPage({
             return matchesCategory && matchesSearch && matchesBestSeller;
         });
     }, [menus, selectedCategory, searchQuery, onlyBestSeller]);
+
+    // Pastikan jadwal operasional hanya 7 hari unik (Senin s/d Minggu) tanpa duplikasi
+    const uniqueOperatingHours = useMemo(() => {
+        const seen = new Set<number>();
+        return (operatingHours || []).filter(oh => {
+            if (seen.has(oh.day_of_week)) return false;
+            seen.add(oh.day_of_week);
+            return true;
+        });
+    }, [operatingHours]);
 
     const handleSelectDineIn = (tableNum: string) => {
         setOrderTypeModalOpen(false);
@@ -860,16 +866,17 @@ export default function LandingPage({
 
                             <div className="flex flex-col sm:flex-row gap-4 pt-2">
                                 <button
+                                    type="button"
                                     onClick={() => handleGoToReservation(null)}
-                                    className="px-8 py-3.5 rounded-full bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#B99A65]/20 flex items-center justify-center gap-2"
+                                    className="px-8 py-4 rounded-full bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-extrabold text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#B99A65]/30 flex items-center justify-center gap-2 cursor-pointer relative z-10"
                                 >
-                                    <Calendar className="w-4 h-4" />
+                                    <Calendar className="w-4 h-4 text-[#211D1B]" />
                                     <span>Formulir Reservasi Online</span>
                                 </button>
 
                                 <a
                                     href="tel:+622155678900"
-                                    className="px-6 py-3.5 rounded-full border border-[#B99A65]/60 text-[#F4EFE6] text-xs font-semibold hover:bg-[#B99A65]/20 transition-all flex items-center justify-center gap-2"
+                                    className="px-6 py-4 rounded-full border border-[#B99A65]/60 text-[#F4EFE6] text-xs font-semibold hover:bg-[#B99A65]/20 transition-all flex items-center justify-center gap-2"
                                 >
                                     <Phone className="w-4 h-4 text-[#D4B886]" />
                                     <span>Konsierge: +62 21 5567 8900</span>
@@ -878,18 +885,18 @@ export default function LandingPage({
                         </div>
 
                         {/* Schedule Table Preview */}
-                        <div className="lg:col-span-5 bg-[#211D1B]/90 p-6 rounded-2xl border border-[#B99A65]/30 space-y-3">
+                        <div className="lg:col-span-5 bg-[#211D1B]/95 p-6 rounded-2xl border border-[#B99A65]/40 space-y-3 shadow-lg">
                             <div className="flex items-center gap-2 text-[#D4B886] text-xs uppercase font-bold tracking-wider mb-2">
                                 <Clock className="w-4 h-4" />
                                 <span>Jadwal Operasional Restoran</span>
                             </div>
 
                             <div className="space-y-2 text-xs">
-                                {operatingHours && operatingHours.length > 0 ? (
-                                    operatingHours.map((oh) => (
-                                        <div key={oh.id} className="flex justify-between items-center py-1 border-b border-[#32151F]/80">
-                                            <span className="text-[#F4EFE6]/70">{oh.day_name}</span>
-                                            <span className="font-semibold text-[#F4EFE6]">
+                                {uniqueOperatingHours && uniqueOperatingHours.length > 0 ? (
+                                    uniqueOperatingHours.map((oh) => (
+                                        <div key={oh.day_of_week} className="flex justify-between items-center py-1.5 border-b border-[#32151F]/80">
+                                            <span className="text-[#F4EFE6]/80 font-medium">{oh.day_name}</span>
+                                            <span className="font-semibold text-[#D4B886]">
                                                 {oh.is_closed ? 'Tutup' : `${oh.open_time.slice(0, 5)} – ${oh.close_time.slice(0, 5)} WIB`}
                                             </span>
                                         </div>
