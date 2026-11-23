@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use App\Models\User;
 use Carbon\Carbon;
@@ -250,6 +251,7 @@ class AdminController extends Controller
             'auditLogs' => $auditLogs,
             'settings' => $settings,
             'adminUser' => $user,
+            'categoriesList' => DB::table('categories')->where('is_active', true)->orderBy('name', 'asc')->get(),
             'monthlySales' => $months,
             'bestSellerTrends' => $bestSellerTrends,
         ]);
@@ -331,6 +333,116 @@ class AdminController extends Controller
         ]);
 
         return redirect()->back()->with('success', "Stok menu {$menu->name} berhasil diperbarui!");
+    }
+
+    public function storeCategory(Request $request)
+    {
+        $user = Auth::user();
+        $this->ensureAdmin();
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'description' => 'nullable|string|max:500',
+        ]);
+
+        $baseSlug = Str::slug($validated['name']);
+        $slug = $baseSlug ?: 'kategori-' . time();
+        $counter = 1;
+        while (DB::table('categories')->where('slug', $slug)->exists()) {
+            $slug = "{$baseSlug}-{$counter}";
+            $counter++;
+        }
+
+        $categoryId = DB::table('categories')->insertGetId([
+            'name' => trim($validated['name']),
+            'slug' => $slug,
+            'description' => $validated['description'] ?? null,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('audit_logs')->insert([
+            'user_id' => $user->id,
+            'action' => 'CREATE_CATEGORY',
+            'entity_type' => 'categories',
+            'entity_id' => $categoryId,
+            'description' => "Kategori hidangan baru ditambahkan: {$validated['name']} ({$slug})",
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', "Kategori \"{$validated['name']}\" berhasil dibuat!");
+    }
+
+    public function storeMenu(Request $request)
+    {
+        $user = Auth::user();
+        $this->ensureAdmin();
+
+        $validated = $request->validate([
+            'category_id' => 'required|integer|exists:categories,id',
+            'name' => 'required|string|max:150',
+            'price' => 'required|numeric|min:0',
+            'stock_quantity' => 'required|integer|min:0',
+            'description' => 'nullable|string|max:1000',
+            'is_available' => 'boolean',
+            'is_featured' => 'boolean',
+            'image' => 'nullable|image|max:4096',
+            'image_url' => 'nullable|string|max:500',
+        ]);
+
+        $baseSlug = Str::slug($validated['name']);
+        $slug = $baseSlug ?: 'menu-' . time();
+        $counter = 1;
+        while (DB::table('menus')->where('slug', $slug)->exists()) {
+            $slug = "{$baseSlug}-{$counter}";
+            $counter++;
+        }
+
+        $menuId = DB::table('menus')->insertGetId([
+            'category_id' => $validated['category_id'],
+            'name' => trim($validated['name']),
+            'slug' => $slug,
+            'description' => $validated['description'] ?? null,
+            'price' => $validated['price'],
+            'stock_quantity' => $validated['stock_quantity'],
+            'is_available' => $request->boolean('is_available', true),
+            'is_featured' => $request->boolean('is_featured', false),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Process image: if file uploaded or url given
+        $imagePath = null;
+        if ($request->hasFile('image') && $request->file('image')->isValid()) {
+            $imagePath = $request->file('image')->store('menus', 'public');
+        } elseif (!empty($validated['image_url'])) {
+            $imagePath = trim($validated['image_url']);
+        }
+
+        if ($imagePath) {
+            DB::table('menu_images')->insert([
+                'menu_id' => $menuId,
+                'image_path' => $imagePath,
+                'is_primary' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $priceFormatted = number_format($validated['price'], 0, ',', '.');
+        DB::table('audit_logs')->insert([
+            'user_id' => $user->id,
+            'action' => 'CREATE_MENU',
+            'entity_type' => 'menus',
+            'entity_id' => $menuId,
+            'description' => "Menu hidangan baru ditambahkan: {$validated['name']} (Rp {$priceFormatted})",
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', "Menu hidangan \"{$validated['name']}\" berhasil ditambahkan ke katalog!");
     }
 
     public function updateTableStatus(Request $request, $tableId)

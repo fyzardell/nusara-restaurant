@@ -48,6 +48,8 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('admin.dashboard');
     Route::post('/order/{id}/status', [AdminController::class, 'updateOrderStatus'])->name('admin.order.status');
     Route::post('/menu/{id}/stock', [AdminController::class, 'updateMenuStock'])->name('admin.menu.stock');
+    Route::post('/menus', [AdminController::class, 'storeMenu'])->name('admin.menu.store');
+    Route::post('/categories', [AdminController::class, 'storeCategory'])->name('admin.category.store');
     Route::post('/table/{id}/status', [AdminController::class, 'updateTableStatus'])->name('admin.table.status');
     Route::post('/reservation/{id}/status', [AdminController::class, 'updateReservationStatus'])->name('admin.reservation.status');
     Route::get('/chats', [AdminController::class, 'chats'])->name('admin.chats');
