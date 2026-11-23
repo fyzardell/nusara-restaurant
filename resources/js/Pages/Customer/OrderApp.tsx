@@ -758,7 +758,7 @@ export default function OrderApp({
         if (cart.length === 0) return;
 
         if (!customerName.trim()) {
-            showAlert('Mohon lengkapi nama pemesan terlebih dahulu sebelum melanjutkan pesanan.', 'warning', 'Nama Pemesan Diperlukan');
+            showAlert('Mohon lengkapi nama pemesan terlebih dahulu sebelum melanjutkan pesanan agar pramusaji kami dapat mengantarkan santapan dengan tepat ke meja Anda.', 'warning', 'Nama Pemesan Wajib Diisi');
             return;
         }
 
@@ -2107,18 +2107,32 @@ export default function OrderApp({
                                             </h4>
 
                                             {/* Customer Name */}
-                                            <div>
-                                                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#946E2D] mb-1.5">
-                                                    Nama Pemesan: <span className="text-rose-600">*</span>
-                                                </label>
+                                            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-600/30 space-y-1.5">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#946E2D]">
+                                                        Nama Pemesan <span className="text-rose-600 font-extrabold">* (Wajib Diisi)</span>
+                                                    </label>
+                                                    {isGuest && (
+                                                        <span className="text-[10px] text-amber-900 font-semibold bg-amber-200/80 px-2 py-0.5 rounded-full">
+                                                            Pindai Meja (Tanpa Login)
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <input
                                                     type="text"
                                                     required
                                                     value={customerName}
                                                     onChange={(e) => setCustomerName(e.target.value)}
                                                     placeholder="Ketik nama Anda (contoh: Anindya Laksmi)"
-                                                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF7F2] border border-stone-300 text-xs text-[#211D1B] focus:outline-none focus:border-[#B99A65]"
+                                                    className={`w-full px-3.5 py-2.5 rounded-xl bg-white border text-xs text-[#211D1B] focus:outline-none transition-all ${
+                                                        !customerName.trim()
+                                                            ? 'border-amber-500 ring-2 ring-amber-500/20'
+                                                            : 'border-stone-300 focus:border-[#B99A65]'
+                                                    }`}
                                                 />
+                                                <p className="text-[10px] text-stone-500 leading-tight">
+                                                    Nama ini akan digunakan oleh staf pramusaji untuk mengonfirmasi dan menyajikan hidangan ke meja Anda.
+                                                </p>
                                             </div>
 
                                             {/* Table Input for Dine-in */}

@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
+import TableQrExportModal from '../../Components/TableQrExportModal';
 import {
     AdminMetrics,
     Order,
@@ -277,6 +278,7 @@ export default function AdminDashboard({
     const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
     const [isSubmittingMenu, setIsSubmittingMenu] = useState(false);
     const [isSubmittingCategory, setIsSubmittingCategory] = useState(false);
+    const [selectedQrTable, setSelectedQrTable] = useState<RestaurantTable | null>(null);
 
     // Form state: Tambah Kategori
     const [newCatName, setNewCatName] = useState('');
@@ -1731,18 +1733,28 @@ export default function AdminDashboard({
                                 onUpdateStatus={handleUpdateTableStatus}
                             />
 
-                            <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
+                            <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-[#241F1D]">
                                 <div>
                                     <h3 className="font-heading text-base font-bold text-white">
                                         Daftar Detail {metrics.totalTables} Meja Makan Nusara
                                     </h3>
                                     <p className="text-xs text-[#9E938B]">
-                                        Kelola ketersediaan meja restoran Senopati Flagship. Pastikan meja berstatus Available setelah dibersihkan oleh waiter.
+                                        Kelola ketersediaan meja & ekspor kartu stand QR (PNG) untuk pelanggan memesan langsung tanpa login.
                                     </p>
                                 </div>
-                                <span className="text-xs font-mono text-emerald-400">
-                                    {metrics.occupiedTables} Terisi / {metrics.totalTables} Total
-                                </span>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedQrTable(initialTables[0] || null)}
+                                        className="px-3.5 py-1.5 rounded-xl bg-[#32151F] border border-[#B99A65]/50 text-[#D4B886] hover:text-[#F4EFE6] hover:border-[#D4B886] text-xs font-bold flex items-center gap-1.5 transition-all shadow-md"
+                                    >
+                                        <QrCode className="w-4 h-4" />
+                                        <span>Generate & Ekspor QR</span>
+                                    </button>
+                                    <span className="text-xs font-mono text-emerald-400">
+                                        {metrics.occupiedTables} Terisi / {metrics.totalTables} Total
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -1804,6 +1816,16 @@ export default function AdminDashboard({
                                                 <option value="Cleaning">Cleaning (Sedang Dibersihkan)</option>
                                                 <option value="Inactive">Inactive (Tutup)</option>
                                             </select>
+
+                                            {/* Generate QR Button */}
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedQrTable(tbl)}
+                                                className="w-full py-1.5 px-2 rounded-xl bg-[#32151F] border border-[#B99A65]/40 hover:border-[#D4B886] text-[#D4B886] hover:text-[#F4EFE6] text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                                            >
+                                                <QrCode className="w-3.5 h-3.5" />
+                                                <span>Ekspor QR Meja</span>
+                                            </button>
                                         </div>
                                     );
                                 })}
@@ -2980,6 +3002,13 @@ export default function AdminDashboard({
                     </div>
                 </div>
             )}
+
+            {/* Table QR Generator & PNG Exporter Modal (Admin Only) */}
+            <TableQrExportModal
+                isOpen={!!selectedQrTable}
+                onClose={() => setSelectedQrTable(null)}
+                table={selectedQrTable}
+            />
         </div>
     );
 }

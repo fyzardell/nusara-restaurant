@@ -173,11 +173,12 @@ class CashierController extends Controller
                     ->orderBy('reservations.reservation_datetime', 'asc')
                     ->first();
 
-                // 1. Meja terpakai jika customer sudah memesan di halaman order
-                // 2. Meja tercatat reservasi jika ada booking untuk hari ini
-                if ($activeOrdersCount > 0) {
+                // 1. Prioritaskan status yang ditetapkan staff jika Available, Cleaning, Maintenance, atau Inactive
+                if (in_array($table->status, ['Available', 'Cleaning', 'Maintenance', 'Inactive'])) {
+                    // Status tetap sesuai pilihan operasional staf
+                } elseif ($activeOrdersCount > 0) {
                     $table->status = 'Occupied';
-                } elseif ($activeReservation && !in_array($table->status, ['Cleaning', 'Maintenance', 'Inactive'])) {
+                } elseif ($activeReservation) {
                     $table->status = 'Reserved';
                 }
 
@@ -393,6 +394,33 @@ class CashierController extends Controller
             'status' => $request->status,
             'updated_at' => now(),
         ]);
+
+        // Jika meja ditandai Available atau Cleaning, tutup seluruh sesi aktif
+        if (in_array($request->status, ['Available', 'Cleaning'])) {
+            DB::table('table_sessions')
+                ->where('table_id', $tableId)
+                ->whereIn('status', ['Pending Validation', 'Open'])
+                ->update([
+                    'status' => 'Closed',
+                    'closed_by' => $user->id,
+                    'ended_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            if ($request->status === 'Available') {
+                DB::table('orders')
+                    ->where(function ($q) use ($table) {
+                        $q->where('table_number', $table->table_number)
+                          ->orWhere('table_number', 'Meja ' . str_pad($table->id, 2, '0', STR_PAD_LEFT))
+                          ->orWhere('table_number', (string) $table->id);
+                    })
+                    ->whereIn('order_status', ['Served', 'Delivered', 'Ready', 'Completed'])
+                    ->update([
+                        'order_status' => 'Completed',
+                        'updated_at' => now(),
+                    ]);
+            }
+        }
 
         DB::table('audit_logs')->insert([
             'user_id' => $user->id,

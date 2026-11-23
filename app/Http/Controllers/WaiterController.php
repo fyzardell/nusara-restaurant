@@ -228,11 +228,12 @@ class WaiterController extends Controller
                     ->orderBy('reservations.reservation_datetime', 'asc')
                     ->first();
 
-                // 1. Meja terpakai jika customer sudah memesan di halaman order
-                // 2. Meja tercatat reservasi jika ada booking untuk hari ini
-                if ($activeOrdersCount > 0) {
+                // 1. Prioritaskan status yang ditetapkan staff jika Available, Cleaning, Maintenance, atau Inactive
+                if (in_array($tbl->status, ['Available', 'Cleaning', 'Maintenance', 'Inactive'])) {
+                    // Status tetap sesuai pilihan operasional staf
+                } elseif ($activeOrdersCount > 0) {
                     $tbl->status = 'Occupied';
-                } elseif ($activeReservation && !in_array($tbl->status, ['Cleaning', 'Maintenance', 'Inactive'])) {
+                } elseif ($activeReservation) {
                     $tbl->status = 'Reserved';
                 } elseif ($activeSession && $activeSession->status === 'Pending Validation' && $tbl->status === 'Available') {
                     $tbl->status = 'Pending Validation';
@@ -447,6 +448,19 @@ class WaiterController extends Controller
                 'updated_at' => now(),
             ]);
 
+        // Selesaikan pesanan yang telah disajikan di meja ini
+        DB::table('orders')
+            ->where(function ($q) use ($table) {
+                $q->where('table_number', $table->table_number)
+                  ->orWhere('table_number', 'Meja ' . str_pad($table->id, 2, '0', STR_PAD_LEFT))
+                  ->orWhere('table_number', (string) $table->id);
+            })
+            ->whereIn('order_status', ['Served', 'Delivered', 'Ready'])
+            ->update([
+                'order_status' => 'Completed',
+                'updated_at' => now(),
+            ]);
+
         return back()->with('success', "{$table->table_number} telah selesai dibersihkan, rapi, dan siap digunakan (Available)!");
     }
 
@@ -498,8 +512,8 @@ class WaiterController extends Controller
             'updated_at' => now(),
         ]);
 
-        // If marked available, close any open sessions
-        if ($request->status === 'Available') {
+        // Jika meja ditandai Available atau Cleaning, tutup seluruh sesi aktif
+        if (in_array($request->status, ['Available', 'Cleaning'])) {
             DB::table('table_sessions')
                 ->where('table_id', $tableId)
                 ->whereIn('status', ['Pending Validation', 'Open'])
@@ -509,6 +523,21 @@ class WaiterController extends Controller
                     'ended_at' => now(),
                     'updated_at' => now(),
                 ]);
+
+            // Jika meja telah selesai & siap digunakan (Available), selesaikan pesanan lama
+            if ($request->status === 'Available') {
+                DB::table('orders')
+                    ->where(function ($q) use ($table) {
+                        $q->where('table_number', $table->table_number)
+                          ->orWhere('table_number', 'Meja ' . str_pad($table->id, 2, '0', STR_PAD_LEFT))
+                          ->orWhere('table_number', (string) $table->id);
+                    })
+                    ->whereIn('order_status', ['Served', 'Delivered', 'Ready', 'Completed'])
+                    ->update([
+                        'order_status' => 'Completed',
+                        'updated_at' => now(),
+                    ]);
+            }
         }
 
         DB::table('audit_logs')->insert([
