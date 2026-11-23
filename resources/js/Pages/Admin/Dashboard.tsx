@@ -481,6 +481,18 @@ export default function AdminDashboard({
         });
     }, [initialMenus, menuSearchQuery, menuCatFilter]);
 
+    // Sinkronisasi Real-Time Modal Detail Pesanan saat polling berjalan
+    useEffect(() => {
+        if (!selectedOrderDetails) return;
+        const fresh = initialOrders.find(o => o.id === selectedOrderDetails.id);
+        if (fresh && (
+            fresh.order_status !== selectedOrderDetails.order_status ||
+            (fresh as any).payment?.payment_status !== (selectedOrderDetails as any).payment?.payment_status
+        )) {
+            setSelectedOrderDetails(fresh);
+        }
+    }, [initialOrders, selectedOrderDetails]);
+
     // Order status update
     const handleUpdateOrderStatus = (orderId: number, status: string) => {
         router.post(`/admin/order/${orderId}/status`, {

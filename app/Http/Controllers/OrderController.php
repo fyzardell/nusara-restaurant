@@ -85,22 +85,38 @@ class OrderController extends Controller
             }
         }
 
-        // 5. Order History
+        // 5. Order History & Live Tracking
         $ordersQuery = DB::table('orders')->orderBy('id', 'desc');
 
+        $todayWib = now('Asia/Jakarta')->toDateString();
+
         if ($user && $customer) {
-            $ordersQuery->where('customer_id', $customer->id);
+            $ordersQuery->where(function ($q) use ($customer, $initialTable, $todayWib) {
+                $q->where('customer_id', $customer->id);
+                if ($initialTable) {
+                    $q->orWhere(function ($sub) use ($initialTable, $todayWib) {
+                        $sub->where('table_number', $initialTable)
+                            ->whereDate('created_at', $todayWib);
+                    });
+                }
+            });
         } else {
-            // Tamu meja hanya bisa melihat pesanan sesi saat ini atau pesanan aktif meja ini
+            // Tamu meja dapat melihat pesanan sesi saat ini atau pesanan aktif meja ini hari ini
             $guestOrderIds = session('guest_order_ids', []);
-            if (!empty($guestOrderIds)) {
-                $ordersQuery->whereIn('id', $guestOrderIds);
-            } elseif ($initialTable) {
-                $ordersQuery->where('table_number', $initialTable)
-                    ->whereIn('order_status', ['Pending', 'Preparing', 'Ready', 'Served']);
-            } else {
-                $ordersQuery->whereRaw('1 = 0');
-            }
+            $ordersQuery->where(function ($q) use ($guestOrderIds, $initialTable, $todayWib) {
+                if (!empty($guestOrderIds)) {
+                    $q->whereIn('id', $guestOrderIds);
+                }
+                if ($initialTable) {
+                    $q->orWhere(function ($sub) use ($initialTable, $todayWib) {
+                        $sub->where('table_number', $initialTable)
+                            ->whereDate('created_at', $todayWib);
+                    });
+                }
+                if (empty($guestOrderIds) && !$initialTable) {
+                    $q->whereRaw('1 = 0');
+                }
+            });
         }
 
         $todayWib = now('Asia/Jakarta')->toDateString();
