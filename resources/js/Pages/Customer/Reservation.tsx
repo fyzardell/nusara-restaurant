@@ -170,6 +170,17 @@ export default function Reservation({
         return `/storage/${path}`;
     };
 
+    // Helper url WhatsApp Admin Konsierge
+    const getWhatsAppUrl = (customMessage?: string) => {
+        const rawPhone = settings?.phone || '';
+        const digits = rawPhone.replace(/\D/g, '');
+        const waNumber = digits.startsWith('628') 
+            ? digits 
+            : (digits.startsWith('08') ? `62${digits.slice(1)}` : '6281234567890');
+        const defaultText = customMessage || 'Halo Admin Konsierge NUSARA, saya ingin berkonsultasi mengenai reservasi meja.';
+        return `https://wa.me/${waNumber}?text=${encodeURIComponent(defaultText)}`;
+    };
+
     // Selected Experience Object
     const selectedExpObj = useMemo(() => {
         return experiences.find(e => e.id === Number(data.experience_id)) || null;
@@ -569,14 +580,16 @@ export default function Reservation({
 
                         {/* Right: Concierge Help & User Account / Login */}
                         <div className="flex items-center gap-2 sm:gap-3">
-                            <Link
-                                href="/order?open_chat=1"
+                            <a
+                                href={getWhatsAppUrl('Halo Admin Konsierge NUSARA, saya butuh bantuan mengenai reservasi meja.')}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#211D1B]/80 border border-[#B99A65]/40 text-xs font-semibold text-[#D4B886] hover:text-[#F4EFE6] hover:border-[#D4B886] transition-all shadow-xs"
-                                title="Bantuan Konsierge"
+                                title="Bantuan Konsierge via WhatsApp"
                             >
                                 <MessageSquare className="w-3.5 h-3.5 text-[#B99A65]" />
-                                <span>Chat Admin</span>
-                            </Link>
+                                <span>WhatsApp Admin</span>
+                            </a>
 
                             {auth?.user ? (
                                 <div className="relative">
@@ -1125,13 +1138,15 @@ export default function Reservation({
                                             </p>
                                         </div>
 
-                                        <Link
-                                            href="/order?open_chat=1"
+                                        <a
+                                            href={getWhatsAppUrl('Halo Admin NUSARA, saya ingin berkonsultasi mengenai permintaan reservasi khusus di luar paket (sewa resto/kapasitas besar/menu khusus).')}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
                                             className="px-4 py-2.5 rounded-full bg-gradient-to-r from-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all shrink-0 flex items-center justify-center gap-2 shadow"
                                         >
                                             <MessageSquare className="w-3.5 h-3.5" />
-                                            <span>Hubungi Admin Sekarang</span>
-                                        </Link>
+                                            <span>Hubungi via WhatsApp</span>
+                                        </a>
                                     </div>
 
                                     {/* Category Filter Tabs */}
@@ -1701,12 +1716,14 @@ export default function Reservation({
                                             <Info className="w-4 h-4 text-amber-600 shrink-0" />
                                             <span>Butuh bantuan pembayaran atau perubahan mendadak?</span>
                                         </div>
-                                        <Link
-                                            href="/order?open_chat=1"
+                                        <a
+                                            href={getWhatsAppUrl(`Halo Admin Konsierge NUSARA, saya butuh bantuan terkait pembayaran DP atau perubahan reservasi untuk tanggal ${data.date} pukul ${data.time} WIB.`)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
                                             className="font-bold underline text-amber-900 hover:text-amber-700 whitespace-nowrap"
                                         >
-                                            Hubungi Admin Konsierge
-                                        </Link>
+                                            Hubungi Admin via WhatsApp
+                                        </a>
                                     </div>
 
                                     <div className="pt-2">
@@ -1869,13 +1886,15 @@ export default function Reservation({
                                             <span className="text-[10px] text-[#9E938B]">
                                                 Dibuat: {res.created_at}
                                             </span>
-                                            <Link
-                                                href="/order?open_chat=1"
+                                            <a
+                                                href={getWhatsAppUrl(`Halo Admin Konsierge NUSARA, saya ingin menanyakan status reservasi saya dengan kode: ${res.reservation_code}.`)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
                                                 className="text-[#4A1525] hover:text-[#B99A65] font-bold text-xs flex items-center gap-1"
                                             >
-                                                <span>Hubungi Admin</span>
+                                                <span>Hubungi WhatsApp</span>
                                                 <ChevronRight className="w-3.5 h-3.5" />
-                                            </Link>
+                                            </a>
                                         </div>
                                     </div>
                                 ))}
