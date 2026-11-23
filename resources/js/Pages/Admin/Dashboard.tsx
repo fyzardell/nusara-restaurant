@@ -1939,8 +1939,19 @@ export default function AdminDashboard({
                                                     <td className="py-3 px-4 text-[#D4B886]">
                                                         {res.experience_name || 'A la Carte Standard'}
                                                     </td>
-                                                    <td className="py-3 px-4 max-w-xs text-stone-300 italic">
-                                                        {res.special_request || '-'}
+                                                    <td className="py-3 px-4 max-w-xs space-y-1">
+                                                        {res.special_request?.includes('LUNAS 100%') ? (
+                                                            <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-600/50 text-[10px] font-bold inline-flex items-center gap-1">
+                                                                <CheckCircle2 className="w-3 h-3 text-emerald-400" /> LUNAS 100% (Bebas Tagihan)
+                                                            </span>
+                                                        ) : res.special_request?.includes('DP') ? (
+                                                            <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-600/50 text-[10px] font-bold inline-flex items-center gap-1">
+                                                                <CreditCard className="w-3 h-3 text-amber-400" /> DP Terbayar · Sisa di Kasir
+                                                            </span>
+                                                        ) : null}
+                                                        <p className="text-stone-300 italic text-xs leading-snug">
+                                                            {res.special_request || '-'}
+                                                        </p>
                                                     </td>
                                                     <td className="py-3 px-4">
                                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${

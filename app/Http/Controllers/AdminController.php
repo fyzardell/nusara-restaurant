@@ -457,11 +457,20 @@ class AdminController extends Controller
     public function approveRefund(Request $request, $type, $id)
     {
         $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        // Allow admin and cashier
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
+        if (!$role || !in_array($role->name, ['admin', 'cashier'])) {
+            return redirect()->back()->with('error', 'Akses ditolak. Anda tidak memiliki wewenang untuk memproses refund.');
+        }
 
         if ($type === 'order') {
             $order = DB::table('orders')->where('id', $id)->first();
             if (!$order) {
-                return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('error', 'Pesanan tidak ditemukan.');
+                return redirect()->back()->with('error', 'Pesanan tidak ditemukan.');
             }
             DB::table('orders')->where('id', $id)->update([
                 'order_status' => 'Refunded',
@@ -488,15 +497,15 @@ class AdminController extends Controller
                 'action' => 'REFUND_APPROVED',
                 'entity_type' => 'orders',
                 'entity_id' => $id,
-                'description' => "Admin {$user->name} menyetujui pengembalian dana (Refund) pesanan #{$order->order_code}.",
+                'description' => "Pengguna {$user->name} ({$role->name}) menyetujui pengembalian dana (Refund) pesanan #{$order->order_code}.",
                 'created_at' => now(),
             ]);
 
-            return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('success', "Pengembalian dana (Refund) untuk pesanan #{$order->order_code} berhasil disetujui & diselesaikan.");
+            return redirect()->back()->with('success', "Pengembalian dana (Refund) untuk pesanan #{$order->order_code} berhasil disetujui & diselesaikan.");
         } elseif ($type === 'reservation') {
             $reservation = DB::table('reservations')->where('id', $id)->first();
             if (!$reservation) {
-                return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('error', 'Reservasi tidak ditemukan.');
+                return redirect()->back()->with('error', 'Reservasi tidak ditemukan.');
             }
             DB::table('reservations')->where('id', $id)->update([
                 'status' => 'Refunded',
@@ -535,14 +544,14 @@ class AdminController extends Controller
                 'action' => 'REFUND_APPROVED',
                 'entity_type' => 'reservations',
                 'entity_id' => $id,
-                'description' => "Admin {$user->name} menyetujui pengembalian dana DP reservasi #{$reservation->reservation_code}.",
+                'description' => "Pengguna {$user->name} ({$role->name}) menyetujui pengembalian dana reservasi #{$reservation->reservation_code}.",
                 'created_at' => now(),
             ]);
 
-            return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('success', "Pengembalian dana DP untuk reservasi #{$reservation->reservation_code} berhasil disetujui & diselesaikan.");
+            return redirect()->back()->with('success', "Pengembalian dana untuk reservasi #{$reservation->reservation_code} berhasil disetujui & diselesaikan.");
         }
 
-        return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('error', 'Tipe pengajuan tidak valid.');
+        return redirect()->back()->with('error', 'Tipe pengajuan tidak valid.');
     }
 
     /**
@@ -551,12 +560,22 @@ class AdminController extends Controller
     public function rejectRefund(Request $request, $type, $id)
     {
         $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        // Allow admin and cashier
+        $role = DB::table('roles')->where('id', $user->role_id)->first();
+        if (!$role || !in_array($role->name, ['admin', 'cashier'])) {
+            return redirect()->back()->with('error', 'Akses ditolak. Anda tidak memiliki wewenang untuk menolak refund.');
+        }
+
         $reason = $request->input('reject_reason', 'Pengajuan refund ditolak oleh manajemen restoran.');
 
         if ($type === 'order') {
             $order = DB::table('orders')->where('id', $id)->first();
             if (!$order) {
-                return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('error', 'Pesanan tidak ditemukan.');
+                return redirect()->back()->with('error', 'Pesanan tidak ditemukan.');
             }
             DB::table('orders')->where('id', $id)->update([
                 'order_status' => 'Pending',
@@ -569,15 +588,15 @@ class AdminController extends Controller
                 'action' => 'REFUND_REJECTED',
                 'entity_type' => 'orders',
                 'entity_id' => $id,
-                'description' => "Admin {$user->name} menolak refund pesanan #{$order->order_code}. Alasan: {$reason}",
+                'description' => "Pengguna {$user->name} ({$role->name}) menolak refund pesanan #{$order->order_code}. Alasan: {$reason}",
                 'created_at' => now(),
             ]);
 
-            return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('success', "Pengajuan refund untuk pesanan #{$order->order_code} telah ditolak.");
+            return redirect()->back()->with('success', "Pengajuan refund untuk pesanan #{$order->order_code} telah ditolak.");
         } elseif ($type === 'reservation') {
             $reservation = DB::table('reservations')->where('id', $id)->first();
             if (!$reservation) {
-                return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('error', 'Reservasi tidak ditemukan.');
+                return redirect()->back()->with('error', 'Reservasi tidak ditemukan.');
             }
             DB::table('reservations')->where('id', $id)->update([
                 'status' => 'Confirmed',
@@ -590,14 +609,14 @@ class AdminController extends Controller
                 'action' => 'REFUND_REJECTED',
                 'entity_type' => 'reservations',
                 'entity_id' => $id,
-                'description' => "Admin {$user->name} menolak refund reservasi #{$reservation->reservation_code}. Alasan: {$reason}",
+                'description' => "Pengguna {$user->name} ({$role->name}) menolak refund reservasi #{$reservation->reservation_code}. Alasan: {$reason}",
                 'created_at' => now(),
             ]);
 
-            return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('success', "Pengajuan refund untuk reservasi #{$reservation->reservation_code} telah ditolak.");
+            return redirect()->back()->with('success', "Pengajuan refund untuk reservasi #{$reservation->reservation_code} telah ditolak.");
         }
 
-        return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('error', 'Tipe pengajuan tidak valid.');
+        return redirect()->back()->with('error', 'Tipe pengajuan tidak valid.');
     }
 
     public function updateOrderStatus(Request $request, $orderId)

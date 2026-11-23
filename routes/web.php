@@ -88,6 +88,8 @@ Route::middleware('auth')->prefix('cashier')->group(function () {
     Route::post('/order/{id}/payment', [CashierController::class, 'confirmCashPayment'])->name('cashier.order.payment');
     Route::post('/table/{id}/status', [CashierController::class, 'updateTableStatus'])->name('cashier.table.status');
     Route::post('/reservation/{id}/status', [CashierController::class, 'updateReservationStatus'])->name('cashier.reservation.status');
+    Route::post('/refund/{type}/{id}/approve', [AdminController::class, 'approveRefund'])->name('cashier.refund.approve');
+    Route::post('/refund/{type}/{id}/reject', [AdminController::class, 'rejectRefund'])->name('cashier.refund.reject');
 });
 
 // Waiter Operational Dashboard (PRD Section 2, 6.1, 6.2 & 8.2)

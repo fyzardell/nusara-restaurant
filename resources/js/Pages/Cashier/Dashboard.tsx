@@ -1106,6 +1106,15 @@ export default function CashierDashboard({
                                                         </span>
                                                         <span className="text-[#F4EFE6] font-semibold">{r.customer_name}</span>
                                                         <span className="text-[#9E938B]">({r.guest_count} Pax)</span>
+                                                        {r.special_request?.includes('LUNAS 100%') ? (
+                                                            <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-600/50 text-[10px] font-bold">
+                                                                LUNAS 100% (Bebas Tagihan)
+                                                            </span>
+                                                        ) : r.special_request?.includes('DP') ? (
+                                                            <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-600/50 text-[10px] font-bold">
+                                                                DP Terbayar (Sisa Tagihan di Kasir)
+                                                            </span>
+                                                        ) : null}
                                                     </div>
                                                     <div className="text-[11px] text-[#9E938B] mt-1 space-x-2">
                                                         <span>Waktu: {new Date(r.reservation_datetime).toLocaleString('id-ID')}</span>

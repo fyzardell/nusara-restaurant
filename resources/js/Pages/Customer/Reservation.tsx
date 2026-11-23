@@ -168,6 +168,7 @@ export default function Reservation({
         customer_name: customer?.name || auth.user.name || '',
         customer_phone: customer?.phone_normalized || '+6281234567890',
         special_request: '',
+        payment_type: 'full' as 'full' | 'dp',
         dp_amount: 150000,
         dp_payment_method: 'qris' as 'qris' | 'gopay' | 'shopeepay' | 'dana' | 'ovo' | 'bca_va' | 'mandiri_va' | 'bni_va' | 'bri_va' | 'permata_va',
     });
@@ -350,13 +351,17 @@ export default function Reservation({
         return 150000;
     }, [isBuyout50, isBuyoutRomantic, requiredTableCount]);
 
+    const payNowAmount = useMemo(() => {
+        return data.payment_type === 'full' ? estimatedTotal : calculatedDpAmount;
+    }, [data.payment_type, estimatedTotal, calculatedDpAmount]);
+
     const remainingBalance = useMemo(() => {
-        return Math.max(0, estimatedTotal - calculatedDpAmount);
-    }, [estimatedTotal, calculatedDpAmount]);
+        return data.payment_type === 'full' ? 0 : Math.max(0, estimatedTotal - calculatedDpAmount);
+    }, [data.payment_type, estimatedTotal, calculatedDpAmount]);
 
     useEffect(() => {
-        setData('dp_amount', calculatedDpAmount);
-    }, [calculatedDpAmount]);
+        setData('dp_amount', payNowAmount);
+    }, [payNowAmount]);
 
     // Sinkronisasi guest count jika buyout dipilih
     useEffect(() => {
@@ -651,7 +656,9 @@ export default function Reservation({
                 customer_name: data.customer_name,
                 customer_phone: data.customer_phone,
                 special_request: data.special_request,
-                dp_amount: data.dp_amount,
+                payment_type: data.payment_type,
+                dp_amount: payNowAmount,
+                remaining_balance: remainingBalance,
                 dp_payment_method: data.dp_payment_method,
             };
 
@@ -1940,33 +1947,135 @@ export default function Reservation({
                                             </div>
                                         )}
 
+                                        {/* Pilihan Opsi Pembayaran: LUNAS 100% vs DP */}
+                                        <div className="pt-4 border-t border-[#E8DFD3] space-y-3">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                                <label className="text-xs font-bold text-[#32151F] uppercase tracking-wider block">
+                                                    Pilih Skema Pembayaran Reservasi
+                                                </label>
+                                                <span className="text-[11px] text-[#9E938B] font-semibold">
+                                                    Pilih Bayar Lunas atau DP Jaminan Meja
+                                                </span>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                                                {/* Opsi 1: Bayar Lunas 100% */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setData('payment_type', 'full')}
+                                                    className={`p-4 rounded-2xl text-left border-2 transition-all relative cursor-pointer ${
+                                                        data.payment_type === 'full'
+                                                            ? 'bg-gradient-to-br from-[#32151F] via-[#3D1A27] to-[#211D1B] border-[#D4B886] text-white shadow-lg'
+                                                            : 'bg-white border-[#E8DFD3] hover:border-[#D4B886]/60 text-[#32151F]'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`p-1.5 rounded-lg ${data.payment_type === 'full' ? 'bg-[#D4B886] text-[#32151F]' : 'bg-[#FAF6F0] text-[#32151F]'}`}>
+                                                                <Sparkles className="w-4 h-4" />
+                                                            </div>
+                                                            <div>
+                                                                <span className={`text-xs font-bold block ${data.payment_type === 'full' ? 'text-white' : 'text-[#32151F]'}`}>
+                                                                    Bayar Lunas 100% (Penuh)
+                                                                </span>
+                                                                <span className={`text-[10px] block ${data.payment_type === 'full' ? 'text-[#D4B886]' : 'text-emerald-700 font-semibold'}`}>
+                                                                    Bebas Tagihan di Restoran
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                                                            data.payment_type === 'full'
+                                                                ? 'border-[#D4B886] bg-[#D4B886] text-[#32151F]'
+                                                                : 'border-[#CCC] bg-transparent'
+                                                        }`}>
+                                                            {data.payment_type === 'full' && <Check className="w-3 h-3 stroke-[3]" />}
+                                                        </span>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <span className={`font-mono text-lg font-extrabold block ${data.payment_type === 'full' ? 'text-[#D4B886]' : 'text-[#1A1615]'}`}>
+                                                            {formatRupiah(estimatedTotal)}
+                                                        </span>
+                                                        <p className={`text-[11px] leading-relaxed ${data.payment_type === 'full' ? 'text-stone-300' : 'text-[#6E625A]'}`}>
+                                                            Bayar lunas sekarang via Midtrans. Saat tiba di restoran, Anda langsung santap tanpa perlu membayar bill menu lagi.
+                                                        </p>
+                                                    </div>
+                                                </button>
+
+                                                {/* Opsi 2: Bayar Uang Muka (DP Jaminan Meja) */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setData('payment_type', 'dp')}
+                                                    className={`p-4 rounded-2xl text-left border-2 transition-all relative cursor-pointer ${
+                                                        data.payment_type === 'dp'
+                                                            ? 'bg-gradient-to-br from-[#32151F] via-[#3D1A27] to-[#211D1B] border-[#D4B886] text-white shadow-lg'
+                                                            : 'bg-white border-[#E8DFD3] hover:border-[#D4B886]/60 text-[#32151F]'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`p-1.5 rounded-lg ${data.payment_type === 'dp' ? 'bg-[#D4B886] text-[#32151F]' : 'bg-[#FAF6F0] text-[#32151F]'}`}>
+                                                                <CreditCard className="w-4 h-4" />
+                                                            </div>
+                                                            <div>
+                                                                <span className={`text-xs font-bold block ${data.payment_type === 'dp' ? 'text-white' : 'text-[#32151F]'}`}>
+                                                                    Bayar Uang Muka (DP)
+                                                                </span>
+                                                                <span className={`text-[10px] block ${data.payment_type === 'dp' ? 'text-amber-400' : 'text-amber-700 font-semibold'}`}>
+                                                                    Kunci Meja Resmi
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                                                            data.payment_type === 'dp'
+                                                                ? 'border-[#D4B886] bg-[#D4B886] text-[#32151F]'
+                                                                : 'border-[#CCC] bg-transparent'
+                                                        }`}>
+                                                            {data.payment_type === 'dp' && <Check className="w-3 h-3 stroke-[3]" />}
+                                                        </span>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <span className={`font-mono text-lg font-extrabold block ${data.payment_type === 'dp' ? 'text-[#D4B886]' : 'text-[#1A1615]'}`}>
+                                                            {formatRupiah(calculatedDpAmount)}
+                                                        </span>
+                                                        <p className={`text-[11px] leading-relaxed ${data.payment_type === 'dp' ? 'text-stone-300' : 'text-[#6E625A]'}`}>
+                                                            Bayar DP untuk mengunci slot meja resmi. Sisa <strong className={data.payment_type === 'dp' ? 'text-white' : 'text-[#1A1615]'}>{formatRupiah(Math.max(0, estimatedTotal - calculatedDpAmount))}</strong> dilunasi di kasir restoran (Cash/QRIS/Card).
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        </div>
+
                                         {/* Financial Breakdown (DP & Pelunasan Kasir) */}
                                         <div className="pt-4 border-t border-[#E8DFD3] space-y-2.5">
                                             <div className="flex items-center justify-between text-xs text-[#6E625A]">
-                                                <span>Estimasi Total Santap:</span>
+                                                <span>Estimasi Total Nilai Santap:</span>
                                                 <span className="font-mono font-bold text-sm text-[#1A1615]">
                                                     {formatRupiah(estimatedTotal)}
                                                 </span>
                                             </div>
 
                                             <div className="flex items-center justify-between text-xs text-[#6E625A]">
-                                                <span>Pelunasan Sisa di Kasir Restoran:</span>
+                                                <span>Sisa Tagihan di Kasir Restoran:</span>
                                                 <span className="font-mono font-medium text-[#6E625A]">
-                                                    {formatRupiah(remainingBalance)}
+                                                    {data.payment_type === 'full' ? (
+                                                        <strong className="text-emerald-700">Rp 0 (Bebas Tagihan)</strong>
+                                                    ) : (
+                                                        formatRupiah(remainingBalance)
+                                                    )}
                                                 </span>
                                             </div>
 
                                             <div className="flex items-center justify-between text-sm sm:text-base font-bold bg-gradient-to-br from-[#32151F] via-[#3D1A27] to-[#211D1B] text-[#FAF6F0] p-5 rounded-2xl border border-[#B99A65]/40 shadow-md">
                                                 <div className="space-y-0.5">
                                                     <span className="text-xs uppercase tracking-wider text-[#D4B886] block font-semibold">
-                                                        Uang Muka (DP) yang Dibayar Sekarang
+                                                        {data.payment_type === 'full' ? 'Total Bayar Lunas (100% Sekarang)' : 'Uang Muka (DP) yang Dibayar Sekarang'}
                                                     </span>
                                                     <span className="text-xs text-[#FAF6F0]/70 font-normal">
-                                                        * Untuk penguncian alokasi meja & jadwal resmi
+                                                        {data.payment_type === 'full' ? '* Bebas tagihan kasir saat jamuan santap berlangsung' : '* Untuk penguncian alokasi meja & jadwal resmi'}
                                                     </span>
                                                 </div>
                                                 <span className="font-mono text-xl sm:text-2xl text-[#D4B886] font-extrabold">
-                                                    {formatRupiah(calculatedDpAmount)}
+                                                    {formatRupiah(payNowAmount)}
                                                 </span>
                                             </div>
                                         </div>
@@ -2314,7 +2423,7 @@ export default function Reservation({
                                                                         Panduan Pembayaran: {activeMethod.title}
                                                                     </h5>
                                                                     <span className="text-[11px] text-[#6E625A] block">
-                                                                        Nominal DP: <strong>{formatRupiah(calculatedDpAmount)}</strong> · Verifikasi Otomatis Real-Time
+                                                                        Total Bayar Sekarang: <strong className="text-[#32151F]">{formatRupiah(payNowAmount)}</strong> ({data.payment_type === 'full' ? 'Lunas 100%' : 'DP Jaminan Meja'}) · Verifikasi Otomatis Real-Time
                                                                     </span>
                                                                 </div>
                                                             </div>
@@ -2360,7 +2469,7 @@ export default function Reservation({
                                             <span>Butuh bantuan pembayaran atau perubahan mendadak?</span>
                                         </div>
                                         <a
-                                            href={getWhatsAppUrl(`Halo Admin Konsierge NUSARA, saya butuh bantuan terkait pembayaran DP atau perubahan reservasi untuk tanggal ${data.date} pukul ${data.time} WIB.`)}
+                                            href={getWhatsAppUrl(`Halo Admin Konsierge NUSARA, saya butuh bantuan terkait pembayaran atau perubahan reservasi untuk tanggal ${data.date} pukul ${data.time} WIB.`)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="font-bold underline text-amber-900 hover:text-amber-700 whitespace-nowrap"
@@ -2378,7 +2487,11 @@ export default function Reservation({
                                                 className="w-4 h-4 mt-0.5 rounded text-[#32151F] focus:ring-[#B99A65] border-[#E8DFD3]"
                                             />
                                             <span>
-                                                Saya menyetujui ketentuan reservasi NUSARA: Uang muka (DP) sebesar <strong>{formatRupiah(calculatedDpAmount)}</strong> dibayarkan secara non-tunai untuk mengunci meja secara resmi (Anti-Ghost Booking). Saya memahami status akan langsung terkonfirmasi otomatis dan meja disiapkan serta disterilkan 1 jam sebelum jadwal jamuan. Sisa pembayaran menu tambahan saat bersantap di restoran dapat saya selesaikan di kasir secara <strong>Tunai (Cash)</strong> maupun non-tunai.
+                                                {data.payment_type === 'full' ? (
+                                                    <>Saya menyetujui ketentuan reservasi NUSARA: Pembayaran Lunas (100%) sebesar <strong>{formatRupiah(payNowAmount)}</strong> dibayarkan sekarang secara non-tunai melalui Midtrans untuk mengamankan jamuan istimewa Anda. Status otomatis terkonfirmasi dan saat tiba di restoran Anda bebas tagihan kasir untuk paket yang telah dipesan.</>
+                                                ) : (
+                                                    <>Saya menyetujui ketentuan reservasi NUSARA: Uang muka (DP) sebesar <strong>{formatRupiah(payNowAmount)}</strong> dibayarkan secara non-tunai untuk mengunci meja secara resmi (Anti-Ghost Booking). Saya memahami status akan langsung terkonfirmasi otomatis dan sisa tagihan sebesar <strong>{formatRupiah(remainingBalance)}</strong> dapat diselesaikan di kasir secara <strong>Tunai (Cash)</strong> maupun non-tunai.</>
+                                                )}
                                             </span>
                                         </label>
                                     </div>
@@ -2406,7 +2519,11 @@ export default function Reservation({
                                                 </>
                                             ) : (
                                                 <>
-                                                    <span>Bayar DP {formatRupiah(calculatedDpAmount)} (QRIS & Virtual Account)</span>
+                                                    <span>
+                                                        {data.payment_type === 'full'
+                                                            ? `Bayar Lunas 100% ${formatRupiah(payNowAmount)} (Midtrans)`
+                                                            : `Bayar DP ${formatRupiah(payNowAmount)} (Midtrans)`}
+                                                    </span>
                                                     <ArrowRight className="w-4 h-4 text-[#D4B886] transition-transform group-hover:translate-x-1" />
                                                 </>
                                             )}
@@ -2595,8 +2712,21 @@ export default function Reservation({
                                         )}
 
                                         {res.special_request && (
-                                            <div className="p-3 rounded-xl bg-[#FAF6F0] text-[11px] text-[#6E625A]">
-                                                {res.special_request}
+                                            <div className="space-y-1.5">
+                                                {res.special_request.includes('LUNAS 100%') ? (
+                                                    <div className="px-3 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-600/50 text-emerald-300 text-xs font-bold inline-flex items-center gap-1.5">
+                                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                                        <span>LUNAS 100% (Bebas Tagihan saat Jamuan)</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="px-3 py-1.5 rounded-xl bg-amber-950/80 border border-amber-600/50 text-amber-300 text-xs font-bold inline-flex items-center gap-1.5">
+                                                        <CreditCard className="w-3.5 h-3.5 text-amber-400" />
+                                                        <span>DP Terverifikasi (Sisa Tagihan Dilunasi di Kasir)</span>
+                                                    </div>
+                                                )}
+                                                <div className="p-3 rounded-xl bg-[#FAF6F0] text-[11px] text-[#6E625A]">
+                                                    {res.special_request}
+                                                </div>
                                             </div>
                                         )}
 

@@ -218,7 +218,9 @@ class ReservationController extends Controller
             'special_request' => 'nullable|string|max:500',
             'customer_name' => 'required|string|max:100',
             'customer_phone' => 'required|string|max:25',
+            'payment_type' => 'nullable|string|in:full,dp',
             'dp_amount' => 'nullable|numeric|min:0',
+            'remaining_balance' => 'nullable|numeric|min:0',
             'dp_payment_method' => 'nullable|string|max:50',
         ], [
             'date.required' => 'Pilih tanggal reservasi terlebih dahulu.',
@@ -342,12 +344,19 @@ class ReservationController extends Controller
 
         $code = 'RSV-' . strtoupper(Str::random(6));
 
-        // Format Special Request dengan info DP Jaminan
+        // Format Special Request dengan info Pembayaran (LUNAS 100% atau DP)
+        $paymentType = $request->input('payment_type', 'full');
         $specialRequest = $request->special_request ?? '';
         if ($request->filled('dp_amount') && floatval($request->dp_amount) > 0) {
-            $dpFmt = number_format(floatval($request->dp_amount), 0, ',', '.');
+            $payFmt = number_format(floatval($request->dp_amount), 0, ',', '.');
             $method = strtoupper($request->dp_payment_method ?? 'QRIS');
-            $specialRequest = "[DP Jaminan Meja: Rp {$dpFmt} via {$method}] " . $specialRequest;
+            if ($paymentType === 'full') {
+                $specialRequest = "[Pembayaran: LUNAS 100% Rp {$payFmt} via {$method} - Bebas Tagihan] " . $specialRequest;
+            } else {
+                $rem = floatval($request->input('remaining_balance', 0));
+                $remFmt = number_format($rem, 0, ',', '.');
+                $specialRequest = "[Pembayaran: DP Jaminan Meja Rp {$payFmt} (Sisa Kasir: Rp {$remFmt}) via {$method}] " . $specialRequest;
+            }
         }
 
         $reservationId = DB::table('reservations')->insertGetId([
@@ -375,22 +384,24 @@ class ReservationController extends Controller
             ]);
         }
 
-        // Generate Midtrans Snap Token for Reservation DP
+        // Generate Midtrans Snap Token for Reservation (Lunas 100% atau DP)
         $snapToken = null;
         $midtransError = null;
         if ($request->filled('dp_amount') && floatval($request->dp_amount) > 0) {
             try {
                 $midtrans = app(\App\Services\MidtransService::class);
                 $dpVal = (int) round(floatval($request->dp_amount));
+                $isFullPay = ($paymentType === 'full');
+                $itemLabel = ($isFullPay ? "Pelunasan Reservasi 100%" : "DP Reservasi") . " {$code} ({$request->guest_count} Tamu)";
                 $snapToken = $midtrans->createSnapToken(
                     orderCode: $code,
                     grossAmount: $dpVal,
                     items: [
                         [
-                            'menu_id' => 'DP-' . $code,
+                            'menu_id' => ($isFullPay ? 'FULL-' : 'DP-') . $code,
                             'unit_price_snapshot' => $dpVal,
                             'quantity' => 1,
-                            'menu_name_snapshot' => "DP Reservasi {$code} ({$request->guest_count} Tamu)",
+                            'menu_name_snapshot' => $itemLabel,
                         ]
                     ],
                     taxAmount: 0,
@@ -474,9 +485,15 @@ class ReservationController extends Controller
             ], 400);
         }
 
-        // Ekstrak nominal DP dari special_request atau default 150000
+        // Ekstrak nominal dari special_request atau default 150000
         $dpVal = 150000;
-        if (preg_match('/\[DP Jaminan Meja: Rp\s*([0-9\.]+)/i', $reservation->special_request ?? '', $matches)) {
+        $isFullPay = str_contains($reservation->special_request ?? '', 'LUNAS 100%');
+        if (preg_match('/\[Pembayaran:\s*(?:LUNAS 100%|DP Jaminan Meja)\s*Rp\s*([0-9\.]+)/i', $reservation->special_request ?? '', $matches)) {
+            $cleaned = str_replace('.', '', $matches[1]);
+            if (is_numeric($cleaned) && intval($cleaned) > 0) {
+                $dpVal = intval($cleaned);
+            }
+        } elseif (preg_match('/\[DP Jaminan Meja: Rp\s*([0-9\.]+)/i', $reservation->special_request ?? '', $matches)) {
             $cleaned = str_replace('.', '', $matches[1]);
             if (is_numeric($cleaned) && intval($cleaned) > 0) {
                 $dpVal = intval($cleaned);
@@ -498,16 +515,17 @@ class ReservationController extends Controller
 
             // Gunakan suffix timestamp unik agar Midtrans tidak menolak token ulang (duplicate order_id)
             $orderCode = $reservation->reservation_code . '-' . time();
+            $itemLabel = ($isFullPay ? "Pelunasan Reservasi 100%" : "DP Reservasi") . " {$reservation->reservation_code} ({$reservation->guest_count} Tamu)";
 
             $snapToken = $midtrans->createSnapToken(
                 orderCode: $orderCode,
                 grossAmount: $dpVal,
                 items: [
                     [
-                        'menu_id' => 'DP-' . $reservation->reservation_code,
+                        'menu_id' => ($isFullPay ? 'FULL-' : 'DP-') . $reservation->reservation_code,
                         'unit_price_snapshot' => $dpVal,
                         'quantity' => 1,
-                        'menu_name_snapshot' => "DP Reservasi {$reservation->reservation_code} ({$reservation->guest_count} Tamu)",
+                        'menu_name_snapshot' => $itemLabel,
                     ]
                 ],
                 taxAmount: 0,

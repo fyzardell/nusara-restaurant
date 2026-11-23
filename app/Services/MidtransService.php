@@ -242,17 +242,23 @@ class MidtransService
 
             if ($isPaid) {
                 $dpFmt = number_format(floatval($grossAmount), 0, ',', '.');
-                $updateData['special_request'] = "[DP TERBAYAR MIDTRANS Rp {$dpFmt} ({$paymentType}) - VALIDASI SUKSES] " . ($reservation->special_request ?? '');
+                $isFull = str_contains($reservation->special_request ?? '', 'LUNAS 100%');
+                if ($isFull) {
+                    $updateData['special_request'] = "[LUNAS 100% TERBAYAR MIDTRANS Rp {$dpFmt} ({$paymentType}) - BEBAS TAGIHAN RESTO] " . ($reservation->special_request ?? '');
+                } else {
+                    $updateData['special_request'] = "[DP TERBAYAR MIDTRANS Rp {$dpFmt} ({$paymentType}) - VALIDASI SUKSES] " . ($reservation->special_request ?? '');
+                }
             }
 
             DB::table('reservations')->where('id', $reservation->id)->update($updateData);
 
+            $payTypeLabel = str_contains($reservation->special_request ?? '', 'LUNAS 100%') ? 'Lunas 100%' : 'DP';
             DB::table('audit_logs')->insert([
                 'user_id' => $reservation->created_by ?: 1,
                 'action' => 'reservation.payment_midtrans',
                 'entity_type' => 'Reservation',
                 'entity_id' => $reservation->id,
-                'description' => "Webhook Midtrans: Pembayaran DP Reservasi {$reservation->reservation_code} berstatus {$transactionStatus} ({$paymentType}). Status reservasi diperbarui menjadi {$newStatus}.",
+                'description' => "Webhook Midtrans: Pembayaran {$payTypeLabel} Reservasi {$reservation->reservation_code} berstatus {$transactionStatus} ({$paymentType}). Status reservasi diperbarui menjadi {$newStatus}.",
                 'created_at' => now(),
             ]);
         });
