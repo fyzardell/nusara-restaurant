@@ -26,6 +26,7 @@ Route::get('/menu', [LandingPageController::class, 'index'])->name('menu');
 // Dedicated Luxury Reservation Page (Customer Flow)
 Route::get('/reservation', [ReservationController::class, 'index'])->name('reservation');
 Route::post('/reservation', [ReservationController::class, 'store'])->name('reservation.store');
+Route::post('/reservation/{id}/pay', [ReservationController::class, 'getPayToken'])->name('reservation.pay');
 Route::post('/reservation/{id}/refund', [ReservationController::class, 'requestRefund'])->name('reservation.refund');
 
 // Customer Ordering App (Akses Publik / Tamu Meja & Member)
