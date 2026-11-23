@@ -427,6 +427,7 @@ export default function OrderApp({
     // Background polling for customer order status (updates real-time when kitchen prepares/waiter serves/chat arrives)
     useEffect(() => {
         let isPolling = false;
+        const intervalTime = activeTab === 'active_order' ? 2500 : 3500;
         const interval = setInterval(() => {
             if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !isPolling) {
                 isPolling = true;
@@ -434,15 +435,16 @@ export default function OrderApp({
                     only: ['orders', 'tables', 'chatMessages'],
                     preserveScroll: true,
                     preserveState: true,
+                    data: selectedTable ? { table: selectedTable } : {},
                     onFinish: () => {
                         isPolling = false;
                     },
                 });
             }
-        }, 3500);
+        }, intervalTime);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [activeTab, selectedTable]);
 
     // Otomatis verifikasi pesanan online Midtrans di latar belakang (langsung ke 'Preparing' saat pembayaran berhasil di ponsel)
     useEffect(() => {
@@ -2303,9 +2305,15 @@ export default function OrderApp({
                             <div className="space-y-6 animate-fade-in max-w-3xl mx-auto">
                                 <div className="flex items-center justify-between pb-3 border-b border-[#B99A65]/30">
                                     <div>
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#B99A65]">
-                                            Live Kitchen Tracking
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#B99A65]">
+                                                Live Kitchen Tracking
+                                            </span>
+                                            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-bold">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                Sinkron Real-Time
+                                            </span>
+                                        </div>
                                         <h2 className="font-heading text-2xl sm:text-3xl font-bold text-[#32151F]">
                                             Informasi Pesanan (Order Info)
                                         </h2>

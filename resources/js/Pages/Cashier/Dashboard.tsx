@@ -187,6 +187,24 @@ export default function CashierDashboard({
         return () => clearInterval(interval);
     }, []);
 
+    // Sinkronisasi Real-Time Modal Kasir saat background polling berjalan
+    useEffect(() => {
+        if (receiptOrder) {
+            const fresh = orders.find(o => o.id === receiptOrder.id);
+            if (fresh) setReceiptOrder(fresh);
+        }
+        if (cashPaymentOrder) {
+            const fresh = orders.find(o => o.id === cashPaymentOrder.id);
+            if (fresh) {
+                if (fresh.payment?.payment_status === 'Paid') {
+                    setCashPaymentOrder(null);
+                } else {
+                    setCashPaymentOrder(fresh);
+                }
+            }
+        }
+    }, [orders]);
+
     // Format currency IDR
     const formatIDR = (val: number) => {
         return new Intl.NumberFormat('id-ID', {

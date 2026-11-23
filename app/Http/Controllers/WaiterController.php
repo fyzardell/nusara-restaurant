@@ -98,7 +98,7 @@ class WaiterController extends Controller
             ->where('orders.order_status', 'Ready')
             ->select(
                 'orders.*',
-                'customers.name as customer_name',
+                DB::raw("COALESCE(orders.customer_name, customers.name, 'Tamu Meja') as customer_name"),
                 'customers.phone_normalized as customer_phone',
                 DB::raw("COALESCE(orders.table_number, restaurant_tables.table_number, 'Meja 01') as table_number"),
                 'table_sessions.session_code'
@@ -125,7 +125,7 @@ class WaiterController extends Controller
             ->where('orders.order_status', 'Preparing')
             ->select(
                 'orders.*',
-                'customers.name as customer_name',
+                DB::raw("COALESCE(orders.customer_name, customers.name, 'Tamu Meja') as customer_name"),
                 DB::raw("COALESCE(orders.table_number, restaurant_tables.table_number, 'Meja 01') as table_number")
             )
             ->orderBy('orders.updated_at', 'asc')
@@ -152,7 +152,7 @@ class WaiterController extends Controller
             ->whereDate('orders.updated_at', $today)
             ->select(
                 'orders.*',
-                'customers.name as customer_name',
+                DB::raw("COALESCE(orders.customer_name, customers.name, 'Tamu Meja') as customer_name"),
                 DB::raw("COALESCE(orders.table_number, restaurant_tables.table_number, 'Meja 01') as table_number")
             )
             ->orderBy('orders.updated_at', 'desc')
