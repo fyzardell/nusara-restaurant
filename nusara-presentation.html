@@ -1,0 +1,2190 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NUSARA — Presentasi Tech Stack</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap');
+
+  :root {
+    --cream: #F5F0E8;
+    --gold: #B99A65;
+    --gold-light: #D4B896;
+    --dark: #1A1410;
+    --dark2: #2A1F18;
+    --maroon: #32151F;
+    --text-muted: #8A7A6A;
+    --white: #FFFFFF;
+    --slide-w: 1280px;
+    --slide-h: 720px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0E0C0A;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    gap: 32px;
+  }
+
+  .slide-counter {
+    color: var(--text-muted);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .slide {
+    width: var(--slide-w);
+    height: var(--slide-h);
+    position: relative;
+    overflow: hidden;
+    border-radius: 4px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+    flex-shrink: 0;
+  }
+
+  /* ─────────────── SLIDE 1: Cover ─────────────── */
+  .s1 {
+    background: var(--dark);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .s1-left {
+    background: var(--maroon);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 72px 64px;
+    position: relative;
+  }
+  .s1-left::after {
+    content: '';
+    position: absolute;
+    right: -1px; top: 0; bottom: 0; width: 1px;
+    background: var(--gold);
+    opacity: 0.4;
+  }
+  .s1-label {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 600;
+    margin-bottom: 24px;
+  }
+  .s1-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 72px;
+    font-weight: 700;
+    color: var(--white);
+    line-height: 1.0;
+    margin-bottom: 24px;
+  }
+  .s1-title span { color: var(--gold); }
+  .s1-sub {
+    font-size: 15px;
+    color: rgba(255,255,255,0.55);
+    font-weight: 400;
+    line-height: 1.6;
+    max-width: 340px;
+  }
+  .s1-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 72px 64px;
+    gap: 32px;
+  }
+  .s1-stack-title {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 24px;
+  }
+  .s1-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .s1-badge {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border: 1px solid rgba(185,154,101,0.2);
+    border-radius: 4px;
+    background: rgba(185,154,101,0.04);
+  }
+  .s1-badge-icon {
+    width: 36px; height: 36px;
+    background: var(--gold);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; color: var(--dark);
+    flex-shrink: 0;
+  }
+  .s1-badge-text { flex: 1; }
+  .s1-badge-name { font-size: 14px; font-weight: 600; color: var(--white); }
+  .s1-badge-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .s1-badge-version { font-size: 11px; color: var(--gold); font-weight: 600; }
+  .slide-num {
+    position: absolute;
+    bottom: 28px; right: 36px;
+    font-size: 11px; color: rgba(255,255,255,0.2);
+    letter-spacing: 0.1em;
+    font-weight: 500;
+  }
+  .s1-bottom {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--gold) 0%, transparent 100%);
+  }
+
+  /* ─────────────── SLIDE 2: DATABASE OVERVIEW ─────────────── */
+  .s2 {
+    background: var(--cream);
+    display: grid;
+    grid-template-rows: 100px 1fr;
+  }
+  .slide-header {
+    display: flex;
+    align-items: center;
+    padding: 0 64px;
+    border-bottom: 1px solid rgba(26,20,16,0.12);
+    gap: 20px;
+  }
+  .slide-header-line {
+    width: 3px; height: 32px;
+    background: var(--gold);
+    border-radius: 2px;
+  }
+  .slide-header-content {}
+  .slide-section-label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .slide-header h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--dark);
+  }
+  .slide-header-num {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+  }
+  .s2-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+  .s2-left {
+    padding: 40px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    border-right: 1px solid rgba(26,20,16,0.08);
+  }
+  .s2-intro-text {
+    font-size: 15px;
+    color: var(--dark);
+    line-height: 1.65;
+    font-weight: 400;
+  }
+  .s2-intro-text strong { color: var(--maroon); font-weight: 700; }
+  .s2-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 8px;
+  }
+  .s2-stat {
+    padding: 20px;
+    background: var(--dark);
+    border-radius: 4px;
+  }
+  .s2-stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .s2-stat-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+    margin-top: 6px;
+  }
+  .s2-right {
+    padding: 40px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .s2-right-title {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .s2-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .s2-group-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--maroon);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 8px;
+  }
+  .s2-table-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    background: rgba(26,20,16,0.04);
+    border-radius: 3px;
+    border-left: 2px solid var(--gold);
+  }
+  .s2-table-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--dark);
+    min-width: 160px;
+    font-family: 'Courier New', monospace;
+  }
+  .s2-table-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .s2-bottom-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--gold);
+    opacity: 0.3;
+  }
+
+  /* ─────────────── SLIDE 3: ERD ─────────────── */
+  .s3 {
+    background: var(--dark);
+    display: grid;
+    grid-template-rows: 100px 1fr;
+  }
+  .s3 .slide-header { border-color: rgba(255,255,255,0.08); }
+  .s3 .slide-header h2 { color: var(--white); }
+  .s3 .slide-section-label { color: var(--gold); }
+  .s3 .slide-header-num { color: rgba(255,255,255,0.3); }
+  .s3-body {
+    padding: 32px 64px;
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+  }
+  .erd-diagram {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .erd-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .erd-box {
+    background: rgba(185,154,101,0.1);
+    border: 1px solid rgba(185,154,101,0.3);
+    border-radius: 4px;
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gold-light);
+    font-family: 'Courier New', monospace;
+    white-space: nowrap;
+  }
+  .erd-box.primary {
+    background: rgba(185,154,101,0.25);
+    border-color: var(--gold);
+    color: var(--gold);
+    font-size: 12px;
+  }
+  .erd-arrow {
+    font-size: 14px;
+    color: rgba(185,154,101,0.5);
+    font-weight: 300;
+  }
+  .erd-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.06em;
+  }
+  .erd-legend {
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .erd-legend-title {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 700;
+  }
+  .erd-rel-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 16px;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 4px;
+  }
+  .erd-rel-type {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .erd-rel-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.5;
+  }
+
+  /* ─────────────── SLIDE 4: DB DETAIL ─────────────── */
+  .s4 {
+    background: var(--cream);
+    display: grid;
+    grid-template-rows: 100px 1fr;
+  }
+  .s4-body {
+    padding: 32px 64px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+  }
+  .db-module {
+    background: var(--white);
+    border-radius: 4px;
+    border: 1px solid rgba(26,20,16,0.08);
+    overflow: hidden;
+  }
+  .db-module-header {
+    padding: 14px 18px;
+    background: var(--dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .db-module-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    flex-shrink: 0;
+  }
+  .db-module-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--white);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .db-module-body {
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .db-field {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .db-field-key {
+    font-weight: 700;
+    color: var(--maroon);
+    font-family: 'Courier New', monospace;
+    min-width: 70px;
+    font-size: 10px;
+    padding-top: 1px;
+  }
+  .db-field-name {
+    color: var(--dark);
+    font-family: 'Courier New', monospace;
+    flex: 1;
+  }
+  .db-field-type {
+    color: var(--text-muted);
+    font-size: 10px;
+    padding-top: 1px;
+  }
+  .db-field-fk {
+    color: var(--gold);
+    font-size: 10px;
+    font-weight: 600;
+    padding-top: 1px;
+  }
+  .db-divider {
+    height: 1px;
+    background: rgba(26,20,16,0.06);
+    margin: 4px 0;
+  }
+
+  /* ─────────────── SLIDE 5: DB KENDALA ─────────────── */
+  .s5 {
+    background: var(--dark2);
+    display: grid;
+    grid-template-rows: 100px 1fr;
+  }
+  .s5 .slide-header { border-color: rgba(255,255,255,0.08); }
+  .s5 .slide-header h2 { color: var(--white); }
+  .s5 .slide-section-label { color: var(--gold); }
+  .s5 .slide-header-num { color: rgba(255,255,255,0.3); }
+  .s5-body {
+    padding: 32px 64px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .issue-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .issue-top {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .issue-num {
+    width: 28px; height: 28px;
+    background: rgba(185,154,101,0.15);
+    border: 1px solid rgba(185,154,101,0.3);
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .issue-problem-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .issue-error {
+    font-size: 10px;
+    color: rgba(255,100,100,0.8);
+    font-family: 'Courier New', monospace;
+    background: rgba(255,100,100,0.08);
+    padding: 3px 8px;
+    border-radius: 2px;
+    display: inline-block;
+    margin-top: 4px;
+  }
+  .issue-bottom {
+    padding: 14px 20px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .issue-sol-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+  .issue-sol-text {
+    font-size: 11px;
+    color: rgba(255,255,255,0.55);
+    line-height: 1.55;
+  }
+  .issue-sol-text code {
+    background: rgba(185,154,101,0.1);
+    color: var(--gold-light);
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-family: 'Courier New', monospace;
+  }
+
+  /* ─────────────── SLIDE 6: BACKEND OVERVIEW ─────────────── */
+  .s6 {
+    background: var(--maroon);
+    display: grid;
+    grid-template-rows: 100px 1fr;
+  }
+  .s6 .slide-header { border-color: rgba(255,255,255,0.1); }
+  .s6 .slide-header h2 { color: var(--white); }
+  .s6 .slide-section-label { color: var(--gold); }
+  .s6 .slide-header-num { color: rgba(255,255,255,0.3); }
+  .s6-body {
+    padding: 32px 64px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  .s6-left {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .arch-block {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px;
+    padding: 18px 20px;
+  }
+  .arch-block-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 10px;
+  }
+  .arch-block-content {
+    font-size: 12px;
+    color: rgba(255,255,255,0.65);
+    line-height: 1.6;
+  }
+  .arch-block-content strong { color: var(--white); }
+  .arch-block-content .code {
+    font-family: 'Courier New', monospace;
+    color: var(--gold-light);
+    font-size: 11px;
+  }
+  .s6-right {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .controller-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 4px;
+  }
+  .ctrl-icon {
+    width: 32px; height: 32px;
+    background: var(--gold);
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: var(--dark);
+    flex-shrink: 0;
+    font-family: 'Courier New', monospace;
+  }
+  .ctrl-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 3px;
+    font-family: 'Courier New', monospace;
+  }
+  .ctrl-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,0.45);
+  }
+
+  /* ─────────────── SLIDE 7: BACKEND FLOW ─────────────── */
+  .s7 {
+    background: var(--cream);
+    display: grid;
+    grid-template-rows: 100px 1fr;
+  }
+  .s7-body {
+    padding: 32px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .flow-chain {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+  .flow-step {
+    flex: 1;
+    background: var(--white);
+    border: 1px solid rgba(26,20,16,0.08);
+    border-radius: 4px;
+    padding: 20px 18px;
+    position: relative;
+  }
+  .flow-step + .flow-step { margin-left: 12px; }
+  .flow-step-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: rgba(26,20,16,0.07);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .flow-step-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .flow-step-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.55;
+  }
+  .flow-step-code {
+    font-size: 10px;
+    font-family: 'Courier New', monospace;
+    color: var(--maroon);
+    background: rgba(50,21,31,0.06);
+    padding: 4px 8px;
+    border-radius: 2px;
+    margin-top: 8px;
+    display: block;
+  }
+  .flow-arrow {
+    color: var(--gold);
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+
+  .inertia-diagram {
+    background: var(--white);
+    border: 1px solid rgba(26,20,16,0.08);
+    border-radius: 4px;
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .inertia-box {
+    flex: 1;
+    text-align: center;
+    padding: 14px;
+    border-radius: 3px;
+  }
+  .inertia-box.server { background: rgba(50,21,31,0.06); }
+  .inertia-box.bridge { background: rgba(185,154,101,0.1); }
+  .inertia-box.client { background: rgba(26,120,200,0.06); }
+  .inertia-box-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 8px;
+  }
+  .inertia-box.server .inertia-box-title { color: var(--maroon); }
+  .inertia-box.bridge .inertia-box-title { color: #8B6914; }
+  .inertia-box.client .inertia-box-title { color: #1A6AA8; }
+  .inertia-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+  }
+  .inertia-item {
+    font-size: 10px;
+    font-family: 'Courier New', monospace;
+    padding: 3px 8px;
+    border-radius: 2px;
+    font-weight: 600;
+  }
+  .inertia-box.server .inertia-item { background: rgba(50,21,31,0.08); color: var(--maroon); }
+  .inertia-box.bridge .inertia-item { background: rgba(185,154,101,0.15); color: #8B6914; }
+  .inertia-box.client .inertia-item { background: rgba(26,120,200,0.08); color: #1A6AA8; }
+  .inertia-arr {
+    padding: 0 16px;
+    font-size: 20px;
+    color: var(--gold);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .inertia-arr-label {
+    font-size: 9px;
+    color: var(--text-muted);
+    text-align: center;
+    max-width: 80px;
+    line-height: 1.4;
+  }
+
+  /* ─────────────── SLIDE 8: BACKEND KENDALA ─────────────── */
+  .s8 {
+    background: var(--dark);
+    display: grid;
+    grid-template-rows: 100px 1fr;
+  }
+  .s8 .slide-header { border-color: rgba(255,255,255,0.08); }
+  .s8 .slide-header h2 { color: var(--white); }
+  .s8 .slide-section-label { color: var(--gold); }
+  .s8 .slide-header-num { color: rgba(255,255,255,0.3); }
+  .s8-body {
+    padding: 28px 64px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+  .be-issue {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 4px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .be-issue-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .be-issue-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    flex-shrink: 0;
+  }
+  .be-issue-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--white);
+  }
+  .be-issue-problem {
+    font-size: 10px;
+    color: rgba(255,100,100,0.75);
+    font-family: 'Courier New', monospace;
+    background: rgba(255,100,100,0.07);
+    padding: 6px 10px;
+    border-radius: 2px;
+    line-height: 1.5;
+  }
+  .be-issue-cause {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    line-height: 1.5;
+  }
+  .be-issue-cause strong { color: rgba(255,255,255,0.65); }
+  .be-sol {
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .be-sol-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .be-sol-text {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.5;
+  }
+  .be-sol-text code {
+    background: rgba(185,154,101,0.1);
+    color: var(--gold-light);
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-family: 'Courier New', monospace;
+  }
+
+  /* ─────────────── SLIDE 9: FRONTEND OVERVIEW ─────────────── */
+  .s9 {
+    background: var(--cream);
+    display: grid;
+    grid-template-rows: 100px 1fr;
+  }
+  .s9-body {
+    padding: 32px 64px;
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 32px;
+  }
+  .s9-left {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .s9-pages {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .page-card {
+    background: var(--white);
+    border: 1px solid rgba(26,20,16,0.08);
+    border-radius: 4px;
+    padding: 14px 16px;
+  }
+  .page-card-role {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 4px;
+  }
+  .page-card-role.admin { color: var(--maroon); }
+  .page-card-role.cashier { color: #1A6AA8; }
+  .page-card-role.waiter { color: #2D7A4A; }
+  .page-card-role.customer { color: #7A4A2D; }
+  .page-card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 4px;
+    font-family: 'Courier New', monospace;
+  }
+  .page-card-desc {
+    font-size: 10px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .s9-right {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .tech-pill-group-title {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .tech-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tech-pill {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+  .tech-pill.core {
+    background: rgba(50,21,31,0.06);
+    border-color: rgba(50,21,31,0.15);
+    color: var(--maroon);
+  }
+  .tech-pill.ui {
+    background: rgba(26,20,16,0.04);
+    border-color: rgba(26,20,16,0.12);
+    color: var(--dark);
+  }
+
+  /* ─────────────── SLIDE 10: FRONTEND KENDALA ─────────────── */
+  .s10 {
+    background: var(--dark2);
+    display: grid;
+    grid-template-rows: 100px 1fr;
+  }
+  .s10 .slide-header { border-color: rgba(255,255,255,0.08); }
+  .s10 .slide-header h2 { color: var(--white); }
+  .s10 .slide-section-label { color: var(--gold); }
+  .s10 .slide-header-num { color: rgba(255,255,255,0.3); }
+  .s10-body {
+    padding: 28px 64px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* ─────────────── SLIDE 11: CI/CD ─────────────── */
+  .s11 {
+    background: var(--dark);
+    display: grid;
+    grid-template-rows: 100px 1fr;
+  }
+  .s11 .slide-header { border-color: rgba(255,255,255,0.08); }
+  .s11 .slide-header h2 { color: var(--white); }
+  .s11 .slide-section-label { color: var(--gold); }
+  .s11 .slide-header-num { color: rgba(255,255,255,0.3); }
+  .s11-body {
+    padding: 32px 64px;
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 32px;
+  }
+  .cicd-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .cicd-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 4px;
+  }
+  .cicd-num {
+    width: 24px; height: 24px;
+    background: var(--gold);
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--dark);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .cicd-step-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 2px;
+  }
+  .cicd-step-code {
+    font-size: 10px;
+    font-family: 'Courier New', monospace;
+    color: var(--gold-light);
+  }
+  .cicd-right {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .cicd-secret {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 4px;
+    padding: 14px 18px;
+  }
+  .cicd-secret-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+  }
+  .cicd-secret-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 11px;
+  }
+  .cicd-secret-row:last-child { border: none; }
+  .cicd-secret-key {
+    color: rgba(255,255,255,0.4);
+    font-family: 'Courier New', monospace;
+  }
+  .cicd-secret-val {
+    color: var(--gold-light);
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+  }
+
+  /* ─────────────── SLIDE 12: CLOSING ─────────────── */
+  .s12 {
+    background: var(--maroon);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 32px;
+    position: relative;
+  }
+  .s12-bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(185,154,101,0.08) 0%, transparent 70%);
+  }
+  .s12-label {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(185,154,101,0.6);
+    font-weight: 600;
+    position: relative;
+  }
+  .s12-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 56px;
+    font-weight: 700;
+    color: var(--white);
+    text-align: center;
+    line-height: 1.1;
+    position: relative;
+  }
+  .s12-title span { color: var(--gold); }
+  .s12-divider {
+    width: 60px; height: 1px;
+    background: var(--gold);
+    opacity: 0.4;
+    position: relative;
+  }
+  .s12-stack {
+    display: flex;
+    gap: 20px;
+    position: relative;
+  }
+  .s12-tech {
+    padding: 10px 20px;
+    border: 1px solid rgba(185,154,101,0.3);
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.06em;
+  }
+  .s12-bottom {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+
+  /* shared dark header override */
+  .dark-hdr .slide-header { border-color: rgba(255,255,255,0.08); }
+  .dark-hdr .slide-header h2 { color: var(--white); }
+  .dark-hdr .slide-section-label { color: var(--gold); }
+  .dark-hdr .slide-header-num { color: rgba(255,255,255,0.3); }
+
+  .nav {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .nav-btn {
+    background: rgba(185,154,101,0.15);
+    border: 1px solid rgba(185,154,101,0.3);
+    color: var(--gold);
+    padding: 8px 20px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s;
+  }
+  .nav-btn:hover { background: rgba(185,154,101,0.3); }
+  .nav-info {
+    color: rgba(255,255,255,0.3);
+    font-size: 12px;
+    padding: 0 12px;
+  }
+
+  /* Presentation mode */
+  body.present-mode {
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  body.present-mode .slide {
+    transform: scale(var(--scale, 1));
+    transform-origin: center center;
+  }
+  body.present-mode .slide:not(.active) { display: none; }
+  body.present-mode .slide-counter { display: none; }
+  body.present-mode .nav { display: none; }
+  body.present-mode .pres-btn { display: none; }
+
+  .pres-btn {
+    background: rgba(185,154,101,0.1);
+    border: 1px solid rgba(185,154,101,0.25);
+    color: rgba(185,154,101,0.8);
+    padding: 10px 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .pres-btn:hover { background: rgba(185,154,101,0.2); }
+  .pres-controls {
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    gap: 10px;
+    z-index: 100;
+  }
+  body.present-mode .pres-controls { display: flex; }
+  .pres-nav-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: white;
+    padding: 10px 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+  }
+  .pres-counter {
+    padding: 10px 20px;
+    color: rgba(255,255,255,0.4);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+  }
+</style>
+</head>
+<body>
+
+<div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;">
+  <button class="pres-btn" onclick="enterPresent()">Presentation Mode (F)</button>
+  <span style="color:rgba(255,255,255,0.2);font-size:11px;">atau tekan F untuk fullscreen — ← → untuk navigasi</span>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 1 — COVER
+═══════════════════════════════════════════════════════════════ -->
+<div class="slide-counter">01 — Cover</div>
+<div class="slide s1" id="slide-1">
+  <div class="s1-left">
+    <div class="s1-label">Tech Stack Presentation</div>
+    <div class="s1-title">NUS<span>ARA</span></div>
+    <div class="s1-sub">Sistem informasi restoran Indonesian Fine Dining berbasis web — full stack modern dari database hingga antarmuka pelanggan.</div>
+  </div>
+  <div class="s1-right">
+    <div class="s1-stack-title">Tech Stack</div>
+    <div class="s1-badges">
+      <div class="s1-badge">
+        <div class="s1-badge-icon">DB</div>
+        <div class="s1-badge-text">
+          <div class="s1-badge-name">MySQL 8.0</div>
+          <div class="s1-badge-desc">Relasional RDBMS — 28 tabel, managed via aaPanel</div>
+        </div>
+        <div class="s1-badge-version">v8.0.46</div>
+      </div>
+      <div class="s1-badge">
+        <div class="s1-badge-icon">BE</div>
+        <div class="s1-badge-text">
+          <div class="s1-badge-name">Laravel 13 + Inertia.js</div>
+          <div class="s1-badge-desc">PHP 8.5, RESTful server-side, 7 controllers</div>
+        </div>
+        <div class="s1-badge-version">v13.43</div>
+      </div>
+      <div class="s1-badge">
+        <div class="s1-badge-icon">FE</div>
+        <div class="s1-badge-text">
+          <div class="s1-badge-name">React 19 + TypeScript</div>
+          <div class="s1-badge-desc">Vite 8, Tailwind 4, Inertia adapter</div>
+        </div>
+        <div class="s1-badge-version">v19.3</div>
+      </div>
+      <div class="s1-badge">
+        <div class="s1-badge-icon">CI</div>
+        <div class="s1-badge-text">
+          <div class="s1-badge-name">GitHub Actions + aaPanel</div>
+          <div class="s1-badge-desc">Auto-deploy on push to main via SSH</div>
+        </div>
+        <div class="s1-badge-version">VPS</div>
+      </div>
+    </div>
+  </div>
+  <div class="s1-bottom"></div>
+  <div class="slide-num">01 / 12</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 2 — DATABASE OVERVIEW
+═══════════════════════════════════════════════════════════════ -->
+<div class="slide-counter">02 — Database: Gambaran Umum</div>
+<div class="slide s2" id="slide-2">
+  <div class="slide-header">
+    <div class="slide-header-line"></div>
+    <div class="slide-header-content">
+      <div class="slide-section-label">Database</div>
+      <h2>Arsitektur & Tabel Utama</h2>
+    </div>
+    <div class="slide-header-num">02 / 12</div>
+  </div>
+  <div class="s2-body">
+    <div class="s2-left">
+      <div class="s2-intro-text">
+        NUSARA menggunakan <strong>MySQL 8.0</strong> sebagai RDBMS utama dengan <strong>28 tabel relasional</strong> yang terstruktur dalam 9 modul bisnis. Skema dirancang mengikuti prinsip <strong>normalisasi 3NF</strong>, dengan foreign key constraints aktif, soft delete pada tabel kritis, dan snapshot data untuk integritas historis.
+      </div>
+      <div class="s2-stats">
+        <div class="s2-stat">
+          <div class="s2-stat-num">28</div>
+          <div class="s2-stat-label">Tabel Total</div>
+        </div>
+        <div class="s2-stat">
+          <div class="s2-stat-num">9</div>
+          <div class="s2-stat-label">Modul Bisnis</div>
+        </div>
+        <div class="s2-stat">
+          <div class="s2-stat-num">9</div>
+          <div class="s2-stat-label">File Migrasi</div>
+        </div>
+        <div class="s2-stat">
+          <div class="s2-stat-num">utf8mb4</div>
+          <div class="s2-stat-label">Charset</div>
+        </div>
+      </div>
+    </div>
+    <div class="s2-right">
+      <div class="s2-right-title">Daftar 28 Tabel</div>
+      <div class="s2-group">
+        <div class="s2-group-title">Pengguna & Akses</div>
+        <div class="s2-table-row"><span class="s2-table-name">roles</span><span class="s2-table-desc">Admin, Cashier, Waiter, Customer</span></div>
+        <div class="s2-table-row"><span class="s2-table-name">users</span><span class="s2-table-desc">Semua pengguna sistem (+role_id FK)</span></div>
+        <div class="s2-table-row"><span class="s2-table-name">customers</span><span class="s2-table-desc">Profil pelanggan, nomor HP terverifikasi</span></div>
+      </div>
+      <div class="s2-group">
+        <div class="s2-group-title">Produk & Menu</div>
+        <div class="s2-table-row"><span class="s2-table-name">categories</span><span class="s2-table-desc">Kategori menu (slug unique)</span></div>
+        <div class="s2-table-row"><span class="s2-table-name">menus</span><span class="s2-table-desc">Menu, harga, stok, soft delete</span></div>
+        <div class="s2-table-row"><span class="s2-table-name">menu_images</span><span class="s2-table-desc">Gambar menu, bisa >1 per menu</span></div>
+        <div class="s2-table-row"><span class="s2-table-name">dining_experiences</span><span class="s2-table-desc">Paket dining privat / special</span></div>
+      </div>
+      <div class="s2-group">
+        <div class="s2-group-title">Meja & Sesi</div>
+        <div class="s2-table-row"><span class="s2-table-name">restaurant_tables</span><span class="s2-table-desc">8 meja, kapasitas, status</span></div>
+        <div class="s2-table-row"><span class="s2-table-name">table_qr_codes</span><span class="s2-table-desc">Token QR unik per meja</span></div>
+        <div class="s2-table-row"><span class="s2-table-name">table_sessions</span><span class="s2-table-desc">Sesi aktif tamu di meja</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="s2-bottom-bar"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 3 — ERD / RELASI
+═══════════════════════════════════════════════════════════════ -->
+<div class="slide-counter">03 — Database: Relasi Antar Tabel</div>
+<div class="slide s3" id="slide-3">
+  <div class="slide-header">
+    <div class="slide-header-line"></div>
+    <div class="slide-header-content">
+      <div class="slide-section-label">Database</div>
+      <h2>Entity Relationship & Alur Data</h2>
+    </div>
+    <div class="slide-header-num">03 / 12</div>
+  </div>
+  <div class="s3-body">
+    <div class="erd-diagram">
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:12px;">Alur Order Utama</div>
+
+      <div class="erd-row">
+        <div class="erd-box primary">roles</div>
+        <div class="erd-arrow">→</div>
+        <div class="erd-box primary">users</div>
+        <div class="erd-arrow">→</div>
+        <div class="erd-box primary">customers</div>
+      </div>
+      <div class="erd-row" style="padding-left:120px;">
+        <div class="erd-label">1 role → N users</div>
+        <div style="width:80px"></div>
+        <div class="erd-label">1 user → 1 customer</div>
+      </div>
+
+      <div style="height:16px;border-left:1px dashed rgba(185,154,101,0.3);margin-left:220px;"></div>
+
+      <div class="erd-row">
+        <div class="erd-box primary">restaurant_tables</div>
+        <div class="erd-arrow">→</div>
+        <div class="erd-box primary">table_sessions</div>
+        <div class="erd-arrow">→</div>
+        <div class="erd-box primary">orders</div>
+        <div class="erd-arrow">→</div>
+        <div class="erd-box primary">order_items</div>
+      </div>
+      <div class="erd-row" style="padding-left:8px;">
+        <div class="erd-label">+qr_codes</div>
+        <div style="width:48px"></div>
+        <div class="erd-label">session_code</div>
+        <div style="width:28px"></div>
+        <div class="erd-label">+customers</div>
+        <div style="width:28px"></div>
+        <div class="erd-label">+menus (FK+snapshot)</div>
+      </div>
+
+      <div style="height:16px;border-left:1px dashed rgba(185,154,101,0.3);margin-left:490px;"></div>
+
+      <div class="erd-row" style="margin-left:490px;">
+        <div class="erd-box primary">payments</div>
+        <div class="erd-arrow">→</div>
+        <div class="erd-box">payment_transactions</div>
+        <div class="erd-arrow">→</div>
+        <div class="erd-box">refunds</div>
+      </div>
+      <div class="erd-row" style="margin-left:490px;padding-left:4px;">
+        <div class="erd-label">+Midtrans</div>
+        <div style="width:38px"></div>
+        <div class="erd-label">provider_id</div>
+        <div style="width:36px"></div>
+        <div class="erd-label">requested_by FK</div>
+      </div>
+
+      <div style="height:20px;"></div>
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:12px;">Alur Reservasi</div>
+      <div class="erd-row">
+        <div class="erd-box">customers</div>
+        <div class="erd-arrow">→</div>
+        <div class="erd-box primary">reservations</div>
+        <div class="erd-arrow">→</div>
+        <div class="erd-box">reservation_tables</div>
+        <div class="erd-arrow">+</div>
+        <div class="erd-box">reservation_status_histories</div>
+      </div>
+      <div style="height:8px;"></div>
+      <div class="erd-row">
+        <div class="erd-box">orders</div>
+        <div class="erd-arrow">→</div>
+        <div class="erd-box">order_ratings</div>
+        <div style="width:32px"></div>
+        <div class="erd-box">orders</div>
+        <div class="erd-arrow">→</div>
+        <div class="erd-box">waiter_assignments</div>
+      </div>
+    </div>
+
+    <div class="erd-legend">
+      <div class="erd-legend-title">Jenis Relasi</div>
+      <div class="erd-rel-item">
+        <div class="erd-rel-type">One to One</div>
+        <div class="erd-rel-desc"><strong style="color:rgba(255,255,255,0.7);">users ↔ customers</strong><br>Setiap user bertipe customer hanya memiliki 1 profil customer. Dijamin dengan <code style="font-family:monospace;font-size:10px;color:var(--gold-light);">unique()</code> pada kolom user_id.</div>
+      </div>
+      <div class="erd-rel-item">
+        <div class="erd-rel-type">One to Many</div>
+        <div class="erd-rel-desc"><strong style="color:rgba(255,255,255,0.7);">orders → order_items</strong><br>1 pesanan bisa memiliki banyak item. Juga berlaku: categories→menus, tables→sessions, orders→payments.</div>
+      </div>
+      <div class="erd-rel-item">
+        <div class="erd-rel-type">Many to Many</div>
+        <div class="erd-rel-desc"><strong style="color:rgba(255,255,255,0.7);">reservations ↔ tables</strong><br>Melalui tabel pivot <code style="font-family:monospace;font-size:10px;color:var(--gold-light);">reservation_tables</code>. 1 reservasi bisa menempati >1 meja, 1 meja bisa ada di >1 reservasi (waktu berbeda).</div>
+      </div>
+      <div class="erd-rel-item">
+        <div class="erd-rel-type">Snapshot Pattern</div>
+        <div class="erd-rel-desc"><strong style="color:rgba(255,255,255,0.7);">order_items</strong> menyimpan <code style="font-family:monospace;font-size:10px;color:var(--gold-light);">menu_name_snapshot</code> & <code style="font-family:monospace;font-size:10px;color:var(--gold-light);">unit_price_snapshot</code> agar histori harga tidak berubah meski menu diedit.</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">03 / 12</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 4 — DATABASE DETAIL TABEL
+═══════════════════════════════════════════════════════════════ -->
+<div class="slide-counter">04 — Database: Detail Tabel Kritis</div>
+<div class="slide s4" id="slide-4">
+  <div class="slide-header">
+    <div class="slide-header-line"></div>
+    <div class="slide-header-content">
+      <div class="slide-section-label">Database</div>
+      <h2>Struktur Tabel Kritis — Kolom & Tipe Data</h2>
+    </div>
+    <div class="slide-header-num">04 / 12</div>
+  </div>
+  <div class="s4-body">
+    <div class="db-module">
+      <div class="db-module-header">
+        <div class="db-module-dot"></div>
+        <div class="db-module-name">orders</div>
+      </div>
+      <div class="db-module-body">
+        <div class="db-field"><span class="db-field-key">PK</span><span class="db-field-name">id</span><span class="db-field-type">bigint AI</span></div>
+        <div class="db-field"><span class="db-field-key">UNIQUE</span><span class="db-field-name">order_code</span><span class="db-field-type">varchar</span></div>
+        <div class="db-field"><span class="db-field-key">FK</span><span class="db-field-name">customer_id</span><span class="db-field-fk">→customers</span></div>
+        <div class="db-field"><span class="db-field-key">FK</span><span class="db-field-name">table_session_id</span><span class="db-field-fk">→table_sessions</span></div>
+        <div class="db-field"><span class="db-field-key">ENUM</span><span class="db-field-name">order_type</span><span class="db-field-type">dine_in|takeaway</span></div>
+        <div class="db-field"><span class="db-field-key">STATUS</span><span class="db-field-name">order_status</span><span class="db-field-type">8 state</span></div>
+        <div class="db-divider"></div>
+        <div class="db-field"><span class="db-field-key">DEC</span><span class="db-field-name">subtotal/tax/total</span><span class="db-field-type">12,2</span></div>
+        <div class="db-field"><span class="db-field-key">TEXT</span><span class="db-field-name">customer_notes</span><span class="db-field-type">nullable</span></div>
+      </div>
+    </div>
+    <div class="db-module">
+      <div class="db-module-header">
+        <div class="db-module-dot"></div>
+        <div class="db-module-name">menus</div>
+      </div>
+      <div class="db-module-body">
+        <div class="db-field"><span class="db-field-key">PK</span><span class="db-field-name">id</span><span class="db-field-type">bigint AI</span></div>
+        <div class="db-field"><span class="db-field-key">FK</span><span class="db-field-name">category_id</span><span class="db-field-fk">→categories</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">name</span><span class="db-field-type">varchar</span></div>
+        <div class="db-field"><span class="db-field-key">UNIQUE</span><span class="db-field-name">slug</span><span class="db-field-type">varchar</span></div>
+        <div class="db-field"><span class="db-field-key">DEC</span><span class="db-field-name">price</span><span class="db-field-type">12,2</span></div>
+        <div class="db-field"><span class="db-field-key">INT</span><span class="db-field-name">stock_quantity</span><span class="db-field-type">default 0</span></div>
+        <div class="db-field"><span class="db-field-key">BOOL</span><span class="db-field-name">is_available</span><span class="db-field-type">default true</span></div>
+        <div class="db-field"><span class="db-field-key">BOOL</span><span class="db-field-name">is_featured</span><span class="db-field-type">default false</span></div>
+        <div class="db-divider"></div>
+        <div class="db-field"><span class="db-field-key">SOFT</span><span class="db-field-name">deleted_at</span><span class="db-field-type">softDeletes</span></div>
+      </div>
+    </div>
+    <div class="db-module">
+      <div class="db-module-header">
+        <div class="db-module-dot"></div>
+        <div class="db-module-name">payments</div>
+      </div>
+      <div class="db-module-body">
+        <div class="db-field"><span class="db-field-key">PK</span><span class="db-field-name">id</span><span class="db-field-type">bigint AI</span></div>
+        <div class="db-field"><span class="db-field-key">FK</span><span class="db-field-name">order_id</span><span class="db-field-fk">→orders (cascade)</span></div>
+        <div class="db-field"><span class="db-field-key">ENUM</span><span class="db-field-name">payment_method</span><span class="db-field-type">qris|bank|cash</span></div>
+        <div class="db-field"><span class="db-field-key">STATUS</span><span class="db-field-name">payment_status</span><span class="db-field-type">7 state</span></div>
+        <div class="db-field"><span class="db-field-key">DEC</span><span class="db-field-name">amount</span><span class="db-field-type">12,2</span></div>
+        <div class="db-field"><span class="db-field-key">TS</span><span class="db-field-name">paid_at</span><span class="db-field-type">nullable</span></div>
+        <div class="db-divider"></div>
+        <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;">payment_transactions</div>
+        <div class="db-field"><span class="db-field-key">FK</span><span class="db-field-name">payment_id</span><span class="db-field-fk">→payments</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">provider</span><span class="db-field-type">midtrans</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">payment_url</span><span class="db-field-type">nullable</span></div>
+        <div class="db-field"><span class="db-field-key">JSON</span><span class="db-field-name">response_data</span><span class="db-field-type">nullable</span></div>
+      </div>
+    </div>
+    <div class="db-module">
+      <div class="db-module-header">
+        <div class="db-module-dot"></div>
+        <div class="db-module-name">reservations</div>
+      </div>
+      <div class="db-module-body">
+        <div class="db-field"><span class="db-field-key">PK</span><span class="db-field-name">id</span><span class="db-field-type">bigint AI</span></div>
+        <div class="db-field"><span class="db-field-key">UNIQUE</span><span class="db-field-name">reservation_code</span><span class="db-field-type">varchar</span></div>
+        <div class="db-field"><span class="db-field-key">FK</span><span class="db-field-name">customer_id</span><span class="db-field-fk">→customers</span></div>
+        <div class="db-field"><span class="db-field-key">FK</span><span class="db-field-name">experience_id</span><span class="db-field-fk">→dining_exp</span></div>
+        <div class="db-field"><span class="db-field-key">DT</span><span class="db-field-name">reservation_datetime</span><span class="db-field-type">datetime</span></div>
+        <div class="db-field"><span class="db-field-key">INT</span><span class="db-field-name">guest_count</span><span class="db-field-type">int</span></div>
+        <div class="db-field"><span class="db-field-key">STATUS</span><span class="db-field-name">status</span><span class="db-field-type">6 state</span></div>
+        <div class="db-divider"></div>
+        <div class="db-field"><span class="db-field-key">FK</span><span class="db-field-name">confirmed_by</span><span class="db-field-fk">→users</span></div>
+        <div class="db-field"><span class="db-field-key">TEXT</span><span class="db-field-name">special_request</span><span class="db-field-type">nullable</span></div>
+      </div>
+    </div>
+    <div class="db-module">
+      <div class="db-module-header">
+        <div class="db-module-dot"></div>
+        <div class="db-module-name">table_sessions</div>
+      </div>
+      <div class="db-module-body">
+        <div class="db-field"><span class="db-field-key">PK</span><span class="db-field-name">id</span><span class="db-field-type">bigint AI</span></div>
+        <div class="db-field"><span class="db-field-key">FK</span><span class="db-field-name">table_id</span><span class="db-field-fk">→restaurant_tables</span></div>
+        <div class="db-field"><span class="db-field-key">UNIQUE</span><span class="db-field-name">session_code</span><span class="db-field-type">varchar</span></div>
+        <div class="db-field"><span class="db-field-key">STATUS</span><span class="db-field-name">status</span><span class="db-field-type">3 state</span></div>
+        <div class="db-field"><span class="db-field-key">FK</span><span class="db-field-name">opened_by</span><span class="db-field-fk">→users</span></div>
+        <div class="db-field"><span class="db-field-key">FK</span><span class="db-field-name">closed_by</span><span class="db-field-fk">→users</span></div>
+        <div class="db-field"><span class="db-field-key">TS</span><span class="db-field-name">started_at / ended_at</span><span class="db-field-type">nullable</span></div>
+      </div>
+    </div>
+    <div class="db-module">
+      <div class="db-module-header">
+        <div class="db-module-dot"></div>
+        <div class="db-module-name">sisa tabel</div>
+      </div>
+      <div class="db-module-body">
+        <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Lainnya</div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">order_status_histories</span><span class="db-field-fk">audit trail</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">waiter_assignments</span><span class="db-field-fk">FK order+user</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">favorites</span><span class="db-field-type">user+menu unique</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">order_ratings</span><span class="db-field-type">1-5 bintang</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">chat_messages</span><span class="db-field-type">live concierge</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">restaurant_settings</span><span class="db-field-type">tax, jam buka</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">operating_hours</span><span class="db-field-type">per hari 0–6</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">journal_posts</span><span class="db-field-type">blog restoran</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">audit_logs</span><span class="db-field-type">semua aksi user</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">contacts</span><span class="db-field-type">form kontak</span></div>
+        <div class="db-field"><span class="db-field-key"></span><span class="db-field-name">refunds</span><span class="db-field-type">FK payment+user</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 5 — DATABASE KENDALA & SOLUSI
+═══════════════════════════════════════════════════════════════ -->
+<div class="slide-counter">05 — Database: Kendala & Solusi</div>
+<div class="slide s5" id="slide-5">
+  <div class="slide-header">
+    <div class="slide-header-line"></div>
+    <div class="slide-header-content">
+      <div class="slide-section-label">Database</div>
+      <h2>Kendala Umum & Solusi</h2>
+    </div>
+    <div class="slide-header-num">05 / 12</div>
+  </div>
+  <div class="s5-body">
+    <div class="issue-card">
+      <div class="issue-top">
+        <div class="issue-num">1</div>
+        <div>
+          <div class="issue-problem-title">Unique Constraint Violation saat Seeding</div>
+          <div class="issue-error">SQLSTATE[23000]: UNIQUE constraint failed: categories.slug</div>
+        </div>
+      </div>
+      <div class="issue-bottom">
+        <div class="issue-sol-label">Solusi</div>
+        <div class="issue-sol-text">Migrasi sudah mengisi data kategori, seeder mencoba insert ulang. Gunakan <code>where('slug')->first()</code> + update jika ada (<em>idempotent seeder</em>). Jalankan <code>migrate:fresh --seed</code> hanya di development, bukan production.</div>
+      </div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-top">
+        <div class="issue-num">2</div>
+        <div>
+          <div class="issue-problem-title">Port 3306 Sudah Dipakai (Docker Conflict)</div>
+          <div class="issue-error">Can't start server: Address already in use on port 3306</div>
+        </div>
+      </div>
+      <div class="issue-bottom">
+        <div class="issue-sol-label">Solusi</div>
+        <div class="issue-sol-text">Container Docker lain (<code>income_mysql</code>) sudah memegang port 3306. Gunakan <code>docker stop income_mysql</code> atau ubah port MySQL aaPanel ke 3307 di <code>/etc/my.cnf</code> dan sesuaikan <code>DB_PORT</code> di <code>.env</code>.</div>
+      </div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-top">
+        <div class="issue-num">3</div>
+        <div>
+          <div class="issue-problem-title">Access Denied untuk User Database</div>
+          <div class="issue-error">SQLSTATE[1045]: Access denied for user 'nusara'@'localhost'</div>
+        </div>
+      </div>
+      <div class="issue-bottom">
+        <div class="issue-sol-label">Solusi</div>
+        <div class="issue-sol-text">User belum terdaftar di MySQL atau plugin autentikasi berbeda. Buat ulang user dengan <code>IDENTIFIED WITH mysql_native_password BY 'password'</code> dan pastikan <code>GRANT ALL PRIVILEGES ON nusara.* TO 'nusara'@'127.0.0.1'</code> dieksekusi.</div>
+      </div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-top">
+        <div class="issue-num">4</div>
+        <div>
+          <div class="issue-problem-title">Socket MySQL Tidak Ditemukan (aaPanel)</div>
+          <div class="issue-error">Can't connect through socket '/run/mysqld/mysqld.sock' (Errno 2)</div>
+        </div>
+      </div>
+      <div class="issue-bottom">
+        <div class="issue-sol-label">Solusi</div>
+        <div class="issue-sol-text">MySQL aaPanel menyimpan socket di <code>/tmp/mysql.sock</code>, bukan di path standar Debian. Buat symlink: <code>ln -sf /tmp/mysql.sock /run/mysqld/mysqld.sock</code>. Nonaktifkan <code>PrivateTmp=false</code> di systemd override.</div>
+      </div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-top">
+        <div class="issue-num">5</div>
+        <div>
+          <div class="issue-problem-title">N+1 Query Problem</div>
+          <div class="issue-error">SELECT * FROM menus WHERE category_id = ? (dipanggil 10x loop)</div>
+        </div>
+      </div>
+      <div class="issue-bottom">
+        <div class="issue-sol-label">Solusi</div>
+        <div class="issue-sol-text">Gunakan Eloquent <em>eager loading</em>: <code>Menu::with(['category', 'images'])->get()</code>. Tambahkan index pada kolom yang sering di-query (<code>category_id</code>, <code>slug</code>, <code>order_status</code>).</div>
+      </div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-top">
+        <div class="issue-num">6</div>
+        <div>
+          <div class="issue-problem-title">Data Harga Berubah Setelah Pesanan</div>
+          <div class="issue-error">order_items.price tidak sesuai harga saat pelanggan memesan</div>
+        </div>
+      </div>
+      <div class="issue-bottom">
+        <div class="issue-sol-label">Solusi</div>
+        <div class="issue-sol-text">Gunakan <em>Snapshot Pattern</em>: saat order dibuat, salin <code>menu.name</code> ke <code>menu_name_snapshot</code> dan <code>menu.price</code> ke <code>unit_price_snapshot</code> di tabel <code>order_items</code>. Data historis tetap akurat meski menu diedit.</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">05 / 12</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 6 — BACKEND OVERVIEW
+═══════════════════════════════════════════════════════════════ -->
+<div class="slide-counter">06 — Backend: Gambaran Umum</div>
+<div class="slide s6" id="slide-6">
+  <div class="slide-header">
+    <div class="slide-header-line"></div>
+    <div class="slide-header-content">
+      <div class="slide-section-label">Backend</div>
+      <h2>Arsitektur Laravel 13 + Inertia.js</h2>
+    </div>
+    <div class="slide-header-num">06 / 12</div>
+  </div>
+  <div class="s6-body">
+    <div class="s6-left">
+      <div class="arch-block">
+        <div class="arch-block-title">Framework & Arsitektur</div>
+        <div class="arch-block-content">
+          <strong>Laravel 13.43</strong> pada <strong>PHP 8.5</strong> menggunakan pola MVC klasik. Request masuk melalui <span class="code">routes/web.php</span>, diproses Controller, lalu dikembalikan lewat <strong>Inertia.js</strong> sebagai JSON props ke komponen React — tanpa endpoint API terpisah.
+        </div>
+      </div>
+      <div class="arch-block">
+        <div class="arch-block-title">Role-Based Access</div>
+        <div class="arch-block-content">
+          Sistem memiliki <strong>4 role</strong>: <span class="code">admin</span>, <span class="code">cashier</span>, <span class="code">waiter</span>, <span class="code">customer</span>. Setiap role memiliki route group, controller, dan halaman React tersendiri. Middleware memastikan user hanya bisa mengakses area role-nya.
+        </div>
+      </div>
+      <div class="arch-block">
+        <div class="arch-block-title">Payment Gateway (Midtrans)</div>
+        <div class="arch-block-content">
+          Paket <span class="code">midtrans/midtrans-php ^2.6</span> terintegrasi untuk QRIS dan bank transfer. <strong>Webhook Midtrans</strong> mengirim notifikasi ke endpoint Laravel yang memperbarui status <span class="code">payments</span> dan <span class="code">payment_transactions</span> secara otomatis.
+        </div>
+      </div>
+    </div>
+    <div class="s6-right">
+      <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.3);font-weight:700;margin-bottom:8px;">7 Controller Utama</div>
+      <div class="controller-item">
+        <div class="ctrl-icon">AD</div>
+        <div><div class="ctrl-name">AdminController</div><div class="ctrl-desc">Dashboard, menu CRUD, user management, laporan</div></div>
+      </div>
+      <div class="controller-item">
+        <div class="ctrl-icon">CA</div>
+        <div><div class="ctrl-name">CashierController</div><div class="ctrl-desc">Kelola pembayaran, cetak struk, konfirmasi order</div></div>
+      </div>
+      <div class="controller-item">
+        <div class="ctrl-icon">WT</div>
+        <div><div class="ctrl-name">WaiterController</div><div class="ctrl-desc">Lihat & update status pesanan meja</div></div>
+      </div>
+      <div class="controller-item">
+        <div class="ctrl-icon">OR</div>
+        <div><div class="ctrl-name">OrderController</div><div class="ctrl-desc">Buat order, tambah item, hitung total + pajak</div></div>
+      </div>
+      <div class="controller-item">
+        <div class="ctrl-icon">RV</div>
+        <div><div class="ctrl-name">ReservationController</div><div class="ctrl-desc">Buat, konfirmasi, dan tolak reservasi</div></div>
+      </div>
+      <div class="controller-item">
+        <div class="ctrl-icon">LP</div>
+        <div><div class="ctrl-name">LandingPageController</div><div class="ctrl-desc">Menu publik, pengalaman dining, kontak</div></div>
+      </div>
+      <div class="controller-item">
+        <div class="ctrl-icon">AU</div>
+        <div><div class="ctrl-name">AuthController</div><div class="ctrl-desc">Login, logout, session management</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">06 / 12</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 7 — BACKEND ALUR REQUEST
+═══════════════════════════════════════════════════════════════ -->
+<div class="slide-counter">07 — Backend: Alur Request & Inertia</div>
+<div class="slide s7" id="slide-7">
+  <div class="slide-header">
+    <div class="slide-header-line"></div>
+    <div class="slide-header-content">
+      <div class="slide-section-label">Backend</div>
+      <h2>Alur Request & Cara Kerja Inertia.js</h2>
+    </div>
+    <div class="slide-header-num">07 / 12</div>
+  </div>
+  <div class="s7-body">
+    <div class="flow-chain">
+      <div class="flow-step">
+        <div class="flow-step-num">01</div>
+        <div class="flow-step-title">Browser Request</div>
+        <div class="flow-step-desc">User mengakses URL atau klik link. Inertia men-intercept navigasi menjadi XHR request.</div>
+        <span class="flow-step-code">GET /admin/dashboard</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-step-num">02</div>
+        <div class="flow-step-title">Route + Middleware</div>
+        <div class="flow-step-desc">Laravel mencocokkan route, menjalankan middleware auth & role check.</div>
+        <span class="flow-step-code">Route::middleware('auth','role:admin')</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-step-num">03</div>
+        <div class="flow-step-title">Controller Logic</div>
+        <div class="flow-step-desc">Controller query database via Eloquent ORM, proses bisnis, hitung data.</div>
+        <span class="flow-step-code">$orders = Order::with(['items','customer'])->paginate()</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-step-num">04</div>
+        <div class="flow-step-title">Inertia Response</div>
+        <div class="flow-step-desc">Controller mengembalikan Inertia render dengan nama komponen React dan props.</div>
+        <span class="flow-step-code">return Inertia::render('Admin/Dashboard', compact('orders'))</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-step-num">05</div>
+        <div class="flow-step-title">React Render</div>
+        <div class="flow-step-desc">Inertia adapter di React menerima props dan me-render komponen tanpa full page reload.</div>
+        <span class="flow-step-code">export default function Dashboard({ orders })</span>
+      </div>
+    </div>
+
+    <div class="inertia-diagram">
+      <div class="inertia-box server">
+        <div class="inertia-box-title">Laravel (Server)</div>
+        <div class="inertia-items">
+          <span class="inertia-item">routes/web.php</span>
+          <span class="inertia-item">Controller.php</span>
+          <span class="inertia-item">Eloquent ORM</span>
+          <span class="inertia-item">Middleware</span>
+        </div>
+      </div>
+      <div class="inertia-arr">
+        <span>⇄</span>
+        <div class="inertia-arr-label">Inertia Protocol JSON</div>
+      </div>
+      <div class="inertia-box bridge">
+        <div class="inertia-box-title">Inertia.js (Bridge)</div>
+        <div class="inertia-items">
+          <span class="inertia-item">@inertiajs/react</span>
+          <span class="inertia-item">usePage()</span>
+          <span class="inertia-item">router.visit()</span>
+          <span class="inertia-item">useForm()</span>
+        </div>
+      </div>
+      <div class="inertia-arr">
+        <span>⇄</span>
+        <div class="inertia-arr-label">Props sebagai React state</div>
+      </div>
+      <div class="inertia-box client">
+        <div class="inertia-box-title">React (Client)</div>
+        <div class="inertia-items">
+          <span class="inertia-item">React 19</span>
+          <span class="inertia-item">TypeScript</span>
+          <span class="inertia-item">Tailwind 4</span>
+          <span class="inertia-item">Vite 8</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 8 — BACKEND KENDALA & SOLUSI
+═══════════════════════════════════════════════════════════════ -->
+<div class="slide-counter">08 — Backend: Kendala & Solusi</div>
+<div class="slide s8" id="slide-8">
+  <div class="slide-header">
+    <div class="slide-header-line"></div>
+    <div class="slide-header-content">
+      <div class="slide-section-label">Backend</div>
+      <h2>Kendala Umum & Solusi</h2>
+    </div>
+    <div class="slide-header-num">08 / 12</div>
+  </div>
+  <div class="s8-body">
+    <div class="be-issue">
+      <div class="be-issue-label"><div class="be-issue-dot"></div><div class="be-issue-title">Composer TypeError PHP 8.5</div></div>
+      <div class="be-issue-problem">TypeError: Silencer::call() — Argument #1 must be callable</div>
+      <div class="be-issue-cause"><strong>Penyebab:</strong> <code>chown</code> & <code>chgrp</code> masuk <code>disable_functions</code> di php.ini aaPanel.</div>
+      <div class="be-sol"><div class="be-sol-label">Solusi</div><div class="be-sol-text">Hapus fungsi dari <code>disable_functions</code> di php.ini, jalankan <code>php -d disable_functions="" composer.phar install</code>.</div></div>
+    </div>
+    <div class="be-issue">
+      <div class="be-issue-label"><div class="be-issue-dot"></div><div class="be-issue-title">APP_KEY Belum di-generate</div></div>
+      <div class="be-issue-problem">RuntimeException: No application encryption key specified</div>
+      <div class="be-issue-cause"><strong>Penyebab:</strong> File <code>.env</code> tidak ada di server (di-ignore oleh git).</div>
+      <div class="be-sol"><div class="be-sol-label">Solusi</div><div class="be-sol-text">Salin <code>.env.example</code> → <code>.env</code> lalu jalankan <code>php artisan key:generate --force</code>.</div></div>
+    </div>
+    <div class="be-issue">
+      <div class="be-issue-label"><div class="be-issue-dot"></div><div class="be-issue-title">Route Cache Conflict</div></div>
+      <div class="be-issue-problem">Target [App\Http\Controllers\XController] is not instantiable</div>
+      <div class="be-issue-cause"><strong>Penyebab:</strong> Cache route lama setelah controller baru dibuat.</div>
+      <div class="be-sol"><div class="be-sol-label">Solusi</div><div class="be-sol-text">Jalankan <code>php artisan optimize:clear</code> lalu <code>php artisan route:cache</code> setelah setiap perubahan controller.</div></div>
+    </div>
+    <div class="be-issue">
+      <div class="be-issue-label"><div class="be-issue-dot"></div><div class="be-issue-title">CSRF Token Mismatch</div></div>
+      <div class="be-issue-problem">419 — Page Expired: CSRF token mismatch</div>
+      <div class="be-issue-cause"><strong>Penyebab:</strong> Form POST tanpa token CSRF atau session expired di production.</div>
+      <div class="be-sol"><div class="be-sol-label">Solusi</div><div class="be-sol-text">Inertia otomatis mengirim CSRF. Pastikan <code>SESSION_DOMAIN</code> di <code>.env</code> sesuai domain produksi dan <code>APP_URL</code> benar (https).</div></div>
+    </div>
+    <div class="be-issue">
+      <div class="be-issue-label"><div class="be-issue-dot"></div><div class="be-issue-title">Queue & Job Gagal</div></div>
+      <div class="be-issue-problem">Job failed: No connection could be made</div>
+      <div class="be-issue-cause"><strong>Penyebab:</strong> <code>QUEUE_CONNECTION=database</code> tapi tabel <code>jobs</code> belum ada atau session driver salah.</div>
+      <div class="be-sol"><div class="be-sol-label">Solusi</div><div class="be-sol-text">Jalankan migrasi penuh agar tabel <code>jobs</code>, <code>cache</code>, <code>sessions</code> terbuat. Atau ganti ke <code>QUEUE_CONNECTION=sync</code> sementara.</div></div>
+    </div>
+    <div class="be-issue">
+      <div class="be-issue-label"><div class="be-issue-dot"></div><div class="be-issue-title">open_basedir Restriction</div></div>
+      <div class="be-issue-problem">Warning: fopen(): open_basedir restriction in effect</div>
+      <div class="be-issue-cause"><strong>Penyebab:</strong> Fitur Anti-XSS aaPanel membatasi path akses PHP ke luar folder website.</div>
+      <div class="be-sol"><div class="be-sol-label">Solusi</div><div class="be-sol-text">Matikan Anti-XSS (open_basedir) di pengaturan Website aaPanel → Site directory → unchecklist Anti-XSS attack.</div></div>
+    </div>
+  </div>
+  <div class="slide-num">08 / 12</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 9 — FRONTEND OVERVIEW
+═══════════════════════════════════════════════════════════════ -->
+<div class="slide-counter">09 — Frontend: Gambaran Umum</div>
+<div class="slide s9" id="slide-9">
+  <div class="slide-header">
+    <div class="slide-header-line"></div>
+    <div class="slide-header-content">
+      <div class="slide-section-label">Frontend</div>
+      <h2>React 19 + TypeScript + Tailwind 4</h2>
+    </div>
+    <div class="slide-header-num">09 / 12</div>
+  </div>
+  <div class="s9-body">
+    <div class="s9-left">
+      <div class="s9-pages">
+        <div class="page-card">
+          <div class="page-card-role admin">Admin</div>
+          <div class="page-card-title">Admin/Dashboard</div>
+          <div class="page-card-desc">Manajemen menu, user, laporan penjualan, chat concierge</div>
+        </div>
+        <div class="page-card">
+          <div class="page-card-role cashier">Cashier</div>
+          <div class="page-card-title">Cashier/Dashboard</div>
+          <div class="page-card-desc">Konfirmasi pembayaran, cetak struk, monitor order</div>
+        </div>
+        <div class="page-card">
+          <div class="page-card-role waiter">Waiter</div>
+          <div class="page-card-title">Waiter/Dashboard</div>
+          <div class="page-card-desc">Status pesanan meja, update served/ready</div>
+        </div>
+        <div class="page-card">
+          <div class="page-card-role customer">Customer</div>
+          <div class="page-card-title">Customer/OrderApp</div>
+          <div class="page-card-desc">QR scan → pilih menu → pesan → bayar</div>
+        </div>
+        <div class="page-card">
+          <div class="page-card-role customer">Customer</div>
+          <div class="page-card-title">Customer/Reservation</div>
+          <div class="page-card-desc">Buat reservasi, pilih tanggal, jumlah tamu</div>
+        </div>
+        <div class="page-card">
+          <div class="page-card-role admin">Landing</div>
+          <div class="page-card-title">LandingPage</div>
+          <div class="page-card-desc">Halaman publik — menu, pengalaman dining, kontak, reservasi</div>
+        </div>
+      </div>
+    </div>
+    <div class="s9-right">
+      <div class="tech-pill-group-title">Core Dependencies</div>
+      <div class="tech-pills">
+        <span class="tech-pill core">React 19.3</span>
+        <span class="tech-pill core">TypeScript 7</span>
+        <span class="tech-pill core">Vite 8</span>
+        <span class="tech-pill core">Tailwind 4</span>
+        <span class="tech-pill core">@inertiajs/react 3.11</span>
+      </div>
+      <div class="tech-pill-group-title" style="margin-top:16px;">UI & Utilities</div>
+      <div class="tech-pills">
+        <span class="tech-pill ui">lucide-react 1.75</span>
+        <span class="tech-pill ui">clsx 2.1</span>
+        <span class="tech-pill ui">tailwind-merge 3.7</span>
+        <span class="tech-pill ui">@laravel/multiplex</span>
+      </div>
+      <div style="margin-top:20px;padding:16px;background:rgba(26,20,16,0.04);border:1px solid rgba(26,20,16,0.08);border-radius:4px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:10px;">Build Pipeline</div>
+        <div style="font-size:11px;color:var(--dark);line-height:1.8;">
+          <strong>Dev:</strong> <code style="font-family:monospace;font-size:10px;color:var(--maroon);">vite dev</code> + Laravel HMR<br>
+          <strong>Prod:</strong> <code style="font-family:monospace;font-size:10px;color:var(--maroon);">npm run build</code> → <code style="font-family:monospace;font-size:10px;">public/build/</code><br>
+          <strong>Asset:</strong> Laravel Vite Plugin meng-inject hash manifest<br>
+          <strong>SSR:</strong> Tidak digunakan — Inertia client-side only
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 10 — FRONTEND KENDALA & SOLUSI
+═══════════════════════════════════════════════════════════════ -->
+<div class="slide-counter">10 — Frontend: Kendala & Solusi</div>
+<div class="slide s10" id="slide-10">
+  <div class="slide-header">
+    <div class="slide-header-line"></div>
+    <div class="slide-header-content">
+      <div class="slide-section-label">Frontend</div>
+      <h2>Kendala Umum & Solusi</h2>
+    </div>
+    <div class="slide-header-num">10 / 12</div>
+  </div>
+  <div class="s10-body">
+    <div class="issue-card">
+      <div class="issue-top">
+        <div class="issue-num">1</div>
+        <div>
+          <div class="issue-problem-title">Vite Asset Not Found setelah Deploy</div>
+          <div class="issue-error">Failed to load resource: /build/assets/app-xxx.js (404)</div>
+        </div>
+      </div>
+      <div class="issue-bottom">
+        <div class="issue-sol-label">Solusi</div>
+        <div class="issue-sol-text">File build tidak ter-upload ke VPS. Jalankan <code>npm run build</code> di server VPS setelah <code>git pull</code>. Pastikan folder <code>public/build</code> masuk git atau dijalankan di CI/CD pipeline.</div>
+      </div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-top">
+        <div class="issue-num">2</div>
+        <div>
+          <div class="issue-problem-title">Inertia Page Not Found</div>
+          <div class="issue-error">The Inertia page component "Admin/Dashboard" cannot be found</div>
+        </div>
+      </div>
+      <div class="issue-bottom">
+        <div class="issue-sol-label">Solusi</div>
+        <div class="issue-sol-text">Nama komponen harus persis sama (case-sensitive) antara <code>Inertia::render('Admin/Dashboard')</code> di Laravel dan nama file <code>resources/js/Pages/Admin/Dashboard.tsx</code>.</div>
+      </div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-top">
+        <div class="issue-num">3</div>
+        <div>
+          <div class="issue-problem-title">TypeScript Props Mismatch</div>
+          <div class="issue-error">Type error: Property 'menus' does not exist on type InertiaPageProps</div>
+        </div>
+      </div>
+      <div class="issue-bottom">
+        <div class="issue-sol-label">Solusi</div>
+        <div class="issue-sol-text">Definisikan interface TypeScript untuk setiap halaman: <code>interface Props &#123; menus: Menu[] &#125;</code> dan gunakan sebagai tipe parameter komponen. Pastikan nama props dari Laravel cocok.</div>
+      </div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-top">
+        <div class="issue-num">4</div>
+        <div>
+          <div class="issue-problem-title">Tailwind 4 Class Tidak Muncul</div>
+          <div class="issue-error">Styling tidak terapply — class ada di HTML tapi tidak ada di CSS output</div>
+        </div>
+      </div>
+      <div class="issue-bottom">
+        <div class="issue-sol-label">Solusi</div>
+        <div class="issue-sol-text">Tailwind 4 menggunakan <code>@tailwindcss/vite</code> bukan PostCSS tradisional. Pastikan plugin sudah ada di <code>vite.config.js</code> dan import di CSS menggunakan <code>@import "tailwindcss"</code>.</div>
+      </div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-top">
+        <div class="issue-num">5</div>
+        <div>
+          <div class="issue-problem-title">React 19 Hydration Error</div>
+          <div class="issue-error">Hydration failed — server rendered HTML does not match client</div>
+        </div>
+      </div>
+      <div class="issue-bottom">
+        <div class="issue-sol-label">Solusi</div>
+        <div class="issue-sol-text">NUSARA tidak menggunakan SSR, jadi Inertia render sepenuhnya di client. Hindari akses <code>window</code> atau <code>document</code> langsung di render cycle — gunakan <code>useEffect</code> untuk kode browser-only.</div>
+      </div>
+    </div>
+    <div class="issue-card">
+      <div class="issue-top">
+        <div class="issue-num">6</div>
+        <div>
+          <div class="issue-problem-title">State Tidak Persist saat Navigasi</div>
+          <div class="issue-error">Data form hilang saat berpindah halaman via Inertia link</div>
+        </div>
+      </div>
+      <div class="issue-bottom">
+        <div class="issue-sol-label">Solusi</div>
+        <div class="issue-sol-text">Gunakan <code>useForm()</code> dari Inertia untuk form management, bukan state React biasa. Untuk data global (user auth), akses melalui <code>usePage().props.auth</code> yang di-share via Inertia shared data.</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">10 / 12</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 11 — CI/CD & DEPLOYMENT
+═══════════════════════════════════════════════════════════════ -->
+<div class="slide-counter">11 — Deployment: GitHub Actions + aaPanel VPS</div>
+<div class="slide s11" id="slide-11">
+  <div class="slide-header">
+    <div class="slide-header-line"></div>
+    <div class="slide-header-content">
+      <div class="slide-section-label">Deployment</div>
+      <h2>CI/CD Pipeline — GitHub Actions ke VPS</h2>
+    </div>
+    <div class="slide-header-num">11 / 12</div>
+  </div>
+  <div class="s11-body">
+    <div class="cicd-steps">
+      <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.3);font-weight:700;margin-bottom:4px;">Alur Otomatis pada setiap push ke branch main</div>
+      <div class="cicd-step">
+        <div class="cicd-num">1</div>
+        <div><div class="cicd-step-title">Trigger — Push to main</div><div class="cicd-step-code">on: push → branches: [main]</div></div>
+      </div>
+      <div class="cicd-step">
+        <div class="cicd-num">2</div>
+        <div><div class="cicd-step-title">SSH ke VPS via appleboy/ssh-action</div><div class="cicd-step-code">uses: appleboy/ssh-action@v1.0.3 (password auth)</div></div>
+      </div>
+      <div class="cicd-step">
+        <div class="cicd-num">3</div>
+        <div><div class="cicd-step-title">git fetch + reset --hard origin/main</div><div class="cicd-step-code">export PATH=/www/server/php/85/bin:$PATH</div></div>
+      </div>
+      <div class="cicd-step">
+        <div class="cicd-num">4</div>
+        <div><div class="cicd-step-title">Download Composer terbaru & install dependensi</div><div class="cicd-step-code">php -d disable_functions="" composer.phar install --no-dev</div></div>
+      </div>
+      <div class="cicd-step">
+        <div class="cicd-num">5</div>
+        <div><div class="cicd-step-title">Build frontend assets</div><div class="cicd-step-code">npm install && npm run build</div></div>
+      </div>
+      <div class="cicd-step">
+        <div class="cicd-num">6</div>
+        <div><div class="cicd-step-title">Migrasi DB + Cache Optimization</div><div class="cicd-step-code">php artisan migrate --force && php artisan optimize</div></div>
+      </div>
+      <div class="cicd-step">
+        <div class="cicd-num">7</div>
+        <div><div class="cicd-step-title">Fix permissions file sistem</div><div class="cicd-step-code">chown -R www:www . && chmod -R 775 storage bootstrap/cache</div></div>
+      </div>
+    </div>
+    <div class="cicd-right">
+      <div class="cicd-secret">
+        <div class="cicd-secret-title">GitHub Secrets</div>
+        <div class="cicd-secret-row"><span class="cicd-secret-key">VPS_HOST</span><span class="cicd-secret-val">IP Tencent Cloud</span></div>
+        <div class="cicd-secret-row"><span class="cicd-secret-key">VPS_USERNAME</span><span class="cicd-secret-val">root</span></div>
+        <div class="cicd-secret-row"><span class="cicd-secret-key">VPS_PASSWORD</span><span class="cicd-secret-val">•••••••</span></div>
+        <div class="cicd-secret-row"><span class="cicd-secret-key">APP_DIR</span><span class="cicd-secret-val">/www/wwwroot/nusara.my.id</span></div>
+      </div>
+      <div class="cicd-secret">
+        <div class="cicd-secret-title">Infrastruktur Server</div>
+        <div class="cicd-secret-row"><span class="cicd-secret-key">OS</span><span class="cicd-secret-val">Debian Linux</span></div>
+        <div class="cicd-secret-row"><span class="cicd-secret-key">Panel</span><span class="cicd-secret-val">aaPanel</span></div>
+        <div class="cicd-secret-row"><span class="cicd-secret-key">Web Server</span><span class="cicd-secret-val">Nginx</span></div>
+        <div class="cicd-secret-row"><span class="cicd-secret-key">PHP</span><span class="cicd-secret-val">8.5.13 (aaPanel)</span></div>
+        <div class="cicd-secret-row"><span class="cicd-secret-key">MySQL</span><span class="cicd-secret-val">8.0.46</span></div>
+        <div class="cicd-secret-row"><span class="cicd-secret-key">RAM VPS</span><span class="cicd-secret-val">3.7 GB</span></div>
+        <div class="cicd-secret-row"><span class="cicd-secret-key">Domain</span><span class="cicd-secret-val">nusara.my.id (HTTPS)</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">11 / 12</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SLIDE 12 — CLOSING
+═══════════════════════════════════════════════════════════════ -->
+<div class="slide-counter">12 — Penutup</div>
+<div class="slide s12" id="slide-12">
+  <div class="s12-bg"></div>
+  <div class="s12-label">Indonesian Fine Dining System</div>
+  <div class="s12-title">Terima Kasih<br><span>NUSARA</span></div>
+  <div class="s12-divider"></div>
+  <div class="s12-stack">
+    <div class="s12-tech">MySQL 8.0</div>
+    <div class="s12-tech">Laravel 13</div>
+    <div class="s12-tech">Inertia.js</div>
+    <div class="s12-tech">React 19</div>
+    <div class="s12-tech">TypeScript</div>
+    <div class="s12-tech">Tailwind 4</div>
+  </div>
+  <div style="position:relative;font-size:12px;color:rgba(255,255,255,0.3);text-align:center;margin-top:8px;">28 Tabel · 7 Controller · 9 Halaman · Auto CI/CD · nusara.my.id</div>
+  <div class="s12-bottom"></div>
+  <div class="slide-num">12 / 12</div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn" onclick="scrollToSlide(-1)">← Sebelumnya</button>
+  <span class="nav-info" id="navInfo">— / 12</span>
+  <button class="nav-btn" onclick="scrollToSlide(1)">Berikutnya →</button>
+</div>
+
+<!-- Presentation Mode Controls -->
+<div class="pres-controls">
+  <button class="pres-nav-btn" onclick="presentNav(-1)">←</button>
+  <span class="pres-counter" id="presCounter">1 / 12</span>
+  <button class="pres-nav-btn" onclick="presentNav(1)">→</button>
+  <button class="pres-nav-btn" onclick="exitPresent()" style="margin-left:12px;">✕ Keluar</button>
+</div>
+
+<script>
+  const totalSlides = 12;
+  let currentSlide = 1;
+
+  function getSlideEl(n) { return document.getElementById('slide-' + n); }
+
+  function scrollToSlide(dir) {
+    currentSlide = Math.max(1, Math.min(totalSlides, currentSlide + dir));
+    getSlideEl(currentSlide).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('navInfo').textContent = currentSlide + ' / ' + totalSlides;
+  }
+
+  function enterPresent() {
+    document.body.classList.add('present-mode');
+    for (let i = 1; i <= totalSlides; i++) {
+      const el = getSlideEl(i);
+      el.classList.toggle('active', i === currentSlide);
+    }
+    updatePresCounter();
+    scaleSlide();
+  }
+
+  function exitPresent() {
+    document.body.classList.remove('present-mode');
+  }
+
+  function presentNav(dir) {
+    currentSlide = Math.max(1, Math.min(totalSlides, currentSlide + dir));
+    for (let i = 1; i <= totalSlides; i++) {
+      getSlideEl(i).classList.toggle('active', i === currentSlide);
+    }
+    updatePresCounter();
+  }
+
+  function updatePresCounter() {
+    document.getElementById('presCounter').textContent = currentSlide + ' / ' + totalSlides;
+    document.getElementById('navInfo').textContent = currentSlide + ' / ' + totalSlides;
+  }
+
+  function scaleSlide() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const scale = Math.min(vw / 1280, vh / 720);
+    document.documentElement.style.setProperty('--scale', scale);
+  }
+
+  window.addEventListener('resize', scaleSlide);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'f' || e.key === 'F') {
+      document.body.classList.contains('present-mode') ? exitPresent() : enterPresent();
+    }
+    if (document.body.classList.contains('present-mode')) {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); presentNav(1); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); presentNav(-1); }
+      if (e.key === 'Escape') exitPresent();
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,5 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Head, Link, usePage, router } from '@inertiajs/react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useLenisScroll } from '../hooks/useLenisScroll';
+
+gsap.registerPlugin(ScrollTrigger);
 import Navbar from '../Components/Navbar';
 import Footer from '../Components/Footer';
 import MenuCard from '../Components/MenuCard';
@@ -52,6 +57,172 @@ export default function LandingPage({
     operatingHours = [] 
 }: Props) {
     const { auth, flash } = usePage<{ auth: { user: User | null }; flash: { success?: string; error?: string } }>().props;
+
+    // ── Lenis inertia smooth scroll (synced with GSAP) ──
+    useLenisScroll();
+
+    // ── GSAP Scroll Animation refs ──
+    const heroRef        = useRef<HTMLElement>(null);
+    const heroImgRef     = useRef<HTMLImageElement>(null);
+    const heroContentRef = useRef<HTMLDivElement>(null);
+    const aboutRef       = useRef<HTMLElement>(null);
+    const menuRef        = useRef<HTMLElement>(null);
+    const expRef         = useRef<HTMLElement>(null);
+    const orderRef       = useRef<HTMLElement>(null);
+    const contactRef     = useRef<HTMLElement>(null);
+
+    useEffect(() => {
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (prefersReducedMotion) return;
+
+        const ctx = gsap.context(() => {
+
+            // ── 1. HERO: parallax image scale + content fade-rise ──
+            if (heroImgRef.current) {
+                gsap.fromTo(
+                    heroImgRef.current,
+                    { scale: 1.08 },
+                    {
+                        scale: 1.0,
+                        ease: 'none',
+                        scrollTrigger: {
+                            trigger: heroRef.current,
+                            start: 'top top',
+                            end: 'bottom top',
+                            scrub: 1.2,
+                        },
+                    }
+                );
+            }
+
+            if (heroContentRef.current) {
+                gsap.from(heroContentRef.current.children, {
+                    y: 48,
+                    opacity: 0,
+                    duration: 1.2,
+                    stagger: 0.14,
+                    ease: 'power3.out',
+                    delay: 0.2,
+                });
+            }
+
+            // ── 2. ABOUT section: image slide-in + text stagger ──
+            if (aboutRef.current) {
+                const img = aboutRef.current.querySelector('.about-img');
+                const badge = aboutRef.current.querySelector('.about-badge');
+                const textChildren = aboutRef.current.querySelectorAll('.about-text > *');
+                const cards = aboutRef.current.querySelectorAll('.about-card');
+
+                if (img) {
+                    gsap.from(img, {
+                        x: -60, opacity: 0, duration: 1.1, ease: 'power3.out',
+                        scrollTrigger: { trigger: aboutRef.current, start: 'top 80%' },
+                    });
+                }
+                if (badge) {
+                    gsap.from(badge, {
+                        x: 40, opacity: 0, duration: 0.9, ease: 'back.out(1.4)', delay: 0.3,
+                        scrollTrigger: { trigger: aboutRef.current, start: 'top 80%' },
+                    });
+                }
+                if (textChildren.length) {
+                    gsap.from(textChildren, {
+                        y: 36, opacity: 0, duration: 0.9, stagger: 0.1, ease: 'power2.out',
+                        scrollTrigger: { trigger: aboutRef.current, start: 'top 75%' },
+                    });
+                }
+                if (cards.length) {
+                    gsap.from(cards, {
+                        y: 32, opacity: 0, duration: 0.8, stagger: 0.12, ease: 'power2.out',
+                        scrollTrigger: { trigger: aboutRef.current, start: 'top 65%' },
+                    });
+                }
+            }
+
+            // ── 3. MENU section: header + cards stagger cascade ──
+            if (menuRef.current) {
+                const header = menuRef.current.querySelector('.menu-header');
+                const cards = menuRef.current.querySelectorAll('.menu-card-wrapper');
+
+                if (header) {
+                    gsap.from(header.children, {
+                        y: 28, opacity: 0, duration: 0.8, stagger: 0.1, ease: 'power2.out',
+                        scrollTrigger: { trigger: menuRef.current, start: 'top 80%' },
+                    });
+                }
+                if (cards.length) {
+                    gsap.from(cards, {
+                        y: 50, opacity: 0, duration: 0.85, stagger: 0.08, ease: 'power3.out',
+                        scrollTrigger: { trigger: menuRef.current, start: 'top 70%' },
+                    });
+                }
+            }
+
+            // ── 4. EXPERIENCE section: pin left title, scroll-cascade cards ──
+            if (expRef.current) {
+                const title = expRef.current.querySelector('.exp-title');
+                const cards = expRef.current.querySelectorAll('.exp-card');
+
+                if (title) {
+                    gsap.from(title.children, {
+                        y: 36, opacity: 0, duration: 1, stagger: 0.12, ease: 'power3.out',
+                        scrollTrigger: { trigger: expRef.current, start: 'top 78%' },
+                    });
+                }
+                if (cards.length) {
+                    gsap.from(cards, {
+                        scale: 0.88, y: 60, opacity: 0,
+                        duration: 1, stagger: 0.15, ease: 'back.out(1.3)',
+                        scrollTrigger: { trigger: expRef.current, start: 'top 72%' },
+                    });
+                }
+            }
+
+            // ── 5. ORDER section: slide in from sides ──
+            if (orderRef.current) {
+                const header = orderRef.current.querySelector('.order-header');
+                const left   = orderRef.current.querySelector('.order-left');
+                const right  = orderRef.current.querySelector('.order-right');
+
+                if (header) {
+                    gsap.from(header.children, {
+                        y: 28, opacity: 0, duration: 0.8, stagger: 0.1, ease: 'power2.out',
+                        scrollTrigger: { trigger: orderRef.current, start: 'top 80%' },
+                    });
+                }
+                if (left) {
+                    gsap.from(left, {
+                        x: -50, opacity: 0, duration: 1, ease: 'power3.out',
+                        scrollTrigger: { trigger: orderRef.current, start: 'top 72%' },
+                    });
+                }
+                if (right) {
+                    gsap.from(right, {
+                        x: 50, opacity: 0, duration: 1, ease: 'power3.out',
+                        scrollTrigger: { trigger: orderRef.current, start: 'top 72%' },
+                    });
+                }
+            }
+
+            // ── 6. CONTACT section: scale + fade in ──
+            if (contactRef.current) {
+                const inner = contactRef.current.querySelector('.contact-inner');
+                if (inner) {
+                    gsap.from(inner, {
+                        scale: 0.94, opacity: 0, duration: 1.1, ease: 'power3.out',
+                        scrollTrigger: { trigger: contactRef.current, start: 'top 78%' },
+                    });
+                    gsap.from(inner.querySelectorAll('h2, p, button, a'), {
+                        y: 24, opacity: 0, duration: 0.8, stagger: 0.1, ease: 'power2.out',
+                        scrollTrigger: { trigger: contactRef.current, start: 'top 72%' },
+                    });
+                }
+            }
+
+        }); // end gsap.context
+
+        return () => ctx.revert();
+    }, []);
 
     // Modals state
     const [orderTypeModalOpen, setOrderTypeModalOpen] = useState(false);
@@ -148,6 +319,7 @@ export default function LandingPage({
         setTimeout(() => {
             setShowSplash(false);
             setSplashFading(false);
+            ScrollTrigger.refresh();
         }, 500);
     };
 
@@ -212,7 +384,7 @@ export default function LandingPage({
     };
 
     return (
-        <div className="min-h-screen bg-[#F4EFE6] text-[#211D1B] font-body selection:bg-[#B99A65] selection:text-[#32151F]">
+        <div className="min-h-screen bg-[#F4EFE6] text-[#211D1B] font-body selection:bg-[#B99A65] selection:text-[#32151F] overflow-x-hidden w-full">
             <Head title="NUSARA — Harmoni Gastronomi Nusantara Berbalut Kemewahan" />
 
             <Navbar 
@@ -249,19 +421,20 @@ export default function LandingPage({
                 {/* ========================================================
                     1. HERO SECTION
                 ======================================================== */}
-            <section className="relative min-h-screen flex items-center justify-center pt-24 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden bg-[#211D1B]">
+            <section ref={heroRef} className="relative min-h-screen flex items-center justify-center pt-24 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden bg-[#211D1B]">
                 {/* Background Atmosphere Image (Warna hitam ditingkatkan sedikit & ada gradien burgundy elegan) */}
                 <div className="absolute inset-0 z-0">
                     <img 
+                        ref={heroImgRef}
                         src="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=2000&q=85" 
                         alt="NUSARA Dining Experience"
-                        className="w-full h-full object-cover object-center opacity-50 scale-105 transition-transform duration-1000 ease-out"
+                        className="w-full h-full object-cover object-center opacity-50"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#211D1B] via-[#32151F]/55 to-[#211D1B]/50" />
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#32151F]/30 via-black/40 to-[#211D1B]/90" />
                 </div>
 
-                <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 mt-12 md:mt-6">
+                <div ref={heroContentRef} className="relative z-10 max-w-5xl mx-auto text-center space-y-8 mt-12 md:mt-6">
                     {/* Majestic Headline */}
                     <h1 className="font-heading text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-[#F4EFE6] leading-[1.08] drop-shadow-2xl">
                         Harmoni Rasa Nusantara <br className="hidden sm:inline" />
@@ -314,11 +487,11 @@ export default function LandingPage({
             {/* ========================================================
                 2. CERITA & FILOSOFI NUSARA (ABOUT SNIPPET)
             ======================================================== */}
-            <section id="cerita" className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <section id="cerita" ref={aboutRef} className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
                     {/* Visual Imagery */}
                     <div className="lg:col-span-5 relative">
-                        <div className="relative rounded-3xl overflow-hidden border border-[#B99A65]/40 shadow-2xl">
+                        <div className="about-img relative rounded-3xl overflow-hidden border border-[#B99A65]/40 shadow-2xl">
                             <img
                                 src="https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?auto=format&fit=crop&w=1000&q=80"
                                 alt="Chef Preparing Indonesian Dish"
@@ -327,7 +500,7 @@ export default function LandingPage({
                             <div className="absolute inset-0 bg-gradient-to-t from-[#211D1B] via-transparent to-transparent" />
                         </div>
                         {/* Floating Experience Badge */}
-                        <div className="absolute -bottom-6 -right-6 p-5 rounded-2xl bg-[#32151F] border border-[#B99A65] text-[#F4EFE6] shadow-2xl max-w-xs hidden sm:block">
+                        <div className="about-badge absolute -bottom-6 -right-6 p-5 rounded-2xl bg-[#32151F] border border-[#B99A65] text-[#F4EFE6] shadow-2xl max-w-xs hidden sm:block">
                             <div className="flex items-center gap-2 text-[#D4B886] mb-1">
                                 <Award className="w-4 h-4" />
                                 <span className="text-[11px] font-bold uppercase tracking-wider">Pusaka Kuliner</span>
@@ -339,7 +512,7 @@ export default function LandingPage({
                     </div>
 
                     {/* Narrative Description */}
-                    <div className="lg:col-span-7 space-y-6">
+                    <div className="about-text lg:col-span-7 space-y-6">
                         <div className="flex items-center gap-2 text-xs uppercase font-bold tracking-widest text-[#B99A65]">
                             <Compass className="w-4 h-4" />
                             <span>Kisah & Filosofi Kami</span>
@@ -355,17 +528,17 @@ export default function LandingPage({
                         </p>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-                            <div className="p-4 rounded-2xl bg-[#E8DFCF]/60 border border-[#B99A65]/30">
+                            <div className="about-card p-4 rounded-2xl bg-[#E8DFCF]/60 border border-[#B99A65]/30">
                                 <Flame className="w-5 h-5 text-[#32151F] mb-2" />
                                 <h4 className="font-heading text-lg font-bold text-[#32151F]">Bakar Arang Tradisi</h4>
                                 <p className="text-xs text-[#211D1B]/70 mt-1">Menggunakan arang batok kelapa & kayu rambutan pilihan.</p>
                             </div>
-                            <div className="p-4 rounded-2xl bg-[#E8DFCF]/60 border border-[#B99A65]/30">
+                            <div className="about-card p-4 rounded-2xl bg-[#E8DFCF]/60 border border-[#B99A65]/30">
                                 <Clock className="w-5 h-5 text-[#32151F] mb-2" />
                                 <h4 className="font-heading text-lg font-bold text-[#32151F]">Slow Cooking 48h</h4>
                                 <p className="text-xs text-[#211D1B]/70 mt-1">Proses memasak berhari-hari demi tekstur lumer sempurna.</p>
                             </div>
-                            <div className="p-4 rounded-2xl bg-[#E8DFCF]/60 border border-[#B99A65]/30">
+                            <div className="about-card p-4 rounded-2xl bg-[#E8DFCF]/60 border border-[#B99A65]/30">
                                 <HeartHandshake className="w-5 h-5 text-[#32151F] mb-2" />
                                 <h4 className="font-heading text-lg font-bold text-[#32151F]">Keramahan Luhur</h4>
                                 <p className="text-xs text-[#211D1B]/70 mt-1">Setiap tamu dilayani layaknya sahabat agung di kediaman kami.</p>
@@ -378,10 +551,10 @@ export default function LandingPage({
             {/* ========================================================
                 3. PUSAKA MENU & BEST SELLER SHOWCASE
             ======================================================== */}
-            <section id="menu" className="py-24 bg-[#211D1B] text-[#F4EFE6] relative">
+            <section id="menu" ref={menuRef} className="py-24 bg-[#211D1B] text-[#F4EFE6] relative">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Section Header */}
-                    <div className="text-center max-w-3xl mx-auto space-y-3 mb-12">
+                    <div className="menu-header text-center max-w-3xl mx-auto space-y-3 mb-12">
                         <div className="inline-flex items-center px-3 py-1 rounded-full bg-[#32151F] border border-[#B99A65]/30 text-[#D4B886] text-xs font-semibold uppercase tracking-widest">
                             <span>Koleksi Gastronomi Unggulan</span>
                         </div>
@@ -466,13 +639,14 @@ export default function LandingPage({
                     {filteredMenus.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                             {filteredMenus.map((menu) => (
-                                <MenuCard
-                                    key={menu.id}
-                                    menu={menu}
-                                    isFavorite={favoriteMenuIds.includes(menu.id)}
-                                    onToggleFavorite={handleToggleFavorite}
-                                    onAddToCart={handleSelectMenuToOrder}
-                                />
+                                <div key={menu.id} className="menu-card-wrapper">
+                                    <MenuCard
+                                        menu={menu}
+                                        isFavorite={favoriteMenuIds.includes(menu.id)}
+                                        onToggleFavorite={handleToggleFavorite}
+                                        onAddToCart={handleSelectMenuToOrder}
+                                    />
+                                </div>
                             ))}
                         </div>
                     ) : (
@@ -502,8 +676,8 @@ export default function LandingPage({
             {/* ========================================================
                 4. DINING EXPERIENCES (RIJSTTAFEL & CHEF'S TABLE)
             ======================================================== */}
-            <section id="pengalaman" className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-                <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
+            <section id="pengalaman" ref={expRef} className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
+                <div className="exp-title text-center max-w-3xl mx-auto space-y-3 mb-16">
                     <h2 className="font-heading text-3xl sm:text-5xl font-bold text-[#211D1B]">
                         Dining Experience Nusantara
                     </h2>
@@ -514,11 +688,12 @@ export default function LandingPage({
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {experiences.map((exp) => (
-                        <ExperienceCard
-                            key={exp.id}
-                            experience={exp}
-                            onSelectExperience={(selected) => handleGoToReservation(selected.id)}
-                        />
+                        <div key={exp.id} className="exp-card">
+                            <ExperienceCard
+                                experience={exp}
+                                onSelectExperience={(selected) => handleGoToReservation(selected.id)}
+                            />
+                        </div>
                     ))}
                 </div>
             </section>
@@ -526,9 +701,9 @@ export default function LandingPage({
             {/* ========================================================
                 5. HOW ORDERING WORKS (PRD SECTION 4: DINE-IN VS TAKEAWAY)
             ======================================================== */}
-            <section id="alur-pesan" className="py-24 bg-[#E8DFCF]/50 border-y border-[#B99A65]/30">
+            <section id="alur-pesan" ref={orderRef} className="py-24 bg-[#E8DFCF]/50 border-y border-[#B99A65]/30 overflow-hidden">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
+                    <div className="order-header text-center max-w-3xl mx-auto space-y-3 mb-16">
                         <span className="text-[10px] uppercase font-bold tracking-widest text-[#32151F]">
                             Standard Operating Procedure
                         </span>
@@ -542,7 +717,7 @@ export default function LandingPage({
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                         {/* Dine-in Workflow Card */}
-                        <div className="p-8 rounded-3xl bg-[#F4EFE6] border border-[#B99A65]/40 shadow-xl space-y-6">
+                        <div className="order-left p-8 rounded-3xl bg-[#F4EFE6] border border-[#B99A65]/40 shadow-xl space-y-6">
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-2xl bg-[#32151F] text-[#D4B886] flex items-center justify-center shadow-lg">
                                     <QrCode className="w-6 h-6" />
@@ -598,7 +773,7 @@ export default function LandingPage({
                         </div>
 
                         {/* Takeaway Workflow Card */}
-                        <div className="p-8 rounded-3xl bg-[#F4EFE6] border border-[#B99A65]/40 shadow-xl space-y-6">
+                        <div className="order-right p-8 rounded-3xl bg-[#F4EFE6] border border-[#B99A65]/40 shadow-xl space-y-6">
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-2xl bg-[#B99A65] text-[#211D1B] flex items-center justify-center shadow-lg">
                                     <ShoppingBag className="w-6 h-6" />
@@ -659,8 +834,8 @@ export default function LandingPage({
             {/* ========================================================
                 6. OPERATING HOURS, RESERVATION BANNER & CONTACT
             ======================================================== */}
-            <section id="kontak" className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-                <div className="rounded-3xl bg-[#32151F] text-[#F4EFE6] border border-[#B99A65]/40 overflow-hidden shadow-2xl">
+            <section id="kontak" ref={contactRef} className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
+                <div className="contact-inner rounded-3xl bg-[#32151F] text-[#F4EFE6] border border-[#B99A65]/40 overflow-hidden shadow-2xl">
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 p-8 sm:p-12 items-center">
                         <div className="lg:col-span-7 space-y-5">
                             <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#D4B886]">
