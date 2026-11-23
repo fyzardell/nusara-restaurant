@@ -236,11 +236,17 @@ class ReservationController extends Controller
         if ($resDateTime->isToday()) {
             $diffMinutes = $nowWib->diffInMinutes($resDateTime, false);
             if ($diffMinutes < 180) { // kurang dari 3 jam (180 menit)
+                if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Reservasi hari ini wajib dilakukan minimal 3 jam sebelumnya (WIB) untuk persiapan jamuan istimewa Anda.'], 422);
+                }
                 return back()->withErrors([
                     'time' => 'Reservasi hari ini wajib dilakukan minimal 3 jam sebelumnya (WIB) untuk persiapan jamuan istimewa Anda.'
                 ])->withInput();
             }
         } elseif ($resDateTime->isPast()) {
+            if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Waktu reservasi yang dipilih sudah lewat.'], 422);
+            }
             return back()->withErrors([
                 'date' => 'Waktu reservasi yang dipilih sudah lewat.'
             ])->withInput();
@@ -263,12 +269,18 @@ class ReservationController extends Controller
             }
         } elseif ($request->guest_count > 5) {
             if (count($selectedTableIds) < 2) {
+                if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Kapasitas maksimal 1 meja adalah 5 orang. Untuk ' . $request->guest_count . ' tamu, Anda wajib memilih minimal 2 meja.'], 422);
+                }
                 return back()->withErrors([
                     'table_ids' => 'Kapasitas maksimal 1 meja adalah 5 orang. Untuk ' . $request->guest_count . ' tamu, Anda wajib memilih minimal 2 meja.'
                 ])->withInput();
             }
         } else {
             if (count($selectedTableIds) < 1) {
+                if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Silakan pilih meja yang tersedia.'], 422);
+                }
                 return back()->withErrors([
                     'table_id' => 'Silakan pilih meja yang tersedia.'
                 ])->withInput();
@@ -298,6 +310,9 @@ class ReservationController extends Controller
 
             if ($conflict) {
                 $tableName = DB::table('restaurant_tables')->where('id', $tId)->value('table_number') ?? "Meja #{$tId}";
+                if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => "{$tableName} sudah terpesan oleh tamu lain pada rentang jam tersebut. Silakan pilih meja lain atau sesuaikan jam kedatangan."], 422);
+                }
                 return back()->withErrors([
                     'table_id' => "{$tableName} sudah terpesan oleh tamu lain pada rentang jam tersebut. Silakan pilih meja lain atau sesuaikan jam kedatangan."
                 ])->withInput();
