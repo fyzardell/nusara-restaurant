@@ -128,11 +128,53 @@ export default function Navbar({
                                         </button>
 
                                         {userDropdownOpen && (
-                                            <div className="absolute right-0 mt-2 w-52 bg-[#211D1B] border border-[#B99A65]/40 rounded-2xl shadow-2xl py-2 z-50 text-xs animate-fade-in">
+                                            <div className="absolute right-0 mt-2 w-56 bg-[#211D1B] border border-[#B99A65]/40 rounded-2xl shadow-2xl py-2 z-50 text-xs animate-fade-in text-left">
                                                 <div className="px-4 py-2 border-b border-[#32151F]">
                                                     <p className="font-bold text-[#F4EFE6] truncate">{auth.user.name}</p>
-                                                    <p className="text-[11px] text-[#B99A65] truncate">{auth.user.email}</p>
+                                                    <p className="text-[11px] text-[#B99A65] truncate font-mono">{auth.user.email}</p>
+                                                    {auth.user.role === 'admin' && (
+                                                        <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-[#B99A65]/20 text-[#D4B886] font-bold font-mono mt-1">
+                                                            Akses Semua Role
+                                                        </span>
+                                                    )}
                                                 </div>
+
+                                                {auth.user.role === 'admin' && (
+                                                    <div className="py-1 border-b border-[#32151F] text-[11px]">
+                                                        <span className="px-4 py-1 text-[9px] uppercase tracking-wider text-[#B99A65] font-bold block">
+                                                            Pintas Portal (All Role)
+                                                        </span>
+                                                        <Link
+                                                            href="/admin"
+                                                            onClick={() => setUserDropdownOpen(false)}
+                                                            className="block px-4 py-1.5 text-[#F4EFE6] hover:bg-[#32151F] hover:text-[#D4B886] transition-colors"
+                                                        >
+                                                            Admin Executive HQ
+                                                        </Link>
+                                                        <Link
+                                                            href="/cashier"
+                                                            onClick={() => setUserDropdownOpen(false)}
+                                                            className="block px-4 py-1.5 text-[#F4EFE6] hover:bg-[#32151F] hover:text-[#D4B886] transition-colors"
+                                                        >
+                                                            Stasiun Kasir POS
+                                                        </Link>
+                                                        <Link
+                                                            href="/waiter"
+                                                            onClick={() => setUserDropdownOpen(false)}
+                                                            className="block px-4 py-1.5 text-[#F4EFE6] hover:bg-[#32151F] hover:text-[#D4B886] transition-colors"
+                                                        >
+                                                            Stasiun Waiter
+                                                        </Link>
+                                                        <Link
+                                                            href="/reservation"
+                                                            onClick={() => setUserDropdownOpen(false)}
+                                                            className="block px-4 py-1.5 text-[#F4EFE6] hover:bg-[#32151F] hover:text-[#D4B886] transition-colors"
+                                                        >
+                                                            Reservasi Meja Tamu
+                                                        </Link>
+                                                    </div>
+                                                )}
+
                                                 <Link
                                                     href="/order"
                                                     onClick={() => setUserDropdownOpen(false)}

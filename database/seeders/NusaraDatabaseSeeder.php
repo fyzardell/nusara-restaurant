@@ -121,6 +121,31 @@ class NusaraDatabaseSeeder extends Seeder
             ]);
         }
 
+        // All-Role Super Admin Master Demo Account
+        $allRoleUser = DB::table('users')->where('email', 'allrole@nusara.id')->first();
+        $allRoleUserId = $allRoleUser ? $allRoleUser->id : DB::table('users')->insertGetId([
+            'role_id' => $roleIds['admin'],
+            'name' => 'Bhakti Nusantara (Master Demo)',
+            'email' => 'allrole@nusara.id',
+            'password' => $password,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $allRoleCustProfile = DB::table('customers')->where('user_id', $allRoleUserId)->first();
+        if (!$allRoleCustProfile) {
+            DB::table('customers')->insert([
+                'user_id' => $allRoleUserId,
+                'name' => 'Bhakti Nusantara (Master Demo)',
+                'phone_normalized' => '+6281299990000',
+                'email' => 'allrole@nusara.id',
+                'phone_verified_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
         // 3. Restaurant Settings
         $settingExists = DB::table('restaurant_settings')->first();
         if (!$settingExists) {

@@ -634,6 +634,35 @@ export default function Reservation({
                                             >
                                                 Menu Pemesanan Makanan
                                             </Link>
+
+                                            {auth?.user?.role === 'admin' && (
+                                                <div className="py-1 border-t border-[#32151F] text-[11px]">
+                                                    <span className="px-4 py-1 text-[9px] uppercase tracking-wider text-[#B99A65] font-bold block">
+                                                        Pintas Portal (All Role)
+                                                    </span>
+                                                    <Link
+                                                        href="/admin"
+                                                        onClick={() => setUserDropdownOpen(false)}
+                                                        className="block px-4 py-1.5 text-[#F4EFE6] hover:bg-[#32151F] hover:text-[#D4B886] transition-colors"
+                                                    >
+                                                        Admin Executive HQ
+                                                    </Link>
+                                                    <Link
+                                                        href="/cashier"
+                                                        onClick={() => setUserDropdownOpen(false)}
+                                                        className="block px-4 py-1.5 text-[#F4EFE6] hover:bg-[#32151F] hover:text-[#D4B886] transition-colors"
+                                                    >
+                                                        Stasiun Kasir POS
+                                                    </Link>
+                                                    <Link
+                                                        href="/waiter"
+                                                        onClick={() => setUserDropdownOpen(false)}
+                                                        className="block px-4 py-1.5 text-[#F4EFE6] hover:bg-[#32151F] hover:text-[#D4B886] transition-colors"
+                                                    >
+                                                        Stasiun Waiter
+                                                    </Link>
+                                                </div>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={() => {

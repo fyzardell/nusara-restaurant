@@ -522,6 +522,28 @@ export default function CashierDashboard({
                                 </Link>
 
                                 <Link
+                                    href="/order"
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-white hover:bg-[#1E1A18] transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <ShoppingBag className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Katalog Order Publik</span>
+                                    </div>
+                                    <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                                </Link>
+
+                                <Link
+                                    href="/reservation"
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-white hover:bg-[#1E1A18] transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <Calendar className="w-4 h-4 text-[#D4B886]" />
+                                        <span>Reservasi Meja Tamu</span>
+                                    </div>
+                                    <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                                </Link>
+
+                                <Link
                                     href="/"
                                     target="_blank"
                                     className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#9E938B] hover:text-white hover:bg-[#1E1A18] transition-all"

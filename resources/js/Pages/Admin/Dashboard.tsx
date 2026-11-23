@@ -39,7 +39,10 @@ import {
     Menu as MenuIcon,
     Award,
     CreditCard,
-    ArrowRight
+    ArrowRight,
+    Plus,
+    FolderPlus,
+    AlertCircle
 } from 'lucide-react';
 import CircularFloorPlan from '../../Components/CircularFloorPlan';
 
@@ -167,6 +170,7 @@ interface Props {
     adminUser: User;
     monthlySales?: MonthSalesPoint[];
     bestSellerTrends?: BestSellerTrend[];
+    categoriesList?: Array<{ id: number; name: string; slug: string; description?: string | null }>;
 }
 
 const orderBadgeClass = (status: string) =>
@@ -186,7 +190,8 @@ export default function AdminDashboard({
     settings,
     adminUser,
     monthlySales = [],
-    bestSellerTrends = []
+    bestSellerTrends = [],
+    categoriesList = []
 }: Props) {
     const { flash } = usePage<{ flash: { success?: string; error?: string } }>().props;
 
@@ -231,6 +236,100 @@ export default function AdminDashboard({
     const [newStockQuantity, setNewStockQuantity] = useState<number>(0);
     const [newIsAvailable, setNewIsAvailable] = useState<boolean>(true);
 
+    // Modals state for Add Menu & Add Category
+    const [isAddMenuModalOpen, setIsAddMenuModalOpen] = useState(false);
+    const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
+    const [isSubmittingMenu, setIsSubmittingMenu] = useState(false);
+    const [isSubmittingCategory, setIsSubmittingCategory] = useState(false);
+
+    // Form state: Tambah Kategori
+    const [newCatName, setNewCatName] = useState('');
+    const [newCatDesc, setNewCatDesc] = useState('');
+    const [catError, setCatError] = useState('');
+
+    // Form state: Tambah Menu
+    const [newMenuName, setNewMenuName] = useState('');
+    const [newMenuCategoryId, setNewMenuCategoryId] = useState<number | ''>('');
+    const [newMenuPrice, setNewMenuPrice] = useState<number | ''>('');
+    const [newMenuStock, setNewMenuStock] = useState<number>(25);
+    const [newMenuDesc, setNewMenuDesc] = useState('');
+    const [newMenuIsAvailable, setNewMenuIsAvailable] = useState<boolean>(true);
+    const [newMenuIsFeatured, setNewMenuIsFeatured] = useState<boolean>(false);
+    const [newMenuImageUrl, setNewMenuImageUrl] = useState('');
+    const [menuError, setMenuError] = useState('');
+
+    const handleCreateCategory = (e: React.FormEvent) => {
+        e.preventDefault();
+        setCatError('');
+        if (!newCatName.trim()) {
+            setCatError('Nama kategori wajib diisi.');
+            return;
+        }
+
+        setIsSubmittingCategory(true);
+        router.post('/admin/categories', {
+            name: newCatName.trim(),
+            description: newCatDesc.trim() || undefined,
+        }, {
+            onSuccess: () => {
+                setIsSubmittingCategory(false);
+                setIsAddCategoryModalOpen(false);
+                setNewCatName('');
+                setNewCatDesc('');
+            },
+            onError: (errs) => {
+                setIsSubmittingCategory(false);
+                setCatError(Object.values(errs)[0] as string || 'Gagal menambahkan kategori.');
+            }
+        });
+    };
+
+    const handleCreateMenu = (e: React.FormEvent) => {
+        e.preventDefault();
+        setMenuError('');
+        if (!newMenuName.trim()) {
+            setMenuError('Nama hidangan wajib diisi.');
+            return;
+        }
+        if (!newMenuCategoryId) {
+            setMenuError('Silakan pilih kategori hidangan.');
+            return;
+        }
+        if (!newMenuPrice || Number(newMenuPrice) <= 0) {
+            setMenuError('Harga menu harus lebih dari Rp 0.');
+            return;
+        }
+
+        setIsSubmittingMenu(true);
+        router.post('/admin/menus', {
+            name: newMenuName.trim(),
+            category_id: Number(newMenuCategoryId),
+            price: Number(newMenuPrice),
+            stock_quantity: Number(newMenuStock) || 0,
+            description: newMenuDesc.trim() || undefined,
+            is_available: newMenuIsAvailable,
+            is_featured: newMenuIsFeatured,
+            image_url: newMenuImageUrl.trim() || undefined,
+        }, {
+            onSuccess: () => {
+                setIsSubmittingMenu(false);
+                setIsAddMenuModalOpen(false);
+                setNewMenuName('');
+                setNewMenuCategoryId('');
+                setNewMenuPrice('');
+                setNewMenuStock(25);
+                setNewMenuDesc('');
+                setNewMenuIsAvailable(true);
+                setNewMenuIsFeatured(false);
+                setNewMenuImageUrl('');
+            },
+            onError: (errs) => {
+                setIsSubmittingMenu(false);
+                setMenuError(Object.values(errs)[0] as string || 'Gagal menambahkan menu hidangan.');
+            }
+        });
+    };
+
     // Format currency
     const formatRupiah = (val: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -261,12 +360,15 @@ export default function AdminDashboard({
 
     // Categories
     const categories = useMemo(() => {
+        if (categoriesList && categoriesList.length > 0) {
+            return categoriesList.map(c => c.name);
+        }
         const cats = new Set<string>();
         initialMenus.forEach(m => {
             if (m.category_name) cats.add(m.category_name);
         });
         return Array.from(cats);
-    }, [initialMenus]);
+    }, [initialMenus, categoriesList]);
 
     // Filtered menus
     const filteredMenus = useMemo(() => {
@@ -790,9 +892,26 @@ export default function AdminDashboard({
                         )}
 
                         {activeTab === 'menus' && (
-                            <span className="text-[11px] text-[#B99A65] font-mono hidden sm:inline">
-                                {metrics.totalTables} Meja · Senopati Branch
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddCategoryModalOpen(true)}
+                                    className="px-2.5 py-1.5 rounded-lg bg-[#241F1D] border border-[#342D2A] text-xs font-semibold text-[#D4B886] hover:bg-[#2D2622] flex items-center gap-1.5 transition-colors"
+                                    title="Tambah Kategori Baru"
+                                >
+                                    <FolderPlus className="w-3.5 h-3.5 text-[#B99A65]" />
+                                    <span className="hidden sm:inline">+ Kategori</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddMenuModalOpen(true)}
+                                    className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#110F0E] text-xs font-bold flex items-center gap-1.5 hover:brightness-105 shadow transition-all active:scale-95"
+                                    title="Tambah Menu Baru"
+                                >
+                                    <Plus className="w-3.5 h-3.5 text-[#110F0E]" />
+                                    <span>+ Tambah Menu</span>
+                                </button>
+                            </div>
                         )}
 
                         {/* Inspector Toggle Button */}
@@ -1343,16 +1462,38 @@ export default function AdminDashboard({
                     ==================================================== */}
                     {activeTab === 'menus' && (
                         <div className="space-y-4 animate-fade-in">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#241F1D]">
-                                <div className="relative w-full sm:w-80">
-                                    <Search className="w-4 h-4 text-[#9E938B] absolute left-3 top-1/2 -translate-y-1/2" />
-                                    <input
-                                        type="text"
-                                        value={menuSearchQuery}
-                                        onChange={(e) => setMenuSearchQuery(e.target.value)}
-                                        placeholder="Cari menu atau kategori..."
-                                        className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#161312] border border-[#241F1D] text-xs text-[#F4EFE6] placeholder-[#6E625A] focus:outline-none focus:border-[#B99A65]"
-                                    />
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-[#241F1D]">
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full lg:w-auto">
+                                    <div className="relative w-full sm:w-72">
+                                        <Search className="w-4 h-4 text-[#9E938B] absolute left-3 top-1/2 -translate-y-1/2" />
+                                        <input
+                                            type="text"
+                                            value={menuSearchQuery}
+                                            onChange={(e) => setMenuSearchQuery(e.target.value)}
+                                            placeholder="Cari menu atau kategori..."
+                                            className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-[#161312] border border-[#241F1D] text-xs text-[#F4EFE6] placeholder-[#6E625A] focus:outline-none focus:border-[#B99A65]"
+                                        />
+                                    </div>
+
+                                    {/* Action Buttons: Tambah Kategori & Tambah Menu */}
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsAddCategoryModalOpen(true)}
+                                            className="px-3 py-1.5 rounded-lg bg-[#1E1A18] border border-[#2D2622] hover:border-[#B99A65] text-xs font-semibold text-[#D4B886] hover:text-[#F4EFE6] transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+                                        >
+                                            <FolderPlus className="w-3.5 h-3.5 text-[#B99A65]" />
+                                            <span>+ Kategori</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsAddMenuModalOpen(true)}
+                                            className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#110F0E] font-bold text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all flex items-center gap-1.5 shadow-md shadow-[#B99A65]/20"
+                                        >
+                                            <Plus className="w-3.5 h-3.5 text-[#110F0E]" />
+                                            <span>+ Tambah Menu</span>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -2044,6 +2185,274 @@ export default function AdminDashboard({
                             >
                                 Simpan Perubahan Stok
                             </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================
+                MODAL 3: TAMBAH MENU HIDANGAN BARU
+            ======================================================== */}
+            {isAddMenuModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in overflow-y-auto">
+                    <div className="relative w-full max-w-2xl bg-[#161312] border border-[#2D2622] rounded-3xl p-6 sm:p-8 shadow-2xl text-[#F4EFE6] my-8">
+                        <button
+                            type="button"
+                            onClick={() => setIsAddMenuModalOpen(false)}
+                            className="absolute top-5 right-5 p-2 rounded-full text-[#9E938B] hover:text-white hover:bg-[#241F1D] transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        <div className="mb-6">
+                            <span className="text-[10px] uppercase font-bold text-[#D4B886] tracking-wider block font-mono">
+                                Katalog Dapur Utama NUSARA
+                            </span>
+                            <h3 className="font-heading text-2xl font-bold text-white mt-0.5">
+                                Tambah Menu Hidangan Baru
+                            </h3>
+                            <p className="text-xs text-[#9E938B] mt-1">
+                                Daftarkan mahakarya gastronomi nusantara baru ke buku menu digital restoran.
+                            </p>
+                        </div>
+
+                        {menuError && (
+                            <div className="mb-4 p-3 rounded-xl bg-rose-950/40 border border-rose-900/60 text-rose-300 text-xs flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                                <span>{menuError}</span>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleCreateMenu} className="space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="sm:col-span-2">
+                                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#D4B886] mb-1.5">
+                                        Nama Menu Hidangan *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newMenuName}
+                                        onChange={(e) => setNewMenuName(e.target.value)}
+                                        placeholder="Misal: Bebek Betutu Gilimanuk Asap Bambu"
+                                        className="w-full px-4 py-2.5 rounded-xl bg-[#141110] border border-[#2A2421] text-[#F4EFE6] text-xs focus:outline-none focus:border-[#D4B886]"
+                                    />
+                                </div>
+
+                                <div>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#D4B886]">
+                                            Kategori Hidangan *
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsAddCategoryModalOpen(true)}
+                                            className="text-[10px] text-[#B99A65] hover:text-[#D4B886] underline font-medium"
+                                        >
+                                            + Kategori Baru
+                                        </button>
+                                    </div>
+                                    <select
+                                        required
+                                        value={newMenuCategoryId}
+                                        onChange={(e) => setNewMenuCategoryId(e.target.value ? Number(e.target.value) : '')}
+                                        className="w-full px-4 py-2.5 rounded-xl bg-[#141110] border border-[#2A2421] text-[#F4EFE6] text-xs focus:outline-none focus:border-[#D4B886]"
+                                    >
+                                        <option value="" disabled>Pilih Kategori...</option>
+                                        {categoriesList && categoriesList.length > 0 ? (
+                                            categoriesList.map(cat => (
+                                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                            ))
+                                        ) : (
+                                            <option value="1">Hidangan Utama</option>
+                                        )}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#D4B886] mb-1.5">
+                                        Harga Satuan (IDR) *
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1000"
+                                            required
+                                            value={newMenuPrice}
+                                            onChange={(e) => setNewMenuPrice(e.target.value ? Number(e.target.value) : '')}
+                                            placeholder="Contoh: 145000"
+                                            className="w-full px-4 py-2.5 rounded-xl bg-[#141110] border border-[#2A2421] text-[#F4EFE6] font-mono text-xs focus:outline-none focus:border-[#D4B886]"
+                                        />
+                                        {newMenuPrice ? (
+                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-[#D4B886] font-mono font-bold">
+                                                Rp {Number(newMenuPrice).toLocaleString('id-ID')}
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#D4B886] mb-1.5">
+                                        Stok Awal Porsi *
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        required
+                                        value={newMenuStock}
+                                        onChange={(e) => setNewMenuStock(parseInt(e.target.value) || 0)}
+                                        className="w-full px-4 py-2.5 rounded-xl bg-[#141110] border border-[#2A2421] text-[#F4EFE6] font-mono text-xs focus:outline-none focus:border-[#D4B886]"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#D4B886] mb-1.5">
+                                        URL Foto Hidangan (Opsional)
+                                    </label>
+                                    <input
+                                        type="url"
+                                        value={newMenuImageUrl}
+                                        onChange={(e) => setNewMenuImageUrl(e.target.value)}
+                                        placeholder="https://images.unsplash.com/... atau /images/menus/..."
+                                        className="w-full px-4 py-2.5 rounded-xl bg-[#141110] border border-[#2A2421] text-[#F4EFE6] text-xs focus:outline-none focus:border-[#D4B886]"
+                                    />
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#D4B886] mb-1.5">
+                                        Deskripsi & Filosofi Sajian
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        value={newMenuDesc}
+                                        onChange={(e) => setNewMenuDesc(e.target.value)}
+                                        placeholder="Jelaskan teknik memasak, racikan bumbu khas kepulauan, dan pengalaman rasa hidangan ini..."
+                                        className="w-full px-4 py-2.5 rounded-xl bg-[#141110] border border-[#2A2421] text-[#F4EFE6] text-xs focus:outline-none focus:border-[#D4B886] resize-none"
+                                    />
+                                </div>
+
+                                <div className="sm:col-span-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#1E1A18] border border-[#2A2421]">
+                                    <label className="flex items-center gap-2.5 cursor-pointer text-xs text-[#F4EFE6]">
+                                        <input
+                                            type="checkbox"
+                                            checked={newMenuIsAvailable}
+                                            onChange={(e) => setNewMenuIsAvailable(e.target.checked)}
+                                            className="w-4 h-4 rounded bg-[#141110] border-[#241F1D] text-[#B99A65] focus:ring-0 cursor-pointer"
+                                        />
+                                        <span>Status Aktif (Dapat dipesan pelanggan)</span>
+                                    </label>
+
+                                    <label className="flex items-center gap-2.5 cursor-pointer text-xs text-[#D4B886]">
+                                        <input
+                                            type="checkbox"
+                                            checked={newMenuIsFeatured}
+                                            onChange={(e) => setNewMenuIsFeatured(e.target.checked)}
+                                            className="w-4 h-4 rounded bg-[#141110] border-[#241F1D] text-[#B99A65] focus:ring-0 cursor-pointer"
+                                        />
+                                        <span>Menu Rekomendasi Chef (Featured)</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="pt-3 border-t border-[#241F1D] flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddMenuModalOpen(false)}
+                                    className="px-5 py-2.5 rounded-xl border border-[#2A2421] text-xs font-semibold text-[#9E938B] hover:text-white transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmittingMenu}
+                                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#110F0E] font-bold text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-md disabled:opacity-50"
+                                >
+                                    {isSubmittingMenu ? 'Menyimpan...' : 'Simpan Hidangan Baru'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================
+                MODAL 4: TAMBAH KATEGORI BARU
+            ======================================================== */}
+            {isAddCategoryModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+                    <div className="relative w-full max-w-md bg-[#161312] border border-[#2D2622] rounded-3xl p-6 sm:p-8 shadow-2xl text-[#F4EFE6]">
+                        <button
+                            type="button"
+                            onClick={() => setIsAddCategoryModalOpen(false)}
+                            className="absolute top-5 right-5 p-2 rounded-full text-[#9E938B] hover:text-white hover:bg-[#241F1D] transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        <div className="mb-6">
+                            <span className="text-[10px] uppercase font-bold text-[#D4B886] tracking-wider block font-mono">
+                                Taksonomi Menu NUSARA
+                            </span>
+                            <h3 className="font-heading text-2xl font-bold text-white mt-0.5">
+                                Tambah Kategori Baru
+                            </h3>
+                            <p className="text-xs text-[#9E938B] mt-1">
+                                Kelompokkan sajian berdasarkan tradisi kuliner daerah atau urutan bersantap.
+                            </p>
+                        </div>
+
+                        {catError && (
+                            <div className="mb-4 p-3 rounded-xl bg-rose-950/40 border border-rose-900/60 text-rose-300 text-xs flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                                <span>{catError}</span>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleCreateCategory} className="space-y-4">
+                            <div>
+                                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#D4B886] mb-1.5">
+                                    Nama Kategori *
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={newCatName}
+                                    onChange={(e) => setNewCatName(e.target.value)}
+                                    placeholder="Contoh: Khas Bali, Hidangan Laut, Kudapan Sore"
+                                    className="w-full px-4 py-2.5 rounded-xl bg-[#141110] border border-[#2A2421] text-[#F4EFE6] text-xs focus:outline-none focus:border-[#D4B886]"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#D4B886] mb-1.5">
+                                    Deskripsi Kategori (Opsional)
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={newCatDesc}
+                                    onChange={(e) => setNewCatDesc(e.target.value)}
+                                    placeholder="Ringkasan jenis makanan atau keistimewaan kategori ini..."
+                                    className="w-full px-4 py-2.5 rounded-xl bg-[#141110] border border-[#2A2421] text-[#F4EFE6] text-xs focus:outline-none focus:border-[#D4B886] resize-none"
+                                />
+                            </div>
+
+                            <div className="pt-3 border-t border-[#241F1D] flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddCategoryModalOpen(false)}
+                                    className="px-5 py-2.5 rounded-xl border border-[#2A2421] text-xs font-semibold text-[#9E938B] hover:text-white transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmittingCategory}
+                                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#110F0E] font-bold text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-md disabled:opacity-50"
+                                >
+                                    {isSubmittingCategory ? 'Menyimpan...' : 'Simpan Kategori'}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>

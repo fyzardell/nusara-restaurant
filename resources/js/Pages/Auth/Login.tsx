@@ -438,31 +438,42 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                             {showDemoDrawer && (
                                 <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-[#32151F]/40 animate-in fade-in duration-300">
                                     {demoAccounts.map((acc) => {
+                                        const isAllRole = acc.email === 'allrole@nusara.id';
                                         const isSpecialMeja = acc.email === 'meja01@nusara.id';
+
+                                        let cardCls = 'bg-[#211D1B] border-[#B99A65]/30 hover:border-[#D4B886] hover:bg-[#32151F]/60';
+                                        if (isAllRole) {
+                                            cardCls = 'col-span-2 bg-gradient-to-r from-[#32151F]/90 via-[#211D1B] to-[#32151F]/90 border-2 border-[#D4B886] shadow-lg shadow-[#D4B886]/10 hover:brightness-110';
+                                        } else if (isSpecialMeja) {
+                                            cardCls = 'col-span-2 bg-[#32151F]/60 border-[#D4B886]/60 hover:bg-[#32151F]/90 hover:border-[#D4B886] shadow-sm';
+                                        }
+
                                         return (
                                             <button
                                                 key={acc.email}
                                                 type="button"
                                                 onClick={() => handleSelectDemoAccount(acc, true)}
-                                                className={`p-2.5 rounded-xl border text-left transition-all text-[10px] group flex flex-col justify-between ${
-                                                    isSpecialMeja 
-                                                        ? 'col-span-2 bg-[#32151F]/60 border-[#D4B886]/60 hover:bg-[#32151F]/90 hover:border-[#D4B886] shadow-sm' 
-                                                        : 'bg-[#211D1B] border-[#B99A65]/30 hover:border-[#D4B886] hover:bg-[#32151F]/60'
-                                                }`}
+                                                className={`p-2.5 rounded-xl border text-left transition-all text-[10px] group flex flex-col justify-between ${cardCls}`}
                                                 title={`Klik untuk langsung masuk sebagai ${acc.title}`}
                                             >
                                                 <div className="flex items-center justify-between w-full mb-1">
-                                                    <span className="font-semibold text-[#D4B886] flex items-center gap-1.5">
+                                                    <span className={`font-semibold flex items-center gap-1.5 ${isAllRole ? 'text-[#F4EFE6] text-xs font-bold' : 'text-[#D4B886]'}`}>
+                                                        {isAllRole && <Crown className="w-3.5 h-3.5 text-[#D4B886] fill-[#D4B886]" />}
                                                         {isSpecialMeja && <QrCode className="w-3.5 h-3.5 text-[#D4B886]" />}
                                                         <span>{acc.badge}</span>
+                                                        {isAllRole && (
+                                                            <span className="px-1.5 py-0.2 rounded text-[9px] bg-[#B99A65]/30 text-[#D4B886] font-mono font-bold uppercase ml-1">
+                                                                Universal
+                                                            </span>
+                                                        )}
                                                     </span>
                                                     <span className="text-[9px] text-[#B99A65] font-mono opacity-80 group-hover:opacity-100 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform font-bold">
-                                                        {acc.redirect ? 'Mulai Dine-in (Meja 01) &rarr;' : 'Masuk &rarr;'}
+                                                        {isAllRole ? 'Masuk Semua Modul &rarr;' : (acc.redirect ? 'Mulai Dine-in (Meja 01) &rarr;' : 'Masuk &rarr;')}
                                                     </span>
                                                 </div>
                                                 <div className="text-[#F4EFE6]/70 truncate text-[10px] flex items-center justify-between">
-                                                    <span className="font-mono">{acc.email}</span>
-                                                    {acc.desc && <span className="text-[9px] text-[#B99A65]/80 italic hidden sm:inline ml-2">{acc.desc}</span>}
+                                                    <span className="font-mono text-stone-300">{acc.email}</span>
+                                                    {acc.desc && <span className="text-[9px] text-[#B99A65]/90 italic hidden sm:inline ml-2">{acc.desc}</span>}
                                                 </div>
                                             </button>
                                         );

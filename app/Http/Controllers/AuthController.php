@@ -20,6 +20,16 @@ class AuthController extends Controller
         // Demo accounts for instant test preview
         $demoAccounts = [
             [
+                'role' => 'admin',
+                'title' => 'Master Demo (Semua Role)',
+                'email' => 'allrole@nusara.id',
+                'phone' => '+6281299990000',
+                'password' => 'password123',
+                'badge' => 'Semua Role (Master Demo)',
+                'desc' => '1 Akun akses penuh ke SEMUA modul: Admin HQ, Kasir POS, Waiter, Order & Reservasi',
+                'redirect' => '/admin',
+            ],
+            [
                 'role' => 'customer',
                 'title' => 'Pelanggan / Member',
                 'email' => 'pelanggan@nusara.id',
@@ -101,8 +111,31 @@ class AuthController extends Controller
         }
 
         if (!$user) {
+            // Auto-provision akun demo All Role jika belum di-seed
+            if (in_array(strtolower($loginId), ['allrole@nusara.id', '+6281299990000'])) {
+                $adminRoleId = DB::table('roles')->where('name', 'admin')->value('id') ?? 1;
+                $newUserId = DB::table('users')->insertGetId([
+                    'role_id' => $adminRoleId,
+                    'name' => 'Bhakti Nusantara (Master Demo)',
+                    'email' => 'allrole@nusara.id',
+                    'password' => Hash::make('password123'),
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                DB::table('customers')->insert([
+                    'user_id' => $newUserId,
+                    'name' => 'Bhakti Nusantara (Master Demo)',
+                    'phone_normalized' => '+6281299990000',
+                    'email' => 'allrole@nusara.id',
+                    'phone_verified_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $user = DB::table('users')->where('id', $newUserId)->first();
+            }
             // Auto-provision akun demo Meja 01 jika belum di-seed
-            if (in_array(strtolower($loginId), ['meja01@nusara.id', '+6281200000001'])) {
+            elseif (in_array(strtolower($loginId), ['meja01@nusara.id', '+6281200000001'])) {
                 $customerRoleId = DB::table('roles')->where('name', 'customer')->value('id') ?? 4;
                 $newUserId = DB::table('users')->insertGetId([
                     'role_id' => $customerRoleId,
