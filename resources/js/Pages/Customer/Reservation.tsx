@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import FlashToast from '../../Components/FlashToast';
 import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
+import { QrisLogo, BcaLogo, MandiriLogo, BniLogo, BriLogo, PermataLogo } from '../../Components/PaymentLogos';
 import { DiningExperience, RestaurantTable, OperatingHour, RestaurantSettings, User, Menu, Category } from '../../types';
 
 interface ReservationItem {
@@ -151,7 +152,7 @@ export default function Reservation({
         customer_phone: customer?.phone_normalized || '+6281234567890',
         special_request: '',
         dp_amount: 150000,
-        dp_payment_method: 'qris' as 'qris' | 'bca' | 'mandiri',
+        dp_payment_method: 'qris' as 'qris' | 'bca_va' | 'mandiri_va' | 'bni_va' | 'bri_va' | 'permata_va',
     });
 
     // Multi-table selection state
@@ -1769,34 +1770,277 @@ export default function Reservation({
                                         </div>
                                     </div>
 
-                                    {/* Metode Pembayaran DP Non-Tunai */}
+                                    {/* Metode Pembayaran DP Non-Tunai Berlogo Lengkap */}
                                     <div className="space-y-4">
-                                        <label className="text-xs font-bold text-[#32151F] uppercase tracking-wider block">
-                                            Pilih Saluran Pembayaran DP
-                                        </label>
-
-                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                                            {[
-                                                { id: 'qris', label: 'QRIS Instan', sub: 'GoPay, BCA QR, OVO, Shopee' },
-                                                { id: 'bca_va', label: 'BCA Virtual Account', sub: 'Otomatis Real-Time' },
-                                                { id: 'mandiri_va', label: 'Mandiri Livin', sub: 'Virtual Account' },
-                                                { id: 'other_va', label: 'Bank Lain / e-Wallet', sub: 'BNI, BRI, Permata' },
-                                            ].map(method => (
-                                                <button
-                                                    key={method.id}
-                                                    type="button"
-                                                    onClick={() => setData('dp_payment_method', method.id as any)}
-                                                    className={`p-3.5 rounded-2xl border text-left transition-all ${
-                                                        data.dp_payment_method === method.id
-                                                            ? 'bg-[#32151F] text-[#D4B886] border-[#32151F] shadow-xs'
-                                                            : 'bg-[#FAF6F0] text-[#1A1615] border-[#E8DFD3] hover:bg-white'
-                                                    }`}
-                                                >
-                                                    <span className="font-bold text-xs block">{method.label}</span>
-                                                    <span className="text-[10px] opacity-75 block mt-0.5">{method.sub}</span>
-                                                </button>
-                                            ))}
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-bold text-[#32151F] uppercase tracking-wider block">
+                                                Pilih Saluran Pembayaran DP
+                                            </label>
+                                            <span className="text-[11px] text-[#9E938B] font-semibold">
+                                                Verifikasi Otomatis 24 Jam
+                                            </span>
                                         </div>
+
+                                        {/* Grid 6 Saluran Pembayaran dengan Logo Resmi */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                                            {[
+                                                {
+                                                    id: 'qris',
+                                                    title: 'QRIS Instan',
+                                                    subtitle: 'Semua e-Wallet & M-Banking',
+                                                    badge: 'Scan Cepat · Bebas Biaya',
+                                                    badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+                                                    logo: <QrisLogo className="h-6 w-auto" />,
+                                                    apps: ['GoPay', 'OVO', 'ShopeePay', 'Dana', 'BCA QR', 'Livin', 'LinkAja'],
+                                                    instructions: [
+                                                        'Buka aplikasi e-Wallet atau Mobile Banking Anda (GoPay, OVO, ShopeePay, Dana, BCA Mobile, Livin, dll).',
+                                                        'Tekan tombol bayar di bawah untuk membuka kode QRIS dinamis resmi.',
+                                                        'Pindai (scan) kode QR dan selesaikan transaksi. Meja Anda langsung terkonfirmasi 24 jam otomatis.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'bca_va',
+                                                    title: 'BCA Virtual Account',
+                                                    subtitle: 'BCA Mobile, myBCA, KlikBCA',
+                                                    badge: 'Verifikasi Otomatis',
+                                                    badgeColor: 'bg-blue-50 text-blue-800 border-blue-200',
+                                                    logo: <BcaLogo className="h-6 w-auto" />,
+                                                    apps: ['BCA Mobile', 'myBCA', 'KlikBCA', 'ATM BCA'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk memperoleh nomor Virtual Account BCA resmi.',
+                                                        'Buka aplikasi BCA Mobile / myBCA / KlikBCA pilih m-Transfer lalu BCA Virtual Account.',
+                                                        'Masukkan nomor VA yang tertera dan selesaikan pembayaran sesuai nominal tepat.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'mandiri_va',
+                                                    title: 'Mandiri Virtual Account',
+                                                    subtitle: "Livin' by Mandiri & ATM",
+                                                    badge: 'Verifikasi Otomatis',
+                                                    badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+                                                    logo: <MandiriLogo className="h-6 w-auto" />,
+                                                    apps: ["Livin' by Mandiri", 'Mandiri ATM', 'Internet Banking'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk memperoleh kode perusahaan dan nomor Virtual Account.',
+                                                        "Buka aplikasi Livin' by Mandiri pilih menu Bayar lalu Cari Penyedia Jasa atau masukkan kode.",
+                                                        'Konfirmasi detail pembayaran dan masukkan PIN Livin Anda.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'bni_va',
+                                                    title: 'BNI Virtual Account',
+                                                    subtitle: 'BNI Mobile Banking & ATM',
+                                                    badge: 'Verifikasi Otomatis',
+                                                    badgeColor: 'bg-teal-50 text-teal-800 border-teal-200',
+                                                    logo: <BniLogo className="h-6 w-auto" />,
+                                                    apps: ['BNI Mobile', 'BNI Direct', 'ATM BNI'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk memperoleh nomor Virtual Account BNI.',
+                                                        'Buka aplikasi BNI Mobile Banking pilih Pembayaran lalu Virtual Account Billing.',
+                                                        'Masukkan nomor VA dan selesaikan pembayaran dengan password transaksi Anda.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'bri_va',
+                                                    title: 'BRI Virtual Account',
+                                                    subtitle: 'BRIVA via BRImo & ATM',
+                                                    badge: 'Verifikasi Otomatis',
+                                                    badgeColor: 'bg-sky-50 text-sky-800 border-sky-200',
+                                                    logo: <BriLogo className="h-6 w-auto" />,
+                                                    apps: ['BRImo', 'Internet Banking BRI', 'ATM BRI'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk memperoleh nomor BRIVA (BRI Virtual Account).',
+                                                        'Buka aplikasi BRImo pilih menu Tagihan / BRIVA lalu Pembayaran Baru.',
+                                                        'Masukkan nomor BRIVA dan konfirmasi pembayaran dengan PIN BRImo Anda.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'permata_va',
+                                                    title: 'Permata & Bank Lainnya',
+                                                    subtitle: 'PermataMobile X, ATM Bersama',
+                                                    badge: 'Verifikasi Otomatis',
+                                                    badgeColor: 'bg-purple-50 text-purple-800 border-purple-200',
+                                                    logo: <PermataLogo className="h-6 w-auto" />,
+                                                    apps: ['PermataMobile X', 'ATM Bersama', 'Prima', 'ALTO'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk memperoleh nomor Virtual Account Permata.',
+                                                        'Dapat dibayar dari bank apa pun melalui menu Transfer Antar Bank (pilih Bank Permata / kode 013).',
+                                                        'Masukkan nomor VA sebagai nomor rekening tujuan transfer.'
+                                                    ]
+                                                },
+                                            ].map(method => {
+                                                const isSelected = data.dp_payment_method === method.id;
+                                                return (
+                                                    <button
+                                                        key={method.id}
+                                                        type="button"
+                                                        onClick={() => setData('dp_payment_method', method.id as any)}
+                                                        className={`p-4 rounded-2xl border text-left transition-all relative flex flex-col justify-between group cursor-pointer ${
+                                                            isSelected
+                                                                ? 'bg-white text-[#1A1615] border-[#32151F] shadow-md ring-2 ring-[#B99A65]/40 -translate-y-0.5'
+                                                                : 'bg-[#FDFBF7] text-[#1A1615] border-[#E8DFD3] hover:border-[#B99A65]/60 hover:bg-white'
+                                                        }`}
+                                                    >
+                                                        {/* Top Row: Logo & Radio Status */}
+                                                        <div className="flex items-center justify-between gap-3 mb-3">
+                                                            <div className="p-1.5 rounded-xl bg-white border border-[#E8DFD3]/80 shadow-xs flex items-center justify-center shrink-0">
+                                                                {method.logo}
+                                                            </div>
+                                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                                                                isSelected
+                                                                    ? 'bg-[#32151F] border-[#32151F] text-[#D4B886]'
+                                                                    : 'border-[#C2B7AC] bg-white group-hover:border-[#B99A65]'
+                                                            }`}>
+                                                                {isSelected && (
+                                                                    <Check className="w-3 h-3 stroke-[3]" />
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Middle Row: Title & Subtitle */}
+                                                        <div className="space-y-0.5 mb-2.5">
+                                                            <span className="font-heading font-bold text-sm text-[#32151F] block leading-snug">
+                                                                {method.title}
+                                                            </span>
+                                                            <span className="text-[11px] text-[#6E625A] block leading-tight">
+                                                                {method.subtitle}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Bottom Row: Speed/Verification Tag */}
+                                                        <div className="pt-2 border-t border-[#F0EBE1] flex items-center justify-between text-[10px]">
+                                                            <span className={`px-2 py-0.5 rounded-md font-semibold border ${method.badgeColor}`}>
+                                                                {method.badge}
+                                                            </span>
+                                                            <span className="text-[#9E938B] font-mono text-[9px]">
+                                                                Real-Time
+                                                            </span>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Panel Detail Panduan Metode Terpilih */}
+                                        {(() => {
+                                            const methodList = [
+                                                {
+                                                    id: 'qris',
+                                                    title: 'QRIS Instan',
+                                                    logo: <QrisLogo className="h-6 w-auto" />,
+                                                    apps: ['GoPay', 'OVO', 'ShopeePay', 'Dana', 'BCA QR', 'Livin', 'LinkAja'],
+                                                    instructions: [
+                                                        'Buka aplikasi e-Wallet atau Mobile Banking Anda (GoPay, OVO, ShopeePay, Dana, BCA Mobile, Livin, dll).',
+                                                        'Tekan tombol bayar di bawah untuk membuka kode QRIS dinamis resmi.',
+                                                        'Pindai (scan) kode QR dan selesaikan transaksi. Meja Anda langsung terkonfirmasi 24 jam otomatis.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'bca_va',
+                                                    title: 'BCA Virtual Account',
+                                                    logo: <BcaLogo className="h-6 w-auto" />,
+                                                    apps: ['BCA Mobile', 'myBCA', 'KlikBCA', 'ATM BCA'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk memperoleh nomor Virtual Account BCA resmi.',
+                                                        'Buka aplikasi BCA Mobile / myBCA / KlikBCA pilih m-Transfer lalu BCA Virtual Account.',
+                                                        'Masukkan nomor VA yang tertera dan selesaikan pembayaran sesuai nominal tepat.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'mandiri_va',
+                                                    title: 'Mandiri Virtual Account',
+                                                    logo: <MandiriLogo className="h-6 w-auto" />,
+                                                    apps: ["Livin' by Mandiri", 'Mandiri ATM', 'Internet Banking'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk memperoleh kode perusahaan dan nomor Virtual Account.',
+                                                        "Buka aplikasi Livin' by Mandiri pilih menu Bayar lalu Cari Penyedia Jasa atau masukkan kode.",
+                                                        'Konfirmasi detail pembayaran dan masukkan PIN Livin Anda.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'bni_va',
+                                                    title: 'BNI Virtual Account',
+                                                    logo: <BniLogo className="h-6 w-auto" />,
+                                                    apps: ['BNI Mobile', 'BNI Direct', 'ATM BNI'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk memperoleh nomor Virtual Account BNI.',
+                                                        'Buka aplikasi BNI Mobile Banking pilih Pembayaran lalu Virtual Account Billing.',
+                                                        'Masukkan nomor VA dan selesaikan pembayaran dengan password transaksi Anda.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'bri_va',
+                                                    title: 'BRI Virtual Account',
+                                                    logo: <BriLogo className="h-6 w-auto" />,
+                                                    apps: ['BRImo', 'Internet Banking BRI', 'ATM BRI'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk memperoleh nomor BRIVA (BRI Virtual Account).',
+                                                        'Buka aplikasi BRImo pilih menu Tagihan / BRIVA lalu Pembayaran Baru.',
+                                                        'Masukkan nomor BRIVA dan konfirmasi pembayaran dengan PIN BRImo Anda.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'permata_va',
+                                                    title: 'Permata & Bank Lainnya',
+                                                    logo: <PermataLogo className="h-6 w-auto" />,
+                                                    apps: ['PermataMobile X', 'ATM Bersama', 'Prima', 'ALTO'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk memperoleh nomor Virtual Account Permata.',
+                                                        'Dapat dibayar dari bank apa pun melalui menu Transfer Antar Bank (pilih Bank Permata / kode 013).',
+                                                        'Masukkan nomor VA sebagai nomor rekening tujuan transfer.'
+                                                    ]
+                                                },
+                                            ];
+                                            const activeMethod = methodList.find(m => m.id === data.dp_payment_method) || methodList[0];
+
+                                            return (
+                                                <div className="p-5 rounded-3xl bg-gradient-to-br from-white via-[#FAF6F0] to-[#F5ECE0] border border-[#B99A65]/40 shadow-xs space-y-3.5 transition-all animate-fadeIn">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-[#E8DFD3]">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <div className="p-1.5 rounded-xl bg-white border border-[#E8DFD3] shadow-xs shrink-0">
+                                                                {activeMethod.logo}
+                                                            </div>
+                                                            <div>
+                                                                <h5 className="font-heading font-bold text-sm text-[#32151F]">
+                                                                    Panduan Pembayaran: {activeMethod.title}
+                                                                </h5>
+                                                                <span className="text-[11px] text-[#6E625A] block">
+                                                                    Nominal DP: <strong>{formatRupiah(calculatedDpAmount)}</strong> · Verifikasi Otomatis 24 Jam
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {activeMethod.apps && (
+                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                {activeMethod.apps.slice(0, 4).map((app, i) => (
+                                                                    <span key={i} className="px-2 py-0.5 rounded-full bg-white border border-[#E8DFD3] text-[10px] font-semibold text-[#4A1525] shadow-xs">
+                                                                        {app}
+                                                                    </span>
+                                                                ))}
+                                                                {activeMethod.apps.length > 4 && (
+                                                                    <span className="text-[10px] text-[#9E938B] font-bold">
+                                                                        +{activeMethod.apps.length - 4} Lainnya
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        {activeMethod.instructions.map((step, idx) => (
+                                                            <div key={idx} className="flex items-start gap-2.5 text-xs text-[#52463E]">
+                                                                <span className="w-5 h-5 rounded-full bg-[#32151F] text-[#D4B886] font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                                                    {idx + 1}
+                                                                </span>
+                                                                <span className="leading-relaxed">
+                                                                    {step}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* Bantuan Konsierge & Persetujuan */}

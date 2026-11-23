@@ -56,6 +56,11 @@ class MidtransService
         // Specific payment channels for NUSARA (QRIS & Virtual Accounts only)
         $enabledPayments = match ($paymentMethod) {
             'qris' => ['qris', 'gopay'],
+            'bca_va', 'bca' => ['bca_va'],
+            'mandiri_va', 'mandiri', 'echannel' => ['echannel'],
+            'bni_va', 'bni' => ['bni_va'],
+            'bri_va', 'bri' => ['bri_va'],
+            'permata_va', 'permata' => ['permata_va'],
             'bank_transfer' => ['bca_va', 'bni_va', 'bri_va', 'echannel', 'permata_va'],
             default => ['qris', 'gopay', 'bca_va', 'bni_va', 'bri_va', 'echannel', 'permata_va'],
         };
