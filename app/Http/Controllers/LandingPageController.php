@@ -63,9 +63,12 @@ class LandingPageController extends Controller
             ->where('is_available', true)
             ->get();
 
-        $operatingHours = DB::table('operating_hours')
+        $rawOperatingHours = DB::table('operating_hours')
             ->orderByRaw("CASE WHEN day_of_week = 0 THEN 7 ELSE day_of_week END")
+            ->orderBy('id', 'asc')
             ->get();
+
+        $operatingHours = $rawOperatingHours->unique('day_of_week')->values();
 
         return Inertia::render('LandingPage', [
             'settings' => $settings,
