@@ -182,6 +182,17 @@ class OrderController extends Controller
             return redirect()->back()->with('error', 'Silakan pilih atau ketik nomor meja yang sedang Anda tempati.');
         }
 
+        // Proteksi Dine In: Hanya QRIS atau Tunai di Kasir (Tidak boleh Virtual Account / Transfer Bank)
+        if ($request->order_type === 'dine_in' && $request->payment_method === 'bank_transfer') {
+            if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pesanan Dine-in (Makan di Tempat) hanya mendukung pembayaran via QRIS Instan atau Tunai di Kasir.',
+                ], 422);
+            }
+            return redirect()->back()->with('error', 'Pesanan Dine-in (Makan di Tempat) hanya mendukung pembayaran via QRIS Instan atau Tunai di Kasir.');
+        }
+
         $customerName = trim($request->customer_name);
         $customerId = null;
 

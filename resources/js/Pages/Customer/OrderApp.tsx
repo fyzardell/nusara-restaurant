@@ -128,7 +128,10 @@ export default function OrderApp({
         initialType || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('type') === 'takeaway' ? 'takeaway' : 'dine_in')
     );
     const [selectedTable, setSelectedTable] = useState<string>(initialTable || 'Meja 01');
-    const [customerName, setCustomerName] = useState<string>(auth?.user?.name || '');
+    const [customerName, setCustomerName] = useState<string>(() => {
+        if (auth?.user?.name) return auth.user.name;
+        return initialTable ? `Tamu ${initialTable}` : 'Tamu Meja 01';
+    });
     const [isTableModalOpen, setIsTableModalOpen] = useState(false);
 
     // Search and Category
@@ -158,6 +161,13 @@ export default function OrderApp({
     const [generalNotes, setGeneralNotes] = useState('');
     const [paymentMethod, setPaymentMethod] = useState<'qris' | 'bank_transfer' | 'cash'>('qris');
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+
+    // Jika mode Dine-in (Meja), metode pembayaran dibatasi hanya QRIS dan Tunai di Kasir (tanpa bank transfer)
+    React.useEffect(() => {
+        if (orderType === 'dine_in' && paymentMethod === 'bank_transfer') {
+            setPaymentMethod('qris');
+        }
+    }, [orderType, paymentMethod]);
 
     // Otomatis simpan setiap perubahan keranjang ke localStorage
     React.useEffect(() => {
@@ -842,24 +852,33 @@ export default function OrderApp({
                         <section className="min-h-[82vh] lg:min-h-[86vh] flex flex-col justify-between pt-2 pb-10 mb-8 border-b border-[#E5DDCF]">
                             {/* Top: Editorial Greeting & Ambient Tag */}
                             <div className="space-y-3 max-w-4xl">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsTableModalOpen(true)}
-                                    className="group inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-gradient-to-r from-[#32151F] to-[#211D1B] border border-[#B99A65]/50 text-xs font-semibold text-[#F4EFE6] shadow-md hover:border-[#D4B886] hover:shadow-lg transition-all active:scale-95"
-                                    title="Pilih atau ganti nomor meja makan Anda"
-                                >
-                                    <span className="relative flex h-2 w-2">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D4B886] opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#B99A65]"></span>
-                                    </span>
-                                    <UtensilsCrossed className="w-3.5 h-3.5 text-[#D4B886]" />
-                                    <span className="font-heading tracking-wide text-xs sm:text-sm font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
-                                        {orderType === 'dine_in' 
-                                            ? `Makan di ${selectedTable?.match(/\d+/)?.[0] ? `Meja ${selectedTable.match(/\d+/)![0].padStart(2, '0')}` : 'Meja 01'}` 
-                                            : 'Pesan Bawa Pulang (Klik untuk Makan di Meja)'}
-                                    </span>
-                                    <ChevronRight className="w-3.5 h-3.5 text-[#B99A65] group-hover:translate-x-0.5 transition-transform" />
-                                </button>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsTableModalOpen(true)}
+                                        className="group inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-gradient-to-r from-[#32151F] to-[#211D1B] border border-[#B99A65]/50 text-xs font-semibold text-[#F4EFE6] shadow-md hover:border-[#D4B886] hover:shadow-lg transition-all active:scale-95"
+                                        title="Pilih atau ganti nomor meja makan Anda"
+                                    >
+                                        <span className="relative flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D4B886] opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#B99A65]"></span>
+                                        </span>
+                                        <UtensilsCrossed className="w-3.5 h-3.5 text-[#D4B886]" />
+                                        <span className="font-heading tracking-wide text-xs sm:text-sm font-bold text-[#F4EFE6] group-hover:text-[#D4B886] transition-colors">
+                                            {orderType === 'dine_in' 
+                                                ? `Makan di ${selectedTable?.match(/\d+/)?.[0] ? `Meja ${selectedTable.match(/\d+/)![0].padStart(2, '0')}` : 'Meja 01'}` 
+                                                : 'Pesan Bawa Pulang (Klik untuk Makan di Meja)'}
+                                        </span>
+                                        <ChevronRight className="w-3.5 h-3.5 text-[#B99A65] group-hover:translate-x-0.5 transition-transform" />
+                                    </button>
+
+                                    {isGuest && orderType === 'dine_in' && (
+                                        <span className="px-3 py-1.5 rounded-full bg-[#211D1B] border border-[#B99A65]/40 text-[#D4B886] text-[11px] font-bold flex items-center gap-1.5 shadow-xs">
+                                            <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+                                            <span>Sesi Tamu QR Meja (Tanpa Login)</span>
+                                        </span>
+                                    )}
+                                </div>
 
                                 <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
                                     <div className="space-y-2 max-w-2xl">
@@ -2011,41 +2030,74 @@ export default function OrderApp({
                                 <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#946E2D] mb-2">
                                     Pilih Metode Pembayaran:
                                 </label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setPaymentMethod('qris')}
-                                        className={`p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                                            paymentMethod === 'qris'
-                                                ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] border-[#D4B886] font-bold shadow-xs'
+                                {orderType === 'dine_in' ? (
+                                    <>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPaymentMethod('qris')}
+                                                className={`p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                                                    paymentMethod === 'qris'
+                                                        ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] border-[#D4B886] font-bold shadow-xs'
+                                                        : 'bg-white text-[#695E57] border-[#D8CDBB] hover:bg-[#F0E9DC]'
+                                                }`}
+                                            >
+                                                QRIS Instan
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setPaymentMethod('cash')}
+                                                className={`p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                                                    paymentMethod === 'cash'
+                                                        ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] border-[#D4B886] font-bold shadow-xs'
+                                                        : 'bg-white text-[#695E57] border-[#D8CDBB] hover:bg-[#F0E9DC]'
+                                                }`}
+                                            >
+                                                Tunai di Kasir
+                                            </button>
+                                        </div>
+                                        <p className="text-[10px] text-stone-500 mt-1.5 flex items-center gap-1">
+                                            <Info className="w-3 h-3 text-[#946E2D] shrink-0" />
+                                            <span>Khusus Makan di Meja: Pembayaran hanya via QRIS Instan atau Tunai di Kasir.</span>
+                                        </p>
+                                    </>
+                                ) : (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPaymentMethod('qris')}
+                                            className={`p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                                                paymentMethod === 'qris'
+                                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] border-[#D4B886] font-bold shadow-xs'
                                                 : 'bg-white text-[#695E57] border-[#D8CDBB] hover:bg-[#F0E9DC]'
-                                        }`}
-                                    >
-                                        QRIS Instan
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPaymentMethod('bank_transfer')}
-                                        className={`p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                                            paymentMethod === 'bank_transfer'
-                                                ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] border-[#D4B886] font-bold shadow-xs'
+                                            }`}
+                                        >
+                                            QRIS Instan
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPaymentMethod('bank_transfer')}
+                                            className={`p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                                                paymentMethod === 'bank_transfer'
+                                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] border-[#D4B886] font-bold shadow-xs'
                                                 : 'bg-white text-[#695E57] border-[#D8CDBB] hover:bg-[#F0E9DC]'
-                                        }`}
-                                    >
-                                        Virtual Account
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPaymentMethod('cash')}
-                                        className={`p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                                            paymentMethod === 'cash'
-                                                ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] border-[#D4B886] font-bold shadow-xs'
+                                            }`}
+                                        >
+                                            Virtual Account
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPaymentMethod('cash')}
+                                            className={`p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                                                paymentMethod === 'cash'
+                                                    ? 'bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] border-[#D4B886] font-bold shadow-xs'
                                                 : 'bg-white text-[#695E57] border-[#D8CDBB] hover:bg-[#F0E9DC]'
-                                        }`}
-                                    >
-                                        Tunai di Kasir
-                                    </button>
-                                </div>
+                                            }`}
+                                        >
+                                            Tunai di Kasir
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
