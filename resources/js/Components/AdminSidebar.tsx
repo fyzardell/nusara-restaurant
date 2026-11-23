@@ -16,11 +16,12 @@ import {
     LogOut, 
     ChevronRight, 
     X,
-    Menu as MenuIcon
+    Menu as MenuIcon,
+    RotateCcw
 } from 'lucide-react';
 import { User } from '../types';
 
-export type AdminActiveNav = 'overview' | 'orders' | 'menus' | 'tables' | 'reservations' | 'chats' | 'audit';
+export type AdminActiveNav = 'overview' | 'orders' | 'menus' | 'tables' | 'reservations' | 'refunds' | 'chats' | 'audit';
 
 interface Props {
     adminUser: User;
@@ -34,6 +35,7 @@ interface Props {
         totalTables?: number;
         pendingReservations?: number;
         totalReservations?: number;
+        pendingRefunds?: number;
     };
     onTabSelect?: (tab: string) => void;
 }
@@ -213,6 +215,26 @@ export default function AdminSidebar({
                                     ) : (
                                         <span className="text-[10px] text-[#9E938B] font-mono">
                                             {metrics.totalReservations ?? ''}
+                                        </span>
+                                    )}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => handleNavClick('refunds', '/admin?tab=refunds')}
+                                    className={navCls('refunds')}
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <RotateCcw className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Pengajuan Refund</span>
+                                    </div>
+                                    {(metrics.pendingRefunds ?? 0) > 0 ? (
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-400 font-bold border border-rose-500/30">
+                                            {metrics.pendingRefunds}
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] text-[#9E938B] font-mono">
+                                            0
                                         </span>
                                     )}
                                 </button>

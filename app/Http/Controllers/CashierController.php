@@ -127,11 +127,43 @@ class CashierController extends Controller
             return $order;
         });
 
-        // 3. Restaurant Tables
+        // 3. Restaurant Tables & Real-Time Active Orders
         $tables = DB::table('restaurant_tables')
             ->where('is_active', true)
             ->get()
             ->map(function ($table) {
+                // Find active orders on this table (Pending, Preparing, Ready, Delivered)
+                $activeOrders = DB::table('orders')
+                    ->where(function ($q) use ($table) {
+                        $q->where('table_number', $table->table_number)
+                          ->orWhere('table_number', 'Meja ' . str_pad($table->id, 2, '0', STR_PAD_LEFT))
+                          ->orWhere('table_number', (string) $table->id)
+                          ->orWhere('table_session_id', function ($sub) use ($table) {
+                              $sub->select('id')->from('table_sessions')
+                                  ->where('table_id', $table->id)
+                                  ->whereIn('status', ['Open', 'Pending Validation'])
+                                  ->limit(1);
+                          });
+                    })
+                    ->whereIn('order_status', ['Pending', 'Preparing', 'Ready', 'Delivered'])
+                    ->orderBy('id', 'desc')
+                    ->get();
+
+                $activeOrdersCount = $activeOrders->count();
+                $latestOrder = $activeOrders->first();
+
+                if ($activeOrdersCount > 0) {
+                    $table->status = 'Occupied';
+                }
+
+                $table->active_orders_count = $activeOrdersCount;
+                $table->active_order = $latestOrder ? [
+                    'order_code' => $latestOrder->order_code,
+                    'customer_name' => $latestOrder->customer_name,
+                    'order_status' => $latestOrder->order_status,
+                    'total' => (float) $latestOrder->total,
+                ] : null;
+
                 $table->active_session = DB::table('table_sessions')
                     ->where('table_id', $table->id)
                     ->whereIn('status', ['Pending Validation', 'Open'])

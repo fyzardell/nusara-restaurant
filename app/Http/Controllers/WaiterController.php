@@ -166,7 +166,7 @@ class WaiterController extends Controller
                 return $order;
             });
 
-        // 5. Fetch 10 Restaurant Tables Floor Overview with active sessions
+        // 5. Fetch 10 Restaurant Tables Floor Overview with active sessions & live orders
         $tables = DB::table('restaurant_tables')
             ->where('is_active', true)
             ->orderBy('table_number', 'asc')
@@ -186,18 +186,40 @@ class WaiterController extends Controller
                     'started_at' => $activeSession->started_at,
                 ] : null;
 
+                // Check active orders for this table (Pending, Preparing, Ready, Delivered, etc.)
+                $activeOrders = DB::table('orders')
+                    ->where(function ($q) use ($tbl) {
+                        $q->where('table_number', $tbl->table_number)
+                          ->orWhere('table_number', 'Meja ' . str_pad($tbl->id, 2, '0', STR_PAD_LEFT))
+                          ->orWhere('table_number', (string) $tbl->id)
+                          ->orWhere('table_session_id', function ($sub) use ($tbl) {
+                              $sub->select('id')->from('table_sessions')
+                                  ->where('table_id', $tbl->id)
+                                  ->whereIn('status', ['Open', 'Pending Validation'])
+                                  ->limit(1);
+                          });
+                    })
+                    ->whereIn('order_status', ['Pending', 'Awaiting Payment', 'Paid', 'Confirmed', 'Preparing', 'Ready', 'Delivered'])
+                    ->orderBy('id', 'desc')
+                    ->get();
+
+                $activeOrdersCount = $activeOrders->count();
+                $latestOrder = $activeOrders->first();
+
                 // If active session is Pending Validation, reflect that in table status
                 if ($activeSession && $activeSession->status === 'Pending Validation' && $tbl->status === 'Available') {
                     $tbl->status = 'Pending Validation';
+                } elseif ($activeOrdersCount > 0) {
+                    $tbl->status = 'Occupied';
                 }
 
-                // Check active pending or ready orders for this table
-                $activeOrdersCount = DB::table('orders')
-                    ->where('table_number', $tbl->table_number)
-                    ->whereIn('order_status', ['Paid', 'Confirmed', 'Preparing', 'Ready'])
-                    ->count();
-
                 $tbl->active_orders_count = $activeOrdersCount;
+                $tbl->active_order = $latestOrder ? [
+                    'order_code' => $latestOrder->order_code,
+                    'customer_name' => $latestOrder->customer_name,
+                    'order_status' => $latestOrder->order_status,
+                    'total' => (float) $latestOrder->total,
+                ] : null;
 
                 return $tbl;
             });

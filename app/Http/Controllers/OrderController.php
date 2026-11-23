@@ -278,6 +278,12 @@ class OrderController extends Controller
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+
+                    // Instantly lock and mark table as Occupied so floor plan turns Red
+                    DB::table('restaurant_tables')->where('id', $table->id)->update([
+                        'status' => 'Occupied',
+                        'updated_at' => now(),
+                    ]);
                 }
             }
 
@@ -526,5 +532,98 @@ class OrderController extends Controller
         }
 
         return redirect()->back()->with('success', $msg);
+    }
+
+    /**
+     * Request refund / cancellation for an Order (Only permitted while status is Pending / in queue / before cooking)
+     */
+    public function requestRefund(Request $request, $id)
+    {
+        $request->validate([
+            'bank_or_wallet' => 'required|string|max:50',
+            'account_number' => 'required|string|max:50',
+            'account_holder' => 'required|string|max:100',
+            'reason' => 'required|string|max:500',
+        ], [
+            'bank_or_wallet.required' => 'Pilih bank atau e-wallet tujuan pengembalian dana.',
+            'account_number.required' => 'Nomor rekening atau nomor e-wallet wajib diisi.',
+            'account_holder.required' => 'Nama pemilik rekening/akun wajib diisi.',
+            'reason.required' => 'Mohon sertakan alasan pembatalan & pengajuan refund.',
+        ]);
+
+        $order = DB::table('orders')->where('id', $id)->first();
+        if (!$order) {
+            return response()->json(['success' => false, 'message' => 'Pesanan tidak ditemukan.'], 404);
+        }
+
+        // Strict PRD verification: Refund is ONLY permitted when order is still in queue / awaiting cashier (order_status == 'Pending')
+        if ($order->order_status !== 'Pending') {
+            if (in_array($order->order_status, ['Preparing', 'Ready', 'Served', 'Delivered', 'Completed'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Pesanan #{$order->order_code} sudah dalam proses memasak di dapur atau siap saji, sehingga tidak dapat dibatalkan atau direfund sesuai ketentuan restoran."
+                ], 422);
+            }
+            if (in_array($order->order_status, ['Refund Requested', 'Refunded', 'Cancelled'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Pesanan #{$order->order_code} sudah dibatalkan atau dalam proses pengembalian dana sebelumnya."
+                ], 422);
+            }
+            return response()->json([
+                'success' => false,
+                'message' => "Pengajuan refund hanya dapat dilakukan saat pesanan masih dalam antrian kasir / sebelum diproses dapur."
+            ], 422);
+        }
+
+        $refundNote = "[Pengajuan Refund Order: {$request->bank_or_wallet} {$request->account_number} a/n {$request->account_holder} - Alasan: {$request->reason}]";
+        $updatedNotes = trim(($order->customer_notes ?? '') . "\n" . $refundNote);
+
+        // Update order status to Refund Requested
+        DB::table('orders')->where('id', $id)->update([
+            'order_status' => 'Refund Requested',
+            'customer_notes' => $updatedNotes,
+            'updated_at' => now(),
+        ]);
+
+        // If table has no other active orders, release table
+        if ($order->table_number) {
+            $otherActive = DB::table('orders')
+                ->where('table_number', $order->table_number)
+                ->where('id', '!=', $id)
+                ->whereIn('order_status', ['Pending', 'Preparing', 'Ready', 'Delivered'])
+                ->exists();
+            if (!$otherActive) {
+                DB::table('restaurant_tables')->where('table_number', $order->table_number)->update([
+                    'status' => 'Available',
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+
+        // Record status history
+        DB::table('order_status_histories')->insert([
+            'order_id' => $id,
+            'changed_by' => Auth::id() ?? null,
+            'previous_status' => $order->order_status,
+            'new_status' => 'Refund Requested',
+            'notes' => $refundNote,
+            'created_at' => now(),
+        ]);
+
+        // Record Audit log
+        DB::table('audit_logs')->insert([
+            'user_id' => Auth::id() ?? null,
+            'action' => 'order.refund_request',
+            'entity_type' => 'Order',
+            'entity_id' => $id,
+            'description' => "Pengajuan refund diajukan pelanggan untuk pesanan {$order->order_code} ({$request->bank_or_wallet} {$request->account_number}).",
+            'created_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Pengajuan pembatalan & pengembalian dana untuk pesanan #{$order->order_code} berhasil dikirim. Tim Kasir & Administrasi akan memproses pengembalian dana ke {$request->bank_or_wallet} ({$request->account_number}).",
+        ]);
     }
 }
