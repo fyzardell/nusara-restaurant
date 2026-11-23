@@ -33,11 +33,26 @@ import {
     ArrowLeft,
     LogOut,
     Lock,
-    Banknote
+    Banknote,
+    RotateCcw,
+    Send,
+    Wallet,
+    HelpCircle
 } from 'lucide-react';
 import FlashToast from '../../Components/FlashToast';
 import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
-import { QrisLogo, BcaLogo, MandiriLogo, BniLogo, BriLogo, PermataLogo } from '../../Components/PaymentLogos';
+import { 
+    QrisLogo, 
+    GopayLogo, 
+    ShopeePayLogo, 
+    DanaLogo, 
+    OvoLogo, 
+    BcaLogo, 
+    MandiriLogo, 
+    BniLogo, 
+    BriLogo, 
+    PermataLogo 
+} from '../../Components/PaymentLogos';
 import { DiningExperience, RestaurantTable, OperatingHour, RestaurantSettings, User, Menu, Category } from '../../types';
 
 interface ReservationItem {
@@ -152,12 +167,86 @@ export default function Reservation({
         customer_phone: customer?.phone_normalized || '+6281234567890',
         special_request: '',
         dp_amount: 150000,
-        dp_payment_method: 'qris' as 'qris' | 'bca_va' | 'mandiri_va' | 'bni_va' | 'bri_va' | 'permata_va',
+        dp_payment_method: 'qris' as 'qris' | 'gopay' | 'shopeepay' | 'dana' | 'ovo' | 'bca_va' | 'mandiri_va' | 'bni_va' | 'bri_va' | 'permata_va',
     });
 
     // Multi-table selection state
     const [selectedTableIds, setSelectedTableIds] = useState<number[]>([]);
     const [isDpAgreed, setIsDpAgreed] = useState<boolean>(true);
+
+    // Payment category filter for Step 5: all, ewallet, va
+    const [paymentCategoryFilter, setPaymentCategoryFilter] = useState<'all' | 'ewallet' | 'va'>('all');
+
+    // Refund Modal State
+    const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+    const [selectedReservationForRefund, setSelectedReservationForRefund] = useState<CustomerReservationHistory | null>(null);
+    const [refundForm, setRefundForm] = useState({
+        bank_or_wallet: 'BCA',
+        account_number: '',
+        account_holder: customer?.name || auth.user.name || '',
+        reason: 'Perubahan Jadwal / Agenda Jamuan',
+    });
+    const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+    const [refundAlert, setRefundAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+    const handleOpenRefundModal = (res: CustomerReservationHistory) => {
+        setSelectedReservationForRefund(res);
+        setRefundAlert(null);
+        setRefundForm({
+            bank_or_wallet: 'BCA',
+            account_number: '',
+            account_holder: customer?.name || auth.user.name || '',
+            reason: 'Perubahan Jadwal / Agenda Jamuan',
+        });
+        setIsRefundModalOpen(true);
+    };
+
+    const handleRefundSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedReservationForRefund) return;
+        if (!refundForm.account_number.trim() || !refundForm.account_holder.trim()) {
+            alert('Mohon lengkapi nomor rekening / e-wallet dan nama pemilik akun.');
+            return;
+        }
+
+        setIsSubmittingRefund(true);
+        setRefundAlert(null);
+
+        try {
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+            const response = await fetch(`/reservation/${selectedReservationForRefund.id}/refund`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify(refundForm),
+            });
+
+            const resData = await response.json();
+            if (!response.ok || !resData.success) {
+                throw new Error(resData.message || 'Gagal mengajukan pengembalian dana.');
+            }
+
+            setRefundAlert({
+                type: 'success',
+                message: resData.message
+            });
+
+            setTimeout(() => {
+                setIsRefundModalOpen(false);
+                router.reload();
+            }, 2000);
+        } catch (err: any) {
+            setRefundAlert({
+                type: 'error',
+                message: err.message || 'Terjadi kesalahan saat memproses permohonan refund.'
+            });
+        } finally {
+            setIsSubmittingRefund(false);
+        }
+    };
 
     // Format Rupiah
     const formatRupiah = (val: number | null | undefined) => {
@@ -786,8 +875,8 @@ export default function Reservation({
 
             {/* MAIN CONTENT AREA */}
             <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12">
-                {/* Tombol Navigasi Kembali ke Beranda (Ditaruh di Body Halaman di atas Card Reservasi) */}
-                <div className="mb-6">
+                {/* Tombol Navigasi Kembali ke Beranda & Akses Cepat Riwayat */}
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                     <Link 
                         href="/" 
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#B99A65]/40 bg-white hover:bg-[#32151F] text-[#32151F] hover:text-[#D4B886] text-xs font-semibold transition-all duration-300 shadow-xs hover:shadow-md group active:scale-98"
@@ -796,10 +885,61 @@ export default function Reservation({
                         <ArrowLeft className="w-3.5 h-3.5 text-[#B99A65] transition-transform duration-300 group-hover:-translate-x-1" />
                         <span>Kembali ke Beranda</span>
                     </Link>
+
+                    <button
+                        type="button"
+                        onClick={() => setPageView('history')}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#B99A65] bg-gradient-to-r from-[#32151F] to-[#4A1525] text-[#D4B886] hover:text-[#FAF6F0] text-xs font-bold transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer active:scale-98"
+                        title="Langsung lihat riwayat dan tiket tanpa perlu membuat reservasi lagi"
+                    >
+                        <History className="w-3.5 h-3.5 text-[#B99A65]" />
+                        <span>Lihat Riwayat & Tiket Reservasi Saya</span>
+                        {customerReservations.length > 0 && (
+                            <span className="ml-1 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-[#B99A65] text-[#211D1B]">
+                                {customerReservations.length}
+                            </span>
+                        )}
+                    </button>
                 </div>
 
                 {pageView === 'booking' ? (
                     <div className="space-y-8">
+                        {/* Quick History Shortcut Banner at the very beginning of the page */}
+                        <div className="bg-gradient-to-r from-[#32151F] via-[#4A1525] to-[#211D1B] rounded-3xl p-5 sm:p-6 border border-[#B99A65]/40 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 text-white">
+                            <div className="flex items-start sm:items-center gap-3.5">
+                                <div className="w-12 h-12 rounded-2xl bg-[#D4B886]/15 border border-[#B99A65]/40 flex items-center justify-center shrink-0">
+                                    <History className="w-6 h-6 text-[#D4B886]" />
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-0.5 rounded-full bg-[#B99A65]/25 text-[#D4B886] border border-[#B99A65]/30">
+                                            Akses Cepat Tamu
+                                        </span>
+                                        {customerReservations.length > 0 && (
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FAF6F0]/20 text-[#FAF6F0]">
+                                                {customerReservations.length} Reservasi Tercatat
+                                            </span>
+                                        )}
+                                    </div>
+                                    <h3 className="font-heading text-lg sm:text-xl font-bold text-[#FAF6F0] mt-1">
+                                        Sudah Memiliki Reservasi di NUSARA?
+                                    </h3>
+                                    <p className="text-xs text-[#E8DFD3]/80 mt-0.5">
+                                        Buka tiket kunjungan, periksa meja yang terkunci, atau ajukan refund langsung tanpa perlu mengisi form reservasi lagi.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setPageView('history')}
+                                className="px-5 py-3 rounded-full bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:from-[#C7AA76] hover:to-[#E5CB9F] text-[#211D1B] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
+                            >
+                                <History className="w-4 h-4" />
+                                <span>Buka Riwayat Reservasi Saya</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
                         {/* Stepper Progress Bar (App Shell Header) */}
                         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#32151F]/15 shadow-xs relative overflow-hidden before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-[#32151F] before:via-[#B99A65] before:to-[#32151F]">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-[#FAF6F0]">
@@ -888,6 +1028,31 @@ export default function Reservation({
                                         <p className="text-xs sm:text-sm text-[#6E625A] mt-1">
                                             Sistem akan memeriksa ketersediaan meja dan status restoran secara langsung untuk memastikan waktu jamuan tidak tabrakan dengan tamu lain.
                                         </p>
+                                    </div>
+
+                                    {/* Shortcut Khusus: Sudah Punya Reservasi */}
+                                    <div className="p-4 sm:p-5 rounded-2xl bg-[#FAF6F0] border border-[#E8DFD3] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-full bg-[#32151F] text-[#D4B886] flex items-center justify-center shrink-0">
+                                                <History className="w-4 h-4" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-xs font-bold text-[#32151F]">
+                                                    Hanya Ingin Melihat Status Booking Sebelumnya?
+                                                </h4>
+                                                <p className="text-[11px] text-[#6E625A]">
+                                                    Anda tidak perlu mengisi ulang formulir tanggal dan meja di bawah ini.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPageView('history')}
+                                            className="px-4 py-2 rounded-full bg-[#32151F] hover:bg-[#4A1525] text-[#D4B886] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shrink-0 cursor-pointer"
+                                        >
+                                            <span>Buka Riwayat Reservasi</span>
+                                            <ChevronRight className="w-3.5 h-3.5" />
+                                        </button>
                                     </div>
 
                                     {/* Real-Time Restaurant Status Banner */}
@@ -1772,23 +1937,66 @@ export default function Reservation({
 
                                     {/* Metode Pembayaran DP Non-Tunai Berlogo Lengkap */}
                                     <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-xs font-bold text-[#32151F] uppercase tracking-wider block">
-                                                Pilih Saluran Pembayaran DP
-                                            </label>
-                                            <span className="text-[11px] text-[#9E938B] font-semibold">
-                                                Verifikasi Otomatis 24 Jam
-                                            </span>
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                            <div>
+                                                <label className="text-xs font-bold text-[#32151F] uppercase tracking-wider block">
+                                                    Pilih Saluran Pembayaran DP
+                                                </label>
+                                                <span className="text-[11px] text-[#9E938B] font-semibold">
+                                                    QRIS, Dompet Digital (e-Wallet) & Virtual Account Bank
+                                                </span>
+                                            </div>
+
+                                            {/* Filter Kategori Metode Pembayaran */}
+                                            <div className="flex items-center gap-1 p-1 bg-[#FAF6F0] rounded-xl border border-[#E8DFD3] text-xs font-semibold">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPaymentCategoryFilter('all')}
+                                                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                                                        paymentCategoryFilter === 'all'
+                                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                                            : 'text-[#6E625A] hover:text-[#32151F]'
+                                                    }`}
+                                                >
+                                                    Semua (10)
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPaymentCategoryFilter('ewallet')}
+                                                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                                                        paymentCategoryFilter === 'ewallet'
+                                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                                            : 'text-[#6E625A] hover:text-[#32151F]'
+                                                    }`}
+                                                >
+                                                    <Wallet className="w-3.5 h-3.5" />
+                                                    <span>e-Wallet & QRIS (5)</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPaymentCategoryFilter('va')}
+                                                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                                                        paymentCategoryFilter === 'va'
+                                                            ? 'bg-[#32151F] text-[#D4B886] font-bold shadow-xs'
+                                                            : 'text-[#6E625A] hover:text-[#32151F]'
+                                                    }`}
+                                                >
+                                                    <Building2 className="w-3.5 h-3.5" />
+                                                    <span>VA Bank (5)</span>
+                                                </button>
+                                            </div>
                                         </div>
 
-                                        {/* Grid 6 Saluran Pembayaran dengan Logo Resmi */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                                            {[
+                                        {/* Grid Saluran Pembayaran dengan Logo Resmi */}
+                                        {(() => {
+                                            const allMethods = [
+                                                // 1. QRIS & e-Wallet
                                                 {
                                                     id: 'qris',
+                                                    category: 'ewallet',
                                                     title: 'QRIS Instan',
                                                     subtitle: 'Semua e-Wallet & M-Banking',
-                                                    badge: 'Scan Cepat · Bebas Biaya',
+                                                    badge: 'Scan Bebas Biaya',
                                                     badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
                                                     logo: <QrisLogo className="h-6 w-auto" />,
                                                     apps: ['GoPay', 'OVO', 'ShopeePay', 'Dana', 'BCA QR', 'Livin', 'LinkAja'],
@@ -1799,7 +2007,69 @@ export default function Reservation({
                                                     ]
                                                 },
                                                 {
+                                                    id: 'gopay',
+                                                    category: 'ewallet',
+                                                    title: 'GoPay',
+                                                    subtitle: 'GoPay App & Gojek',
+                                                    badge: 'Direct Deeplink / QR',
+                                                    badgeColor: 'bg-sky-50 text-sky-800 border-sky-200',
+                                                    logo: <GopayLogo className="h-6 w-auto" />,
+                                                    apps: ['GoPay App', 'Gojek Superapp', 'QRIS GoPay'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk membuka jendela pembayaran resmi GoPay.',
+                                                        'Pada smartphone, aplikasi GoPay / Gojek akan terbuka otomatis untuk menyelesaikan pembayaran.',
+                                                        'Pada laptop/desktop, pindai kode QR GoPay yang tampil di layar melalui aplikasi ponsel Anda.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'shopeepay',
+                                                    category: 'ewallet',
+                                                    title: 'ShopeePay',
+                                                    subtitle: 'Shopee & ShopeePay App',
+                                                    badge: 'Direct Deeplink / QR',
+                                                    badgeColor: 'bg-orange-50 text-orange-800 border-orange-200',
+                                                    logo: <ShopeePayLogo className="h-6 w-auto" />,
+                                                    apps: ['Shopee App', 'ShopeePay App'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk menghubungkan langsung ke dompet ShopeePay.',
+                                                        'Konfirmasi transaksi di aplikasi Shopee Anda dengan memasukkan PIN ShopeePay atau biometrik.',
+                                                        'Setelah pembayaran terverifikasi, alokasi meja resmi terkunci saat itu juga.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'dana',
+                                                    category: 'ewallet',
+                                                    title: 'DANA',
+                                                    subtitle: 'Dompet Digital Indonesia',
+                                                    badge: 'Scan QRIS Dinamis',
+                                                    badgeColor: 'bg-blue-50 text-blue-800 border-blue-200',
+                                                    logo: <DanaLogo className="h-6 w-auto" />,
+                                                    apps: ['DANA App', 'QRIS DANA'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk memunculkan kode QRIS resmi.',
+                                                        'Buka aplikasi DANA di ponsel Anda lalu pilih menu "Scan / Pindai".',
+                                                        'Arahkan kamera ke kode QR dan masukkan PIN DANA Anda untuk menyelesaikan DP reservasi.'
+                                                    ]
+                                                },
+                                                {
+                                                    id: 'ovo',
+                                                    category: 'ewallet',
+                                                    title: 'OVO Cash',
+                                                    subtitle: 'OVO Points & Cash',
+                                                    badge: 'Scan QRIS Dinamis',
+                                                    badgeColor: 'bg-purple-50 text-purple-800 border-purple-200',
+                                                    logo: <OvoLogo className="h-6 w-auto" />,
+                                                    apps: ['OVO App', 'QRIS OVO'],
+                                                    instructions: [
+                                                        'Tekan tombol bayar di bawah untuk membuka kode QRIS dinamis resmi.',
+                                                        'Buka aplikasi OVO di smartphone Anda lalu tekan tombol "QRIS" di halaman utama.',
+                                                        'Pindai kode QR dan konfirmasi nominal DP jamuan Anda dengan Security Code OVO.'
+                                                    ]
+                                                },
+                                                // 2. Virtual Account Bank
+                                                {
                                                     id: 'bca_va',
+                                                    category: 'va',
                                                     title: 'BCA Virtual Account',
                                                     subtitle: 'BCA Mobile, myBCA, KlikBCA',
                                                     badge: 'Verifikasi Otomatis',
@@ -1814,6 +2084,7 @@ export default function Reservation({
                                                 },
                                                 {
                                                     id: 'mandiri_va',
+                                                    category: 'va',
                                                     title: 'Mandiri Virtual Account',
                                                     subtitle: "Livin' by Mandiri & ATM",
                                                     badge: 'Verifikasi Otomatis',
@@ -1828,6 +2099,7 @@ export default function Reservation({
                                                 },
                                                 {
                                                     id: 'bni_va',
+                                                    category: 'va',
                                                     title: 'BNI Virtual Account',
                                                     subtitle: 'BNI Mobile Banking & ATM',
                                                     badge: 'Verifikasi Otomatis',
@@ -1842,6 +2114,7 @@ export default function Reservation({
                                                 },
                                                 {
                                                     id: 'bri_va',
+                                                    category: 'va',
                                                     title: 'BRI Virtual Account',
                                                     subtitle: 'BRIVA via BRImo & ATM',
                                                     badge: 'Verifikasi Otomatis',
@@ -1856,6 +2129,7 @@ export default function Reservation({
                                                 },
                                                 {
                                                     id: 'permata_va',
+                                                    category: 'va',
                                                     title: 'Permata & Bank Lainnya',
                                                     subtitle: 'PermataMobile X, ATM Bersama',
                                                     badge: 'Verifikasi Otomatis',
@@ -1868,177 +2142,117 @@ export default function Reservation({
                                                         'Masukkan nomor VA sebagai nomor rekening tujuan transfer.'
                                                     ]
                                                 },
-                                            ].map(method => {
-                                                const isSelected = data.dp_payment_method === method.id;
-                                                return (
-                                                    <button
-                                                        key={method.id}
-                                                        type="button"
-                                                        onClick={() => setData('dp_payment_method', method.id as any)}
-                                                        className={`p-4 rounded-2xl border text-left transition-all relative flex flex-col justify-between group cursor-pointer ${
-                                                            isSelected
-                                                                ? 'bg-white text-[#1A1615] border-[#32151F] shadow-md ring-2 ring-[#B99A65]/40 -translate-y-0.5'
-                                                                : 'bg-[#FDFBF7] text-[#1A1615] border-[#E8DFD3] hover:border-[#B99A65]/60 hover:bg-white'
-                                                        }`}
-                                                    >
-                                                        {/* Top Row: Logo & Radio Status */}
-                                                        <div className="flex items-center justify-between gap-3 mb-3">
-                                                            <div className="p-1.5 rounded-xl bg-white border border-[#E8DFD3]/80 shadow-xs flex items-center justify-center shrink-0">
-                                                                {method.logo}
-                                                            </div>
-                                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-                                                                isSelected
-                                                                    ? 'bg-[#32151F] border-[#32151F] text-[#D4B886]'
-                                                                    : 'border-[#C2B7AC] bg-white group-hover:border-[#B99A65]'
-                                                            }`}>
-                                                                {isSelected && (
-                                                                    <Check className="w-3 h-3 stroke-[3]" />
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Middle Row: Title & Subtitle */}
-                                                        <div className="space-y-0.5 mb-2.5">
-                                                            <span className="font-heading font-bold text-sm text-[#32151F] block leading-snug">
-                                                                {method.title}
-                                                            </span>
-                                                            <span className="text-[11px] text-[#6E625A] block leading-tight">
-                                                                {method.subtitle}
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Bottom Row: Speed/Verification Tag */}
-                                                        <div className="pt-2 border-t border-[#F0EBE1] flex items-center justify-between text-[10px]">
-                                                            <span className={`px-2 py-0.5 rounded-md font-semibold border ${method.badgeColor}`}>
-                                                                {method.badge}
-                                                            </span>
-                                                            <span className="text-[#9E938B] font-mono text-[9px]">
-                                                                Real-Time
-                                                            </span>
-                                                        </div>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Panel Detail Panduan Metode Terpilih */}
-                                        {(() => {
-                                            const methodList = [
-                                                {
-                                                    id: 'qris',
-                                                    title: 'QRIS Instan',
-                                                    logo: <QrisLogo className="h-6 w-auto" />,
-                                                    apps: ['GoPay', 'OVO', 'ShopeePay', 'Dana', 'BCA QR', 'Livin', 'LinkAja'],
-                                                    instructions: [
-                                                        'Buka aplikasi e-Wallet atau Mobile Banking Anda (GoPay, OVO, ShopeePay, Dana, BCA Mobile, Livin, dll).',
-                                                        'Tekan tombol bayar di bawah untuk membuka kode QRIS dinamis resmi.',
-                                                        'Pindai (scan) kode QR dan selesaikan transaksi. Meja Anda langsung terkonfirmasi 24 jam otomatis.'
-                                                    ]
-                                                },
-                                                {
-                                                    id: 'bca_va',
-                                                    title: 'BCA Virtual Account',
-                                                    logo: <BcaLogo className="h-6 w-auto" />,
-                                                    apps: ['BCA Mobile', 'myBCA', 'KlikBCA', 'ATM BCA'],
-                                                    instructions: [
-                                                        'Tekan tombol bayar di bawah untuk memperoleh nomor Virtual Account BCA resmi.',
-                                                        'Buka aplikasi BCA Mobile / myBCA / KlikBCA pilih m-Transfer lalu BCA Virtual Account.',
-                                                        'Masukkan nomor VA yang tertera dan selesaikan pembayaran sesuai nominal tepat.'
-                                                    ]
-                                                },
-                                                {
-                                                    id: 'mandiri_va',
-                                                    title: 'Mandiri Virtual Account',
-                                                    logo: <MandiriLogo className="h-6 w-auto" />,
-                                                    apps: ["Livin' by Mandiri", 'Mandiri ATM', 'Internet Banking'],
-                                                    instructions: [
-                                                        'Tekan tombol bayar di bawah untuk memperoleh kode perusahaan dan nomor Virtual Account.',
-                                                        "Buka aplikasi Livin' by Mandiri pilih menu Bayar lalu Cari Penyedia Jasa atau masukkan kode.",
-                                                        'Konfirmasi detail pembayaran dan masukkan PIN Livin Anda.'
-                                                    ]
-                                                },
-                                                {
-                                                    id: 'bni_va',
-                                                    title: 'BNI Virtual Account',
-                                                    logo: <BniLogo className="h-6 w-auto" />,
-                                                    apps: ['BNI Mobile', 'BNI Direct', 'ATM BNI'],
-                                                    instructions: [
-                                                        'Tekan tombol bayar di bawah untuk memperoleh nomor Virtual Account BNI.',
-                                                        'Buka aplikasi BNI Mobile Banking pilih Pembayaran lalu Virtual Account Billing.',
-                                                        'Masukkan nomor VA dan selesaikan pembayaran dengan password transaksi Anda.'
-                                                    ]
-                                                },
-                                                {
-                                                    id: 'bri_va',
-                                                    title: 'BRI Virtual Account',
-                                                    logo: <BriLogo className="h-6 w-auto" />,
-                                                    apps: ['BRImo', 'Internet Banking BRI', 'ATM BRI'],
-                                                    instructions: [
-                                                        'Tekan tombol bayar di bawah untuk memperoleh nomor BRIVA (BRI Virtual Account).',
-                                                        'Buka aplikasi BRImo pilih menu Tagihan / BRIVA lalu Pembayaran Baru.',
-                                                        'Masukkan nomor BRIVA dan konfirmasi pembayaran dengan PIN BRImo Anda.'
-                                                    ]
-                                                },
-                                                {
-                                                    id: 'permata_va',
-                                                    title: 'Permata & Bank Lainnya',
-                                                    logo: <PermataLogo className="h-6 w-auto" />,
-                                                    apps: ['PermataMobile X', 'ATM Bersama', 'Prima', 'ALTO'],
-                                                    instructions: [
-                                                        'Tekan tombol bayar di bawah untuk memperoleh nomor Virtual Account Permata.',
-                                                        'Dapat dibayar dari bank apa pun melalui menu Transfer Antar Bank (pilih Bank Permata / kode 013).',
-                                                        'Masukkan nomor VA sebagai nomor rekening tujuan transfer.'
-                                                    ]
-                                                },
                                             ];
-                                            const activeMethod = methodList.find(m => m.id === data.dp_payment_method) || methodList[0];
+
+                                            const displayedMethods = paymentCategoryFilter === 'all'
+                                                ? allMethods
+                                                : allMethods.filter(m => m.category === paymentCategoryFilter);
+
+                                            const activeMethod = allMethods.find(m => m.id === data.dp_payment_method) || allMethods[0];
 
                                             return (
-                                                <div className="p-5 rounded-3xl bg-gradient-to-br from-white via-[#FAF6F0] to-[#F5ECE0] border border-[#B99A65]/40 shadow-xs space-y-3.5 transition-all animate-fadeIn">
-                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-[#E8DFD3]">
-                                                        <div className="flex items-center gap-2.5">
-                                                            <div className="p-1.5 rounded-xl bg-white border border-[#E8DFD3] shadow-xs shrink-0">
-                                                                {activeMethod.logo}
+                                                <>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                                                        {displayedMethods.map(method => {
+                                                            const isSelected = data.dp_payment_method === method.id;
+                                                            return (
+                                                                <button
+                                                                    key={method.id}
+                                                                    type="button"
+                                                                    onClick={() => setData('dp_payment_method', method.id as any)}
+                                                                    className={`p-4 rounded-2xl border text-left transition-all relative flex flex-col justify-between group cursor-pointer ${
+                                                                        isSelected
+                                                                            ? 'bg-white text-[#1A1615] border-[#32151F] shadow-md ring-2 ring-[#B99A65]/40 -translate-y-0.5'
+                                                                            : 'bg-[#FDFBF7] text-[#1A1615] border-[#E8DFD3] hover:border-[#B99A65]/60 hover:bg-white'
+                                                                    }`}
+                                                                >
+                                                                    {/* Top Row: Logo & Radio Status */}
+                                                                    <div className="flex items-center justify-between gap-3 mb-3">
+                                                                        <div className="p-1.5 rounded-xl bg-white border border-[#E8DFD3]/80 shadow-xs flex items-center justify-center shrink-0 min-h-[38px]">
+                                                                            {method.logo}
+                                                                        </div>
+                                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                                                                            isSelected
+                                                                                ? 'bg-[#32151F] border-[#32151F] text-[#D4B886]'
+                                                                                : 'border-[#C2B7AC] bg-white group-hover:border-[#B99A65]'
+                                                                        }`}>
+                                                                            {isSelected && (
+                                                                                <Check className="w-3 h-3 stroke-[3]" />
+                                                                        )}
+                                                                    </div>
+                                                                    </div>
+
+                                                                    {/* Middle Row: Title & Subtitle */}
+                                                                    <div className="space-y-0.5 mb-2.5">
+                                                                        <span className="font-heading font-bold text-sm text-[#32151F] block leading-snug">
+                                                                            {method.title}
+                                                                        </span>
+                                                                        <span className="text-[11px] text-[#6E625A] block leading-tight">
+                                                                            {method.subtitle}
+                                                                        </span>
+                                                                    </div>
+
+                                                                    {/* Bottom Row: Speed/Verification Tag */}
+                                                                    <div className="pt-2 border-t border-[#F0EBE1] flex items-center justify-between text-[10px]">
+                                                                        <span className={`px-2 py-0.5 rounded-md font-semibold border ${method.badgeColor}`}>
+                                                                            {method.badge}
+                                                                        </span>
+                                                                        <span className="text-[#9E938B] font-mono text-[9px]">
+                                                                            Real-Time
+                                                                        </span>
+                                                                    </div>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+
+                                                    {/* Panel Detail Panduan Metode Terpilih */}
+                                                    <div className="p-5 rounded-3xl bg-gradient-to-br from-white via-[#FAF6F0] to-[#F5ECE0] border border-[#B99A65]/40 shadow-xs space-y-3.5 transition-all animate-fadeIn">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-[#E8DFD3]">
+                                                            <div className="flex items-center gap-2.5">
+                                                                <div className="p-1.5 rounded-xl bg-white border border-[#E8DFD3] shadow-xs shrink-0">
+                                                                    {activeMethod.logo}
+                                                                </div>
+                                                                <div>
+                                                                    <h5 className="font-heading font-bold text-sm text-[#32151F]">
+                                                                        Panduan Pembayaran: {activeMethod.title}
+                                                                    </h5>
+                                                                    <span className="text-[11px] text-[#6E625A] block">
+                                                                        Nominal DP: <strong>{formatRupiah(calculatedDpAmount)}</strong> · Verifikasi Otomatis 24 Jam
+                                                                    </span>
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                <h5 className="font-heading font-bold text-sm text-[#32151F]">
-                                                                    Panduan Pembayaran: {activeMethod.title}
-                                                                </h5>
-                                                                <span className="text-[11px] text-[#6E625A] block">
-                                                                    Nominal DP: <strong>{formatRupiah(calculatedDpAmount)}</strong> · Verifikasi Otomatis 24 Jam
-                                                                </span>
-                                                            </div>
+
+                                                            {activeMethod.apps && (
+                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                    {activeMethod.apps.slice(0, 4).map((app, i) => (
+                                                                        <span key={i} className="px-2 py-0.5 rounded-full bg-white border border-[#E8DFD3] text-[10px] font-semibold text-[#4A1525] shadow-xs">
+                                                                            {app}
+                                                                        </span>
+                                                                    ))}
+                                                                    {activeMethod.apps.length > 4 && (
+                                                                        <span className="text-[10px] text-[#9E938B] font-bold">
+                                                                            +{activeMethod.apps.length - 4} Lainnya
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </div>
 
-                                                        {activeMethod.apps && (
-                                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                                {activeMethod.apps.slice(0, 4).map((app, i) => (
-                                                                    <span key={i} className="px-2 py-0.5 rounded-full bg-white border border-[#E8DFD3] text-[10px] font-semibold text-[#4A1525] shadow-xs">
-                                                                        {app}
+                                                        <div className="space-y-2">
+                                                            {activeMethod.instructions.map((step, idx) => (
+                                                                <div key={idx} className="flex items-start gap-2.5 text-xs text-[#52463E]">
+                                                                    <span className="w-5 h-5 rounded-full bg-[#32151F] text-[#D4B886] font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                                                        {idx + 1}
                                                                     </span>
-                                                                ))}
-                                                                {activeMethod.apps.length > 4 && (
-                                                                    <span className="text-[10px] text-[#9E938B] font-bold">
-                                                                        +{activeMethod.apps.length - 4} Lainnya
+                                                                    <span className="leading-relaxed">
+                                                                        {step}
                                                                     </span>
-                                                                )}
-                                                            </div>
-                                                        )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     </div>
-
-                                                    <div className="space-y-2">
-                                                        {activeMethod.instructions.map((step, idx) => (
-                                                            <div key={idx} className="flex items-start gap-2.5 text-xs text-[#52463E]">
-                                                                <span className="w-5 h-5 rounded-full bg-[#32151F] text-[#D4B886] font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                                                                    {idx + 1}
-                                                                </span>
-                                                                <span className="leading-relaxed">
-                                                                    {step}
-                                                                </span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
+                                                </>
                                             );
                                         })()}
                                     </div>
@@ -2173,11 +2387,21 @@ export default function Reservation({
                                                     ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                                                     : res.status === 'Pending'
                                                     ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                                    : res.status === 'Refund Requested'
+                                                    ? 'bg-orange-100 text-orange-800 border border-orange-300'
+                                                    : res.status === 'Refunded'
+                                                    ? 'bg-teal-100 text-teal-800 border border-teal-300'
                                                     : 'bg-stone-100 text-stone-700'
                                             }`}>
                                                 {res.status === 'Confirmed'
                                                     ? 'Terkonfirmasi · Meja Terkunci'
-                                                    : (res.status === 'Pending' ? 'Menunggu Pembayaran DP' : res.status)}
+                                                    : res.status === 'Pending'
+                                                    ? 'Menunggu Pembayaran DP'
+                                                    : res.status === 'Refund Requested'
+                                                    ? 'Pengajuan Refund Sedang Ditinjau'
+                                                    : res.status === 'Refunded'
+                                                    ? 'Dana Telah Dikembalikan'
+                                                    : res.status}
                                             </span>
                                         </div>
 
@@ -2235,16 +2459,53 @@ export default function Reservation({
                                             </div>
                                         )}
 
+                                        {res.status === 'Refund Requested' && (
+                                            <div className="p-3.5 rounded-2xl bg-orange-50/80 border border-orange-200/80 text-[11px] text-orange-950 space-y-1">
+                                                <div className="flex items-center gap-1.5 font-bold text-orange-900">
+                                                    <RotateCcw className="w-4 h-4 text-orange-600 shrink-0" />
+                                                    <span>Pengajuan Refund Sedang Diproses Tim Keuangan</span>
+                                                </div>
+                                                <p className="text-orange-800 leading-relaxed text-[11px]">
+                                                    Permohonan pengembalian dana DP Anda telah masuk ke sistem. Tim Konsierge & Keuangan NUSARA akan melakukan transfer balik dalam 1x24 jam kerja ke rekening/e-wallet yang Anda daftarkan.
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {res.status === 'Refunded' && (
+                                            <div className="p-3.5 rounded-2xl bg-teal-50/80 border border-teal-200/80 text-[11px] text-teal-950 space-y-1">
+                                                <div className="flex items-center gap-1.5 font-bold text-teal-900">
+                                                    <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
+                                                    <span>Dana Uang Muka (DP) Telah Dikembalikan</span>
+                                                </div>
+                                                <p className="text-teal-800 leading-relaxed text-[11px]">
+                                                    Pengembalian dana DP untuk reservasi ini telah selesai diproses oleh manajemen NUSARA.
+                                                </p>
+                                            </div>
+                                        )}
+
                                         {res.special_request && (
                                             <div className="p-3 rounded-xl bg-[#FAF6F0] text-[11px] text-[#6E625A]">
                                                 {res.special_request}
                                             </div>
                                         )}
 
-                                        <div className="pt-2 flex items-center justify-between text-xs border-t border-[#FAF6F0]">
-                                            <span className="text-[10px] text-[#9E938B]">
-                                                Dibuat: {res.created_at}
-                                            </span>
+                                        <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#FAF6F0]">
+                                            <div className="flex items-center gap-2">
+                                                {(res.status === 'Confirmed' || res.status === 'Pending') && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleOpenRefundModal(res)}
+                                                        className="px-3.5 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-bold tracking-wide transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+                                                        title="Ajukan pembatalan reservasi dan pengembalian dana DP"
+                                                    >
+                                                        <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                                                        <span>Ajukan Refund</span>
+                                                    </button>
+                                                )}
+                                                <span className="text-[10px] text-[#9E938B]">
+                                                    Dibuat: {res.created_at}
+                                                </span>
+                                            </div>
                                             <a
                                                 href={getWhatsAppUrl(`Halo Admin Konsierge NUSARA, saya ingin menanyakan status reservasi saya dengan kode: ${res.reservation_code}.`)}
                                                 target="_blank"
@@ -2262,6 +2523,207 @@ export default function Reservation({
                     </div>
                 )}
             </main>
+
+            {/* Modal Pengajuan Pengembalian Dana (Refund DP) */}
+            {isRefundModalOpen && selectedReservationForRefund && (
+                <div className="fixed inset-0 z-50 bg-[#211D1B]/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+                    <div className="relative bg-white w-full max-w-lg rounded-3xl border border-[#B99A65]/40 shadow-2xl overflow-hidden my-8">
+                        {/* Header Modal */}
+                        <div className="bg-gradient-to-r from-[#32151F] via-[#4A1525] to-[#32151F] p-6 text-[#FAF6F0] relative">
+                            <button
+                                type="button"
+                                onClick={() => setIsRefundModalOpen(false)}
+                                className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-[#FAF6F0] flex items-center justify-center transition-all cursor-pointer"
+                                aria-label="Tutup Modal"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                            <span className="text-[10px] font-bold text-[#D4B886] uppercase tracking-widest block mb-1">
+                                Layanan Tamu Resmi NUSARA
+                            </span>
+                            <h3 className="font-heading text-xl sm:text-2xl font-bold text-white">
+                                Pengajuan Pengembalian Dana (Refund)
+                            </h3>
+                            <p className="text-xs text-[#E8DFD3]/80 mt-1">
+                                Reservasi <strong className="text-[#D4B886]">#{selectedReservationForRefund.reservation_code}</strong> · Uang Muka (DP) Jamuan
+                            </p>
+                        </div>
+
+                        {/* Body Form Refund */}
+                        <form onSubmit={handleRefundSubmit} className="p-6 space-y-4">
+                            {/* Summary Detail Card */}
+                            <div className="p-4 rounded-2xl bg-[#FAF6F0] border border-[#E8DFD3] grid grid-cols-2 gap-3 text-xs">
+                                <div>
+                                    <span className="text-[#9E938B] block text-[10px] uppercase font-bold">Jadwal Jamuan</span>
+                                    <strong className="text-[#32151F] block mt-0.5">{selectedReservationForRefund.reservation_datetime}</strong>
+                                </div>
+                                <div>
+                                    <span className="text-[#9E938B] block text-[10px] uppercase font-bold">Meja Alokasi</span>
+                                    <strong className="text-[#32151F] block mt-0.5">{selectedReservationForRefund.table_number || 'Meja Dipersiapkan'}</strong>
+                                </div>
+                                <div>
+                                    <span className="text-[#9E938B] block text-[10px] uppercase font-bold">Jumlah Tamu</span>
+                                    <strong className="text-[#32151F] block mt-0.5">{selectedReservationForRefund.guest_count} Orang</strong>
+                                </div>
+                                <div>
+                                    <span className="text-[#9E938B] block text-[10px] uppercase font-bold">Status Saat Ini</span>
+                                    <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                        {selectedReservationForRefund.status}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {refundAlert && (
+                                <div className={`p-4 rounded-2xl text-xs flex items-start gap-3 ${
+                                    refundAlert.type === 'success'
+                                        ? 'bg-emerald-50 border border-emerald-200 text-emerald-900'
+                                        : 'bg-rose-50 border border-rose-200 text-rose-900'
+                                }`}>
+                                    {refundAlert.type === 'success' ? (
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                                    ) : (
+                                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                                    )}
+                                    <span className="leading-relaxed">{refundAlert.message}</span>
+                                </div>
+                            )}
+
+                            {/* Pilih Bank atau e-Wallet */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-[#32151F] uppercase tracking-wider block">
+                                    Bank / Dompet Digital Tujuan Refund <span className="text-rose-500">*</span>
+                                </label>
+                                <select
+                                    value={refundForm.bank_or_wallet}
+                                    onChange={(e) => setRefundForm({ ...refundForm, bank_or_wallet: e.target.value })}
+                                    className="w-full px-4 py-2.5 rounded-xl border border-[#E8DFD3] bg-[#FAF6F0]/60 text-xs text-[#1A1615] font-semibold focus:outline-none focus:border-[#B99A65] focus:ring-1 focus:ring-[#B99A65]"
+                                    required
+                                >
+                                    <optgroup label="Bank Virtual Account / Transfer">
+                                        <option value="BCA">Bank BCA</option>
+                                        <option value="Mandiri">Bank Mandiri</option>
+                                        <option value="BNI">Bank BNI</option>
+                                        <option value="BRI">Bank BRI</option>
+                                        <option value="Permata">Bank Permata</option>
+                                        <option value="CIMB Niaga">Bank CIMB Niaga</option>
+                                        <option value="Bank Lainnya">Bank Lainnya</option>
+                                    </optgroup>
+                                    <optgroup label="Dompet Digital (e-Wallet)">
+                                        <option value="GoPay">GoPay</option>
+                                        <option value="ShopeePay">ShopeePay</option>
+                                        <option value="DANA">DANA</option>
+                                        <option value="OVO">OVO</option>
+                                        <option value="LinkAja">LinkAja</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+
+                            {/* Nomor Rekening / Nomor Ponsel Akun */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-[#32151F] uppercase tracking-wider block">
+                                    Nomor Rekening / No. HP Akun e-Wallet <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={refundForm.account_number}
+                                    onChange={(e) => setRefundForm({ ...refundForm, account_number: e.target.value })}
+                                    placeholder="Contoh: 1234567890 atau 081234567890"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-[#E8DFD3] bg-[#FAF6F0]/60 text-xs text-[#1A1615] focus:outline-none focus:border-[#B99A65] focus:ring-1 focus:ring-[#B99A65]"
+                                    required
+                                />
+                            </div>
+
+                            {/* Nama Pemilik Rekening / Akun */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-[#32151F] uppercase tracking-wider block">
+                                    Nama Pemilik Rekening / Akun (Sesuai KTP) <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={refundForm.account_holder}
+                                    onChange={(e) => setRefundForm({ ...refundForm, account_holder: e.target.value })}
+                                    placeholder="Nama pemilik sah rekening tujuan"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-[#E8DFD3] bg-[#FAF6F0]/60 text-xs text-[#1A1615] focus:outline-none focus:border-[#B99A65] focus:ring-1 focus:ring-[#B99A65]"
+                                    required
+                                />
+                            </div>
+
+                            {/* Alasan Pembatalan / Refund */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-[#32151F] uppercase tracking-wider block">
+                                    Alasan Pembatalan & Refund <span className="text-rose-500">*</span>
+                                </label>
+                                <select
+                                    value={refundForm.reason}
+                                    onChange={(e) => setRefundForm({ ...refundForm, reason: e.target.value })}
+                                    className="w-full px-4 py-2.5 rounded-xl border border-[#E8DFD3] bg-[#FAF6F0]/60 text-xs text-[#1A1615] focus:outline-none focus:border-[#B99A65] focus:ring-1 focus:ring-[#B99A65]"
+                                    required
+                                >
+                                    <option value="Perubahan Jadwal / Agenda Jamuan">Perubahan Jadwal / Agenda Jamuan</option>
+                                    <option value="Keperluan Mendesak / Darurat Pribadi">Keperluan Mendesak / Darurat Pribadi</option>
+                                    <option value="Rombongan Tamu Berhalangan Hadir">Rombongan Tamu Berhalangan Hadir</option>
+                                    <option value="Ingin Menjadwalkan Ulang di Tanggal Berbeda">Ingin Menjadwalkan Ulang di Tanggal Berbeda</option>
+                                    <option value="Kendala Transportasi / Lokasi">Kendala Transportasi / Lokasi</option>
+                                    <option value="Alasan Lainnya">Alasan Lainnya</option>
+                                </select>
+                            </div>
+
+                            {/* Kebijakan Refund Box */}
+                            <div className="p-3.5 rounded-2xl bg-[#FAF6F0] border border-[#B99A65]/30 text-[11px] text-[#52463E] space-y-1">
+                                <div className="flex items-center gap-1.5 font-bold text-[#32151F]">
+                                    <ShieldCheck className="w-4 h-4 text-[#B99A65]" />
+                                    <span>Ketentuan Pengembalian Dana NUSARA</span>
+                                </div>
+                                <p className="leading-relaxed">
+                                    Pengajuan refund DP akan diverifikasi dan diproses oleh tim konsierge & keuangan NUSARA dalam 1x24 jam kerja langsung ke rekening / e-wallet yang Anda cantumkan di atas.
+                                </p>
+                            </div>
+
+                            {/* Tombol Aksi */}
+                            <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+                                <button
+                                    type="submit"
+                                    disabled={isSubmittingRefund}
+                                    className="w-full sm:flex-1 py-3 px-5 rounded-full bg-gradient-to-r from-[#32151F] to-[#4A1525] hover:from-[#4A1525] hover:to-[#5E1A2F] text-[#D4B886] font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                                >
+                                    {isSubmittingRefund ? (
+                                        <>
+                                            <RefreshCw className="w-4 h-4 animate-spin text-[#D4B886]" />
+                                            <span>Memproses Pengajuan...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <RotateCcw className="w-4 h-4 text-[#D4B886]" />
+                                            <span>Kirim Pengajuan Refund Resmi</span>
+                                        </>
+                                    )}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setIsRefundModalOpen(false)}
+                                    className="w-full sm:w-auto px-5 py-3 rounded-full border border-[#C2B7AC] text-xs font-semibold text-[#6E625A] hover:bg-[#FAF6F0] transition-all cursor-pointer"
+                                >
+                                    Batal
+                                </button>
+                            </div>
+
+                            {/* WhatsApp Fast Dispatch */}
+                            <div className="pt-1 text-center">
+                                <a
+                                    href={getWhatsAppUrl(`Halo Admin Konsierge NUSARA, saya telah mengajukan refund untuk reservasi #${selectedReservationForRefund.reservation_code} atas nama ${refundForm.account_holder} ke ${refundForm.bank_or_wallet} ${refundForm.account_number}. Mohon bantu konfirmasi.`)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-xs text-[#B99A65] hover:text-[#4A1525] font-semibold"
+                                >
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                    <span>Konfirmasi Cepat via WhatsApp Konsierge</span>
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Logout Confirmation Modal */}
             <LogoutConfirmModal

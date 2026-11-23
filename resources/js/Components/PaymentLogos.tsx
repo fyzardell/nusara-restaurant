@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Authentic vector logos for Indonesian payment gateways & banks (Midtrans compatible)
+ * Authentic vector logos for Indonesian payment gateways, e-Wallets & banks (Midtrans compatible)
  */
 
 export function QrisLogo({ className = "h-6 w-auto" }: { className?: string }) {
@@ -17,6 +17,59 @@ export function QrisLogo({ className = "h-6 w-auto" }: { className?: string }) {
             </text>
             <text x="31" y="28" fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" fontWeight="800" fontSize="5" fill="#ED1C24" letterSpacing="0.8">
                 STANDAR NASIONAL
+            </text>
+        </svg>
+    );
+}
+
+export function GopayLogo({ className = "h-6 w-auto" }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 96 30" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+            <rect width="96" height="30" rx="6" fill="#00AED6" />
+            {/* GoPay circular pin logo */}
+            <circle cx="15" cy="15" r="7" fill="#FFFFFF" />
+            <circle cx="15" cy="15" r="3.5" fill="#00AED6" />
+            <text x="27" y="20.5" fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" fontWeight="900" fontSize="15" fill="#FFFFFF" letterSpacing="0.2">
+                gopay
+            </text>
+        </svg>
+    );
+}
+
+export function ShopeePayLogo({ className = "h-6 w-auto" }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 110 30" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+            <rect width="110" height="30" rx="6" fill="#EE4D2D" />
+            {/* Shopee Bag Icon */}
+            <g transform="translate(8, 6)">
+                <path d="M4 6V4C4 2.34315 5.34315 1 7 1C8.65685 1 10 2.34315 10 4V6H13L14 17H0L1 6H4ZM6 6H8V4C8 3.44772 7.55228 3 7 3C6.44772 3 6 3.44772 6 4V6Z" fill="#FFFFFF" />
+            </g>
+            <text x="26" y="19" fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" fontWeight="800" fontSize="12" fill="#FFFFFF" letterSpacing="0.1">
+                Shopee<tspan fontWeight="900" fill="#FFD580">Pay</tspan>
+            </text>
+        </svg>
+    );
+}
+
+export function DanaLogo({ className = "h-6 w-auto" }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 92 30" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+            <rect width="92" height="30" rx="6" fill="#118EEA" />
+            {/* DANA typographic logo */}
+            <text x="14" y="21" fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" fontWeight="900" fontSize="17" fill="#FFFFFF" letterSpacing="1.2">
+                DANA
+            </text>
+        </svg>
+    );
+}
+
+export function OvoLogo({ className = "h-6 w-auto" }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 88 30" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+            <rect width="88" height="30" rx="6" fill="#4C3494" />
+            {/* OVO typographic logo */}
+            <text x="16" y="21" fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" fontWeight="900" fontSize="17" fill="#FFFFFF" letterSpacing="1.5">
+                OVO
             </text>
         </svg>
     );

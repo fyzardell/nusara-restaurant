@@ -492,7 +492,7 @@ class AdminController extends Controller
     {
         $user = Auth::user();
         $request->validate([
-            'status' => 'required|in:Pending,Confirmed,Rejected,Cancelled,Completed,No Show',
+            'status' => 'required|in:Pending,Confirmed,Rejected,Cancelled,Completed,No Show,Refund Requested,Refunded',
         ]);
 
         $reservation = DB::table('reservations')->where('id', $reservationId)->first();
