@@ -1639,10 +1639,6 @@ export default function Reservation({
                                             <span className="text-xs font-bold text-[#32151F] uppercase tracking-wider">
                                                 Rincian Reservasi Meja
                                             </span>
-                                            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold uppercase flex items-center gap-1.5 shadow-xs">
-                                                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                                                <span>Konfirmasi Otomatis 24 Jam (Midtrans DP)</span>
-                                            </span>
                                         </div>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
@@ -1725,7 +1721,7 @@ export default function Reservation({
                                                     Kebijakan Uang Jaminan & Anti-Ghost Booking
                                                 </h4>
                                                 <span className="text-[11px] text-[#6E625A] block">
-                                                    Sistem Reservasi Terverifikasi Otomatis 24 Jam via Midtrans Gateway
+                                                    Sistem Reservasi Terverifikasi Otomatis 24 Jam (Real-Time)
                                                 </span>
                                             </div>
                                         </div>
@@ -1773,10 +1769,10 @@ export default function Reservation({
                                         </div>
                                     </div>
 
-                                    {/* Metode Pembayaran DP Non-Tunai Midtrans */}
+                                    {/* Metode Pembayaran DP Non-Tunai */}
                                     <div className="space-y-4">
                                         <label className="text-xs font-bold text-[#32151F] uppercase tracking-wider block">
-                                            Pilih Saluran Pembayaran DP (Midtrans)
+                                            Pilih Saluran Pembayaran DP
                                         </label>
 
                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -1800,26 +1796,6 @@ export default function Reservation({
                                                     <span className="text-[10px] opacity-75 block mt-0.5">{method.sub}</span>
                                                 </button>
                                             ))}
-                                        </div>
-
-                                        {/* Box Info Midtrans Gateway */}
-                                        <div className="p-5 rounded-3xl bg-[#FAF6F0] border border-[#E8DFD3] flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-                                            <div className="p-3 bg-white rounded-2xl border border-[#E8DFD3] shadow-xs shrink-0">
-                                                <QrCode className="w-12 h-12 text-[#32151F]" />
-                                            </div>
-                                            <div className="space-y-1 text-xs">
-                                                <div className="flex items-center justify-center sm:justify-start gap-2">
-                                                    <span className="font-bold text-sm text-[#32151F]">
-                                                        Midtrans Automated Payment Gateway
-                                                    </span>
-                                                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                                                        24 Jam Real-Time
-                                                    </span>
-                                                </div>
-                                                <p className="text-[#6E625A] leading-relaxed text-[11px]">
-                                                    Jendela pop-up resmi Midtrans Snap akan terbuka otomatis setelah Anda menekan tombol di bawah. Anda dapat langsung memindai QRIS dinamis atau menyalin nomor Virtual Account bank pilihan Anda.
-                                                </p>
-                                            </div>
                                         </div>
                                     </div>
 
@@ -1848,7 +1824,7 @@ export default function Reservation({
                                                 className="w-4 h-4 mt-0.5 rounded text-[#32151F] focus:ring-[#B99A65] border-[#E8DFD3]"
                                             />
                                             <span>
-                                                Saya menyetujui ketentuan reservasi NUSARA: Uang muka (DP) sebesar <strong>{formatRupiah(calculatedDpAmount)}</strong> dibayarkan via Midtrans untuk mengunci meja secara resmi (Anti-Ghost Booking). Saya memahami status akan terkonfirmasi otomatis 24 jam dan sisa pembayaran menu tambahan saat bersantap di restoran dapat saya selesaikan di kasir secara <strong>Tunai (Cash)</strong> maupun non-tunai.
+                                                Saya menyetujui ketentuan reservasi NUSARA: Uang muka (DP) sebesar <strong>{formatRupiah(calculatedDpAmount)}</strong> dibayarkan secara non-tunai untuk mengunci meja secara resmi (Anti-Ghost Booking). Saya memahami status akan terkonfirmasi otomatis 24 jam dan sisa pembayaran menu tambahan saat bersantap di restoran dapat saya selesaikan di kasir secara <strong>Tunai (Cash)</strong> maupun non-tunai.
                                             </span>
                                         </label>
                                     </div>
@@ -1872,11 +1848,11 @@ export default function Reservation({
                                             {processing || isSubmittingReservation ? (
                                                 <>
                                                     <RefreshCw className="w-4 h-4 animate-spin" />
-                                                    <span>Membuka Midtrans Snap...</span>
+                                                    <span>Mempersiapkan Pembayaran...</span>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <span>Bayar DP {formatRupiah(calculatedDpAmount)} via Midtrans (Buka QRIS & Virtual Account)</span>
+                                                    <span>Bayar DP {formatRupiah(calculatedDpAmount)} (QRIS & Virtual Account)</span>
                                                     <ArrowRight className="w-4 h-4 text-[#D4B886] transition-transform group-hover:translate-x-1" />
                                                 </>
                                             )}
@@ -1900,7 +1876,7 @@ export default function Reservation({
                                     Riwayat & Status Reservasi
                                 </h2>
                                 <p className="text-xs sm:text-sm text-[#6E625A] mt-1">
-                                    Pantau status konfirmasi otomatis Midtrans, detail meja yang terkunci, dan tiket kunjungan Anda.
+                                    Pantau status konfirmasi otomatis, detail meja yang terkunci, dan tiket kunjungan Anda.
                                 </p>
                             </div>
 
@@ -1956,8 +1932,8 @@ export default function Reservation({
                                                     : 'bg-stone-100 text-stone-700'
                                             }`}>
                                                 {res.status === 'Confirmed'
-                                                    ? 'Terkonfirmasi · Meja Terkunci (DP Midtrans)'
-                                                    : (res.status === 'Pending' ? 'Menunggu Pembayaran DP Midtrans' : res.status)}
+                                                    ? 'Terkonfirmasi · Meja Terkunci'
+                                                    : (res.status === 'Pending' ? 'Menunggu Pembayaran DP' : res.status)}
                                             </span>
                                         </div>
 
@@ -1998,7 +1974,7 @@ export default function Reservation({
                                                     <span>Meja Resmi Terkunci (Anti-Ghost Booking)</span>
                                                 </div>
                                                 <p className="text-emerald-800 leading-relaxed text-[11px]">
-                                                    DP non-tunai telah diverifikasi Midtrans. Sisa pembayaran hidangan saat santap di tempat dapat dilunasi di kasir dengan <strong>Tunai (Cash)</strong>, QRIS, atau Kartu.
+                                                    Uang muka (DP) telah diverifikasi dan meja resmi terkunci. Sisa pembayaran hidangan saat santap di tempat dapat dilunasi di kasir dengan <strong>Tunai (Cash)</strong>, QRIS, atau Kartu.
                                                 </p>
                                             </div>
                                         )}
@@ -2010,7 +1986,7 @@ export default function Reservation({
                                                     <span>Menunggu Penyelesaian Pembayaran DP</span>
                                                 </div>
                                                 <p className="text-amber-800 leading-relaxed text-[11px]">
-                                                    Selesaikan pembayaran DP Midtrans agar meja resmi terkunci 24 jam dan jadwal kunjungan tidak dialihkan.
+                                                    Selesaikan pembayaran DP agar meja resmi terkunci 24 jam dan jadwal kunjungan tidak dialihkan.
                                                 </p>
                                             </div>
                                         )}
