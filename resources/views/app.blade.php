@@ -20,9 +20,9 @@
         @vite(['resources/css/app.css', 'resources/js/app.tsx'])
         @inertiaHead
 
-        <!-- Midtrans Snap Script (Sandbox) -->
+        <!-- Midtrans Snap Script (Dynamic Sandbox / Production) -->
         <script 
-            src="https://app.sandbox.midtrans.com/snap/snap.js" 
+            src="{{ config('midtrans.is_production') ? 'https://app.midtrans.com/snap/snap.js' : 'https://app.sandbox.midtrans.com/snap/snap.js' }}" 
             data-client-key="{{ config('midtrans.client_key') }}"
         ></script>
     </head>

@@ -201,6 +201,9 @@ class ReservationController extends Controller
     public function store(Request $request)
     {
         if (!Auth::check()) {
+            if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Silakan masuk ke akun terlebih dahulu.'], 401);
+            }
             return redirect()->guest(route('login', ['redirect' => '/reservation']));
         }
 
@@ -357,6 +360,34 @@ class ReservationController extends Controller
             ]);
         }
 
+        // Generate Midtrans Snap Token for Reservation DP
+        $snapToken = null;
+        if ($request->filled('dp_amount') && floatval($request->dp_amount) > 0) {
+            try {
+                $midtrans = app(\App\Services\MidtransService::class);
+                $dpVal = (int) round(floatval($request->dp_amount));
+                $snapToken = $midtrans->createSnapToken(
+                    orderCode: $code,
+                    grossAmount: $dpVal,
+                    items: [
+                        [
+                            'menu_id' => 'DP-' . $code,
+                            'unit_price_snapshot' => $dpVal,
+                            'quantity' => 1,
+                            'menu_name_snapshot' => "DP Reservasi {$code} ({$request->guest_count} Tamu)",
+                        ]
+                    ],
+                    taxAmount: 0,
+                    customerName: $request->customer_name,
+                    customerEmail: $user?->email,
+                    customerPhone: $request->customer_phone,
+                    paymentMethod: $request->dp_payment_method ?? 'all'
+                );
+            } catch (\Exception $ex) {
+                \Illuminate\Support\Facades\Log::error("Midtrans Snap Reservation Error: " . $ex->getMessage());
+            }
+        }
+
         // Audit Log
         DB::table('audit_logs')->insert([
             'user_id' => $user->id,
@@ -371,6 +402,16 @@ class ReservationController extends Controller
             ->whereIn('id', $selectedTableIds)
             ->pluck('table_number')
             ->implode(', ');
+
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'reservation_code' => $code,
+                'snap_token' => $snapToken,
+                'table_names' => $tableNames,
+                'message' => "Reservasi {$code} ({$tableNames}) berhasil diajukan!",
+            ]);
+        }
 
         session()->flash('success', "Reservasi {$code} ({$tableNames}) berhasil diajukan dengan pembayaran DP! Staf kasir NUSARA sedang memverifikasi pembayaran Anda.");
 
