@@ -477,11 +477,13 @@ export default function Reservation({
 
     const isStep3Valid = true; // Paket opsional (bisa pilih A La Carte)
 
+    const [isSubmittingReservation, setIsSubmittingReservation] = useState(false);
+
     const isStep4Valid = useMemo(() => {
         return data.customer_name.trim().length > 1 && data.customer_phone.trim().length >= 9;
     }, [data.customer_name, data.customer_phone]);
 
-    const isStep5Valid = isDpAgreed && !processing;
+    const isStep5Valid = isDpAgreed && !processing && !isSubmittingReservation;
 
     // Nama-nama meja terpilih untuk ringkasan
     const selectedTableNamesString = useMemo(() => {
@@ -492,18 +494,84 @@ export default function Reservation({
             .join(' & ');
     }, [isAnyBuyout, selectedTableIds, tables]);
 
-    // Submit Reservasi
-    const handleSubmitReservation = (e: React.FormEvent) => {
+    // Submit Reservasi dengan Integrasi Midtrans Snap DP
+    const handleSubmitReservation = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isStep5Valid) return;
+        if (!isStep5Valid || isSubmittingReservation) return;
 
-        post('/reservation', {
-            preserveScroll: false,
-            onSuccess: () => {
+        setIsSubmittingReservation(true);
+
+        try {
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+            const payload = {
+                date: data.date,
+                time: data.time,
+                guest_count: data.guest_count,
+                experience_id: data.experience_id,
+                table_id: isAnyBuyout ? '' : (selectedTableIds[0] || ''),
+                table_ids: isAnyBuyout ? [] : selectedTableIds,
+                customer_name: data.customer_name,
+                customer_phone: data.customer_phone,
+                special_request: data.special_request,
+                dp_amount: data.dp_amount,
+                dp_payment_method: data.dp_payment_method,
+            };
+
+            const response = await fetch('/reservation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const resData = await response.json();
+
+            if (!response.ok || !resData.success) {
+                const errMsg = resData.message || (resData.errors ? Object.values(resData.errors).flat().join(', ') : 'Gagal mengajukan reservasi.');
+                throw new Error(errMsg);
+            }
+
+            // Jika Midtrans Snap Token tersedia (DP Pembayaran Online)
+            if (resData.snap_token && (window as any).snap) {
+                (window as any).snap.pay(resData.snap_token, {
+                    onSuccess: function (result: any) {
+                        alert(`Pembayaran DP Berhasil! Reservasi ${resData.reservation_code} telah terkonfirmasi.`);
+                        router.reload();
+                        setPageView('history');
+                        setCurrentStep(1);
+                    },
+                    onPending: function (result: any) {
+                        alert(`Reservasi ${resData.reservation_code} tersimpan! Silakan selesaikan pembayaran DP Anda via QRIS / Virtual Account.`);
+                        router.reload();
+                        setPageView('history');
+                        setCurrentStep(1);
+                    },
+                    onError: function (result: any) {
+                        alert('Pembayaran DP belum berhasil atau dibatalkan.');
+                        router.reload();
+                        setPageView('history');
+                        setCurrentStep(1);
+                    },
+                    onClose: function () {
+                        router.reload();
+                        setPageView('history');
+                        setCurrentStep(1);
+                    }
+                });
+            } else {
+                alert(resData.message || 'Reservasi berhasil diajukan! Menunggu konfirmasi kasir.');
+                router.reload();
                 setPageView('history');
                 setCurrentStep(1);
             }
-        });
+        } catch (err: any) {
+            alert(err.message || 'Terjadi kesalahan sistem saat mengajukan reservasi.');
+        } finally {
+            setIsSubmittingReservation(false);
+        }
     };
 
     // Salin nomor rekening ke clipboard
@@ -1782,13 +1850,13 @@ export default function Reservation({
 
                                         <button
                                             type="submit"
-                                            disabled={!isStep5Valid}
+                                            disabled={!isStep5Valid || isSubmittingReservation}
                                             className="px-8 py-4 rounded-full bg-gradient-to-r from-[#32151F] via-[#4A1525] to-[#32151F] text-[#D4B886] hover:text-[#FAF6F0] border border-[#B99A65]/50 hover:border-[#D4B886] font-bold text-xs uppercase tracking-wider transition-all shadow-xl hover:shadow-2xl flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed group"
                                         >
-                                            {processing ? (
+                                            {processing || isSubmittingReservation ? (
                                                 <>
                                                     <RefreshCw className="w-4 h-4 animate-spin" />
-                                                    <span>Memproses Reservasi...</span>
+                                                    <span>Memproses Reservasi & Menyiapkan Pembayaran...</span>
                                                 </>
                                             ) : (
                                                 <>

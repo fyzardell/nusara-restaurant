@@ -106,7 +106,12 @@ class MidtransService
 
         $order = DB::table('orders')->where('order_code', $orderId)->first();
         if (!$order) {
-            throw new Exception("Order dengan kode {$orderId} tidak ditemukan.");
+            // Cek apakah notifikasi untuk Reservasi Meja (RSV-XXXXXX)
+            $reservation = DB::table('reservations')->where('reservation_code', $orderId)->first();
+            if ($reservation) {
+                return $this->processReservationNotification($reservation, $payload);
+            }
+            throw new Exception("Order atau Reservasi dengan kode {$orderId} tidak ditemukan.");
         }
 
         $payment = DB::table('payments')->where('order_id', $order->id)->first();
@@ -194,6 +199,59 @@ class MidtransService
             'order_code' => $orderId,
             'payment_status' => $newPaymentStatus,
             'order_status' => $newOrderStatus,
+        ];
+    }
+
+    /**
+     * Process incoming Webhook notification for Reservation DP
+     */
+    private function processReservationNotification(object $reservation, array $payload): array
+    {
+        $transactionStatus = $payload['transaction_status'] ?? '';
+        $fraudStatus = $payload['fraud_status'] ?? 'accept';
+        $paymentType = $payload['payment_type'] ?? 'unknown';
+        $grossAmount = $payload['gross_amount'] ?? 0;
+
+        $isPaid = false;
+        $newStatus = $reservation->status;
+
+        if ($transactionStatus === 'capture' || $transactionStatus === 'settlement') {
+            if ($fraudStatus === 'accept') {
+                $isPaid = true;
+                $newStatus = 'Confirmed';
+            }
+        } elseif (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
+            $newStatus = 'Cancelled';
+        }
+
+        DB::transaction(function () use ($reservation, $newStatus, $isPaid, $transactionStatus, $paymentType, $grossAmount) {
+            $updateData = [
+                'status' => $newStatus,
+                'updated_at' => now(),
+            ];
+
+            if ($isPaid) {
+                $dpFmt = number_format(floatval($grossAmount), 0, ',', '.');
+                $updateData['special_request'] = "[DP TERBAYAR MIDTRANS Rp {$dpFmt} ({$paymentType}) - VALIDASI SUKSES] " . ($reservation->special_request ?? '');
+            }
+
+            DB::table('reservations')->where('id', $reservation->id)->update($updateData);
+
+            DB::table('audit_logs')->insert([
+                'user_id' => $reservation->created_by ?: 1,
+                'action' => 'reservation.payment_midtrans',
+                'entity_type' => 'Reservation',
+                'entity_id' => $reservation->id,
+                'description' => "Webhook Midtrans: Pembayaran DP Reservasi {$reservation->reservation_code} berstatus {$transactionStatus} ({$paymentType}). Status reservasi diperbarui menjadi {$newStatus}.",
+                'created_at' => now(),
+            ]);
+        });
+
+        return [
+            'status' => 'success',
+            'reservation_code' => $reservation->reservation_code,
+            'reservation_status' => $newStatus,
+            'is_paid' => $isPaid,
         ];
     }
 }
