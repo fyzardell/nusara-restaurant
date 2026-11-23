@@ -273,7 +273,7 @@ class OrderController extends Controller
         $request->validate([
             'order_type' => 'required|in:dine_in,takeaway',
             'table_number' => 'nullable|string',
-            'customer_name' => 'required|string|max:100',
+            'customer_name' => 'required|string|min:2|max:100',
             'customer_notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.menu_id' => 'required|integer',
