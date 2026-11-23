@@ -79,5 +79,6 @@ Route::middleware('auth')->prefix('waiter')->group(function () {
     Route::post('/order/{id}/serve', [WaiterController::class, 'markServed'])->name('waiter.order.serve');
     Route::post('/table/{id}/cleaning', [WaiterController::class, 'startCleaning'])->name('waiter.table.cleaning');
     Route::post('/table/{id}/available', [WaiterController::class, 'finishCleaning'])->name('waiter.table.available');
+    Route::post('/table/{id}/status', [WaiterController::class, 'updateTableStatus'])->name('waiter.table.status');
     Route::post('/table/{id}/request-occupancy', [WaiterController::class, 'requestOccupancy'])->name('waiter.table.request-occupancy');
 });

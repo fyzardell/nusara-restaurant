@@ -30,10 +30,22 @@ interface ActiveOrderInfo {
     total: number;
 }
 
+interface ActiveReservationInfo {
+    id: number;
+    reservation_code: string;
+    customer_name: string;
+    customer_phone?: string;
+    guest_count: number;
+    time: string;
+    experience_name: string;
+    status: string;
+}
+
 interface TableWithSessionInfo extends RestaurantTable {
     active_session?: TableSessionInfo | null;
     active_orders_count?: number;
     active_order?: ActiveOrderInfo | null;
+    active_reservation?: ActiveReservationInfo | null;
 }
 
 interface ReservationData {
@@ -211,16 +223,18 @@ export default function CircularFloorPlan({
             };
         }
 
-        if (rawStatus === 'reserved' || dateResList.length > 0) {
-            const res = dateResList[0];
+        if (rawStatus === 'reserved' || tbl.active_reservation || dateResList.length > 0) {
+            const res = tbl.active_reservation || dateResList[0];
+            const customerName = res?.customer_name || 'Tamu Reservasi';
+            const timeInfo = (res as any)?.time || (res ? new Date((res as any).reservation_datetime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Hari Ini');
             return {
                 status: 'Reserved',
                 label: 'Reservasi',
-                customer: res?.customer_name || 'Tamu Reservasi',
-                time: res ? new Date(res.reservation_datetime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Hari Ini',
-                bgClass: 'bg-amber-950/60 border-[#D4B886] text-amber-200 shadow-amber-950/40',
-                dotClass: 'bg-[#D4B886]',
-                badgeClass: 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40'
+                customer: customerName,
+                time: timeInfo,
+                bgClass: 'bg-amber-950/60 border-[#D4B886] text-amber-200 shadow-amber-950/40 ring-1 ring-[#D4B886]/40',
+                dotClass: 'bg-[#D4B886] animate-pulse',
+                badgeClass: 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40 font-bold'
             };
         }
 
@@ -630,6 +644,29 @@ export default function CircularFloorPlan({
                                     </div>
                                 )}
 
+                                {/* Active Booking/Reservation Information */}
+                                {selectedTable.active_reservation && (
+                                    <div className="p-3.5 rounded-2xl bg-[#32151F]/60 border border-[#B99A65]/50 space-y-1.5 text-xs text-[#FAF6F0] animate-fadeIn">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] uppercase font-bold tracking-wider text-[#D4B886] flex items-center gap-1.5">
+                                                <Calendar className="w-3.5 h-3.5" />
+                                                <span>Tercatat Reservasi / Booking:</span>
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#B99A65]/20 text-[#D4B886] border border-[#B99A65]/40">
+                                                {selectedTable.active_reservation.status}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-mono font-bold text-white">#{selectedTable.active_reservation.reservation_code}</span>
+                                            <span className="font-bold text-[#D4B886]">{selectedTable.active_reservation.time}</span>
+                                        </div>
+                                        <p className="text-[11px] text-[#E8DFD3]/80">
+                                            Tamu: <strong className="text-white">{selectedTable.active_reservation.customer_name}</strong> ({selectedTable.active_reservation.guest_count} Orang)
+                                            {selectedTable.active_reservation.experience_name && ` · ${selectedTable.active_reservation.experience_name}`}
+                                        </p>
+                                    </div>
+                                )}
+
                                 {/* Scheduled Reservations for this table */}
                                 {tableResList.length > 0 && (
                                     <div className="p-3 rounded-xl bg-[#32151F]/40 border border-[#B99A65]/40 space-y-2">
@@ -725,12 +762,54 @@ export default function CircularFloorPlan({
                                             </div>
                                         )}
 
-                                        {/* Admin direct status selector */}
-                                        {role === 'admin' && onUpdateStatus && (
+                                        {/* Admin & Waiter direct status control */}
+                                        {(role === 'admin' || role === 'waiter') && onUpdateStatus && (
                                             <div className="pt-2">
                                                 <label className="text-[10px] font-bold text-[#9E938B] block mb-1 uppercase">
-                                                    Ubah Status Manual (Admin Desk):
+                                                    Ubah Status Meja ({role === 'waiter' ? 'Pramusaji Floor' : 'Admin Desk'}):
                                                 </label>
+                                                <div className="grid grid-cols-2 gap-1.5 mb-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            onUpdateStatus(selectedTable.id, 'Available');
+                                                            setSelectedTable(null);
+                                                        }}
+                                                        className="py-1.5 px-2 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-600/40 text-emerald-300 font-bold text-[11px] transition-all cursor-pointer"
+                                                    >
+                                                        Set Kosong (Available)
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            onUpdateStatus(selectedTable.id, 'Occupied');
+                                                            setSelectedTable(null);
+                                                        }}
+                                                        className="py-1.5 px-2 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-600/40 text-rose-300 font-bold text-[11px] transition-all cursor-pointer"
+                                                    >
+                                                        Set Terisi (Occupied)
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            onUpdateStatus(selectedTable.id, 'Reserved');
+                                                            setSelectedTable(null);
+                                                        }}
+                                                        className="py-1.5 px-2 rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-600/40 text-amber-300 font-bold text-[11px] transition-all cursor-pointer"
+                                                    >
+                                                        Set Reservasi (Booking)
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            onUpdateStatus(selectedTable.id, 'Cleaning');
+                                                            setSelectedTable(null);
+                                                        }}
+                                                        className="py-1.5 px-2 rounded-lg bg-blue-950/60 hover:bg-blue-900 border border-blue-600/40 text-blue-300 font-bold text-[11px] transition-all cursor-pointer"
+                                                    >
+                                                        Set Pembersihan
+                                                    </button>
+                                                </div>
                                                 <select
                                                     value={selectedTable.status}
                                                     onChange={(e) => {
@@ -739,10 +818,11 @@ export default function CircularFloorPlan({
                                                     }}
                                                     className="w-full px-3 py-2 rounded-xl bg-[#141110] border border-[#241F1D] text-xs text-white focus:outline-none focus:border-[#B99A65]"
                                                 >
-                                                    <option value="Available">Available (Kosong)</option>
-                                                    <option value="Occupied">Occupied (Terisi)</option>
-                                                    <option value="Reserved">Reserved (Reservasi)</option>
+                                                    <option value="Available">Available (Kosong / Siap)</option>
+                                                    <option value="Occupied">Occupied (Terisi / Tamu Duduk)</option>
+                                                    <option value="Reserved">Reserved (Tercatat Reservasi)</option>
                                                     <option value="Cleaning">Cleaning (Pembersihan)</option>
+                                                    <option value="Maintenance">Maintenance (Perawatan)</option>
                                                     <option value="Inactive">Inactive (Ditutup)</option>
                                                 </select>
                                             </div>

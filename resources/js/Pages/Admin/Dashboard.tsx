@@ -1,5 +1,5 @@
 // resources/js/Pages/Admin/Dashboard.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
 import {
@@ -336,6 +336,26 @@ export default function AdminDashboard({
             onFinish: () => setProcessingRefundKey(null)
         });
     };
+
+    // Real-Time Background Synchronization (Sinkronisasi Otomatis Tanpa Refresh Halaman)
+    useEffect(() => {
+        let isPolling = false;
+        const interval = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !isPolling) {
+                isPolling = true;
+                router.reload({
+                    only: ['metrics', 'orders', 'tables', 'reservations', 'refundRequests'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    onFinish: () => {
+                        isPolling = false;
+                    },
+                });
+            }
+        }, 3500);
+
+        return () => clearInterval(interval);
+    }, []);
 
     const handleCreateCategory = (e: React.FormEvent) => {
         e.preventDefault();
