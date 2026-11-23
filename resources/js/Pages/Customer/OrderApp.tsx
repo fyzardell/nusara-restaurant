@@ -4,38 +4,38 @@ import FlashToast from '../../Components/FlashToast';
 import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
 import CustomerSettings from './CustomerSettings';
 import LuxuryAlertModal, { LuxuryAlertState } from '../../Components/LuxuryAlertModal';
-import { 
-    Category, 
-    Menu, 
-    Order, 
-    ChatMessage, 
-    RestaurantTable, 
-    RestaurantSettings, 
-    User 
+import {
+    Category,
+    Menu,
+    Order,
+    ChatMessage,
+    RestaurantTable,
+    RestaurantSettings,
+    User
 } from '../../types';
-import { 
-    ShoppingBag, 
-    Heart, 
-    Clock, 
-    MessageSquare, 
-    Search, 
-    Sparkles, 
-    QrCode, 
-    ChevronRight, 
-    ArrowLeft, 
-    Star, 
-    Send, 
-    X, 
-    Users, 
-    Plus, 
-    Minus, 
-    CheckCircle2, 
-    AlertCircle, 
-    MapPin, 
-    Utensils, 
+import {
+    ShoppingBag,
+    Heart,
+    Clock,
+    MessageSquare,
+    Search,
+    Sparkles,
+    QrCode,
+    ChevronRight,
+    ArrowLeft,
+    Star,
+    Send,
+    X,
+    Users,
+    Plus,
+    Minus,
+    CheckCircle2,
+    AlertCircle,
+    MapPin,
+    Utensils,
     UtensilsCrossed,
-    Check, 
-    Info, 
+    Check,
+    Info,
     ShieldCheck,
     LogOut,
     Coffee,
@@ -142,13 +142,13 @@ interface CartItem {
     item_notes: string;
 }
 
-export default function OrderApp({ 
-    categories = [], 
-    menus = [], 
-    favorites: initialFavorites = [], 
-    orders: initialOrders = [], 
-    chatMessages: initialChats = [], 
-    tables = [], 
+export default function OrderApp({
+    categories = [],
+    menus = [],
+    favorites: initialFavorites = [],
+    orders: initialOrders = [],
+    chatMessages: initialChats = [],
+    tables = [],
     settings,
     customer,
     initialTable,
@@ -222,7 +222,7 @@ export default function OrderApp({
             localStorage.setItem('nusara_order_type', orderType);
             localStorage.setItem('nusara_selected_table', selectedTable);
             localStorage.setItem('nusara_customer_name', customerName);
-        } catch {}
+        } catch { }
     }, [serviceMode, orderType, selectedTable, customerName]);
 
     // Navigation Tab state
@@ -249,7 +249,7 @@ export default function OrderApp({
     useEffect(() => {
         try {
             localStorage.setItem('nusara_sidebar_expanded', String(isDesktopSidebarExpanded));
-        } catch {}
+        } catch { }
     }, [isDesktopSidebarExpanded]);
 
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -433,8 +433,8 @@ export default function OrderApp({
         }
         return list.filter(menu => {
             const matchesCategory = selectedCategory === 'all' || menu.category_slug === selectedCategory;
-            const matchesSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                  menu.description.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                menu.description.toLowerCase().includes(searchQuery.toLowerCase());
             return matchesCategory && matchesSearch;
         });
     }, [menus, favorites, activeTab, selectedCategory, searchQuery]);
@@ -477,9 +477,9 @@ export default function OrderApp({
     // Otomatis verifikasi pesanan online Midtrans di latar belakang (langsung ke 'Preparing' saat pembayaran berhasil di ponsel)
     useEffect(() => {
         const pendingOnlineOrder = initialOrders.find(
-            o => ((o.payment?.payment_status === 'Pending' || (o as any).payment_status === 'Pending') && 
-                  (o.payment?.payment_method !== 'cash' && (o as any).payment_method !== 'cash') && 
-                  !['Cancelled', 'Refunded'].includes(o.order_status))
+            o => ((o.payment?.payment_status === 'Pending' || (o as any).payment_status === 'Pending') &&
+                (o.payment?.payment_method !== 'cash' && (o as any).payment_method !== 'cash') &&
+                !['Cancelled', 'Refunded'].includes(o.order_status))
         );
         if (!pendingOnlineOrder) return;
 
@@ -525,7 +525,7 @@ export default function OrderApp({
 
     const getStatusStep = (status: string) => {
         switch (status) {
-            case 'Pending': 
+            case 'Pending':
             case 'Awaiting Payment': return 1;
             case 'Confirmed':
             case 'Paid':
@@ -588,7 +588,7 @@ export default function OrderApp({
             });
             return;
         }
-        setFavorites(prev => 
+        setFavorites(prev =>
             prev.includes(menuId) ? prev.filter(id => id !== menuId) : [...prev, menuId]
         );
         router.post('/favorites/toggle', { menu_id: menuId }, { preserveScroll: true });
@@ -712,8 +712,8 @@ export default function OrderApp({
         (window as any).snap.pay(snapToken, {
             onSuccess: async function (result: any) {
                 setCart([]);
-                try { localStorage.removeItem('nusara_customer_cart'); } catch {}
-                
+                try { localStorage.removeItem('nusara_customer_cart'); } catch { }
+
                 // Konfirmasi otomatis pembayaran online ke server backend agar status langsung 'Preparing'
                 try {
                     const orderIdToConfirm = targetOrderId || result?.order_id;
@@ -739,7 +739,7 @@ export default function OrderApp({
             },
             onPending: function () {
                 setCart([]);
-                try { localStorage.removeItem('nusara_customer_cart'); } catch {}
+                try { localStorage.removeItem('nusara_customer_cart'); } catch { }
                 showAlert('Pesanan tersimpan. Silakan selesaikan pembayaran QRIS / Virtual Account Anda agar segera diproses dapur.', 'info', 'Menunggu Pembayaran');
                 router.reload({ only: ['orders'] });
                 setActiveTab('active_order');
@@ -751,7 +751,7 @@ export default function OrderApp({
             },
             onClose: function () {
                 setCart([]);
-                try { localStorage.removeItem('nusara_customer_cart'); } catch {}
+                try { localStorage.removeItem('nusara_customer_cart'); } catch { }
                 showAlert('Jendela pembayaran ditutup. Status pesanan Anda saat ini Menunggu Pembayaran. Anda dapat membuka QRIS kembali kapan saja dari tab Pesanan Aktif atau membayar langsung ke kasir.', 'info', 'Jendela Ditutup');
                 router.reload({ only: ['orders'] });
                 setActiveTab('active_order');
@@ -845,7 +845,7 @@ export default function OrderApp({
                 setCart([]);
                 try {
                     localStorage.removeItem('nusara_customer_cart');
-                } catch {}
+                } catch { }
                 showAlert(`Pesanan #${data.order_code} berhasil dibuat! Silakan lakukan pembayaran di kasir.`, 'success', 'Pesanan Diterima');
                 router.reload({ only: ['orders'] });
                 setActiveTab('active_order');
@@ -914,7 +914,7 @@ export default function OrderApp({
                 <div className="max-w-7xl mx-auto px-4 py-3 sm:py-3.5 flex items-center justify-between gap-3">
                     {/* Left: Brand Logo on mobile only (Desktop logo is in the sidebar dock) */}
                     <div className="flex items-center gap-3">
-                        <button 
+                        <button
                             type="button"
                             onClick={() => {
                                 if (cartCount > 0) {
@@ -926,10 +926,10 @@ export default function OrderApp({
                             title="Kembali ke Beranda Publik"
                             className="group flex md:hidden items-center gap-2 text-left"
                         >
-                            <img 
-                                src="/images/nusara-logo.png" 
-                                alt="NUSARA" 
-                                className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105" 
+                            <img
+                                src="/images/nusara-logo.png"
+                                alt="NUSARA"
+                                className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
                             />
                         </button>
                     </div>
@@ -1024,7 +1024,7 @@ export default function OrderApp({
                             {/* 3 Large Service Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-3xl mx-auto text-left">
                                 {/* 1. Makan di Tempat (Dine In) */}
-                                <div 
+                                <div
                                     onClick={() => setServiceMode('selecting_table')}
                                     className="group relative p-6 rounded-3xl bg-white border-2 border-[#B99A65]/30 hover:border-[#32151F] hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between"
                                 >
@@ -1048,7 +1048,7 @@ export default function OrderApp({
                                 </div>
 
                                 {/* 2. Bawa Pulang (Takeaway) */}
-                                <div 
+                                <div
                                     onClick={() => {
                                         setOrderType('takeaway');
                                         setServiceMode('confirmed');
@@ -1075,7 +1075,7 @@ export default function OrderApp({
                                 </div>
 
                                 {/* 3. Reservasi Meja (Dedicated Page - NO POPUP) */}
-                                <div 
+                                <div
                                     onClick={() => router.visit('/reservation')}
                                     className="group relative p-6 rounded-3xl bg-[#211D1B] border-2 border-[#B99A65]/40 text-[#F4EFE6] hover:border-[#D4B886] hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between"
                                 >
@@ -1192,34 +1192,32 @@ export default function OrderApp({
                                                     setOrderType('dine_in');
                                                     setServiceMode('confirmed');
                                                 }}
-                                                className={`p-4 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${
-                                                    isAvailable
+                                                className={`p-4 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${isAvailable
                                                         ? 'bg-white border-[#B99A65]/40 hover:border-[#32151F] hover:shadow-md cursor-pointer'
                                                         : isOccupied
-                                                        ? 'bg-rose-50/70 border-rose-200 cursor-not-allowed opacity-75'
-                                                        : isReserved
-                                                        ? 'bg-amber-50/70 border-amber-200 cursor-not-allowed opacity-75'
-                                                        : isCleaning
-                                                        ? 'bg-sky-50/70 border-sky-200 cursor-not-allowed opacity-75'
-                                                        : 'bg-stone-100/70 border-stone-300 cursor-not-allowed opacity-60'
-                                                }`}
+                                                            ? 'bg-rose-50/70 border-rose-200 cursor-not-allowed opacity-75'
+                                                            : isReserved
+                                                                ? 'bg-amber-50/70 border-amber-200 cursor-not-allowed opacity-75'
+                                                                : isCleaning
+                                                                    ? 'bg-sky-50/70 border-sky-200 cursor-not-allowed opacity-75'
+                                                                    : 'bg-stone-100/70 border-stone-300 cursor-not-allowed opacity-60'
+                                                    }`}
                                             >
                                                 <div>
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-heading font-extrabold text-sm sm:text-base text-[#32151F]">
                                                             {table.table_number}
                                                         </span>
-                                                        <span className={`w-2.5 h-2.5 rounded-full ${
-                                                            isAvailable 
-                                                                ? 'bg-emerald-500 ring-2 ring-emerald-200' 
-                                                                : isOccupied 
-                                                                ? 'bg-rose-500 ring-2 ring-rose-200' 
-                                                                : isReserved 
-                                                                ? 'bg-amber-500 ring-2 ring-amber-200'
-                                                                : isCleaning
-                                                                ? 'bg-sky-500 ring-2 ring-sky-200 animate-pulse'
-                                                                : 'bg-stone-400'
-                                                        }`} />
+                                                        <span className={`w-2.5 h-2.5 rounded-full ${isAvailable
+                                                                ? 'bg-emerald-500 ring-2 ring-emerald-200'
+                                                                : isOccupied
+                                                                    ? 'bg-rose-500 ring-2 ring-rose-200'
+                                                                    : isReserved
+                                                                        ? 'bg-amber-500 ring-2 ring-amber-200'
+                                                                        : isCleaning
+                                                                            ? 'bg-sky-500 ring-2 ring-sky-200 animate-pulse'
+                                                                            : 'bg-stone-400'
+                                                            }`} />
                                                     </div>
                                                     <span className="text-[11px] text-stone-500 block mt-0.5">
                                                         {table.capacity || 5} Kursi · {table.location || 'Main Hall'}
@@ -1265,11 +1263,9 @@ export default function OrderApp({
                         DESKTOP LEFT SIDEBAR: RESPONSIVE TOGGLEABLE DOCK ALA IMAGE 3
                         (Hanya tampil di Desktop: hidden md:flex)
                     ======================================================== */}
-                    <aside className={`hidden md:flex flex-col ${
-                        isDesktopSidebarExpanded ? 'w-64' : 'w-16 lg:w-20'
-                    } bg-[#211D1B] border-r border-[#32151F] text-[#F4EFE6] py-4 ${
-                        isDesktopSidebarExpanded ? 'px-3' : 'px-2'
-                    } justify-between flex-shrink-0 sticky top-[57px] h-[calc(100vh-57px)] z-30 transition-all duration-300 ease-in-out`}>
+                    <aside className={`hidden md:flex flex-col ${isDesktopSidebarExpanded ? 'w-64' : 'w-16 lg:w-20'
+                        } bg-[#211D1B] border-r border-[#32151F] text-[#F4EFE6] py-4 ${isDesktopSidebarExpanded ? 'px-3' : 'px-2'
+                        } justify-between flex-shrink-0 sticky top-[57px] h-[calc(100vh-57px)] z-30 transition-all duration-300 ease-in-out`}>
                         {/* Top: Nusara Real Logo + Toggle Button */}
                         <div className="flex flex-col items-center w-full gap-2 pb-3 border-b border-[#32151F]">
                             {isDesktopSidebarExpanded ? (
@@ -1334,15 +1330,13 @@ export default function OrderApp({
                                 type="button"
                                 onClick={() => setActiveTab('menu')}
                                 className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
-                                        activeTab === 'menu'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'menu'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
                                     }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
-                                        activeTab === 'menu'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'menu'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
                                     }`
                                 }
                                 title="Katalog Menu"
@@ -1367,15 +1361,13 @@ export default function OrderApp({
                                 type="button"
                                 onClick={() => setActiveTab('cart')}
                                 className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
-                                        activeTab === 'cart'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'cart'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
                                     }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
-                                        activeTab === 'cart'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'cart'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
                                     }`
                                 }
                                 title="Keranjang Pesanan"
@@ -1407,15 +1399,13 @@ export default function OrderApp({
                                 type="button"
                                 onClick={() => setActiveTab('active_order')}
                                 className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
-                                        activeTab === 'active_order'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'active_order'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
                                     }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
-                                        activeTab === 'active_order'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'active_order'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
                                     }`
                                 }
                                 title="Pesanan Aktif"
@@ -1445,15 +1435,13 @@ export default function OrderApp({
                                 type="button"
                                 onClick={() => setActiveTab('history')}
                                 className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
-                                        activeTab === 'history'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'history'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
                                     }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
-                                        activeTab === 'history'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'history'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
                                     }`
                                 }
                                 title="Riwayat Pesanan Selesai"
@@ -1503,15 +1491,13 @@ export default function OrderApp({
                                 type="button"
                                 onClick={() => setActiveTab('favorites')}
                                 className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
-                                        activeTab === 'favorites'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'favorites'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
                                     }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
-                                        activeTab === 'favorites'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'favorites'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
                                     }`
                                 }
                                 title="Menu Favorit"
@@ -1536,15 +1522,13 @@ export default function OrderApp({
                                 type="button"
                                 onClick={() => setActiveTab('chat')}
                                 className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
-                                        activeTab === 'chat'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'chat'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
                                     }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
-                                        activeTab === 'chat'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'chat'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
                                     }`
                                 }
                                 title="Konsierge / Chat Kasir"
@@ -1567,15 +1551,13 @@ export default function OrderApp({
                                 type="button"
                                 onClick={() => setActiveTab('settings')}
                                 className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
-                                        activeTab === 'settings'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'settings'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
                                     }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
-                                        activeTab === 'settings'
-                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'settings'
+                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
                                     }`
                                 }
                                 title="Pengaturan Akun & 2FA"
@@ -1762,16 +1744,14 @@ export default function OrderApp({
                                             onClick={() => setSelectedCategory('all')}
                                             className="flex flex-col items-center gap-1.5 flex-shrink-0 group focus:outline-none"
                                         >
-                                            <div className={`w-13 h-13 sm:w-15 sm:h-15 rounded-full flex items-center justify-center transition-all duration-200 ${
-                                                selectedCategory === 'all'
+                                            <div className={`w-13 h-13 sm:w-15 sm:h-15 rounded-full flex items-center justify-center transition-all duration-200 ${selectedCategory === 'all'
                                                     ? 'bg-[#32151F] text-[#D4B886] shadow-lg ring-2 ring-[#B99A65]'
                                                     : 'bg-white text-stone-700 border border-stone-200 group-hover:border-[#B99A65]/50 group-hover:shadow-sm'
-                                            }`}>
+                                                }`}>
                                                 <UtensilsCrossed className="w-5 h-5 sm:w-6 sm:h-6" />
                                             </div>
-                                            <span className={`text-[11px] sm:text-xs tracking-tight text-center whitespace-nowrap ${
-                                                selectedCategory === 'all' ? 'font-bold text-[#32151F]' : 'text-stone-600'
-                                            }`}>
+                                            <span className={`text-[11px] sm:text-xs tracking-tight text-center whitespace-nowrap ${selectedCategory === 'all' ? 'font-bold text-[#32151F]' : 'text-stone-600'
+                                                }`}>
                                                 Semua Menu
                                             </span>
                                         </button>
@@ -1788,16 +1768,14 @@ export default function OrderApp({
                                                     onClick={() => setSelectedCategory(cat.slug)}
                                                     className="flex flex-col items-center gap-1.5 flex-shrink-0 group focus:outline-none"
                                                 >
-                                                    <div className={`w-13 h-13 sm:w-15 sm:h-15 rounded-full flex items-center justify-center transition-all duration-200 ${
-                                                        isSelected
+                                                    <div className={`w-13 h-13 sm:w-15 sm:h-15 rounded-full flex items-center justify-center transition-all duration-200 ${isSelected
                                                             ? 'bg-[#32151F] text-[#D4B886] shadow-lg ring-2 ring-[#B99A65]'
                                                             : 'bg-white text-stone-700 border border-stone-200 group-hover:border-[#B99A65]/50 group-hover:shadow-sm'
-                                                    }`}>
+                                                        }`}>
                                                         <CatIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                                                     </div>
-                                                    <span className={`text-[11px] sm:text-xs tracking-tight text-center whitespace-nowrap ${
-                                                        isSelected ? 'font-bold text-[#32151F]' : 'text-stone-600'
-                                                    }`}>
+                                                    <span className={`text-[11px] sm:text-xs tracking-tight text-center whitespace-nowrap ${isSelected ? 'font-bold text-[#32151F]' : 'text-stone-600'
+                                                        }`}>
                                                         {cat.name}
                                                     </span>
                                                 </button>
@@ -1915,9 +1893,8 @@ export default function OrderApp({
                                                 return (
                                                     <div
                                                         key={menu.id}
-                                                        className={`rounded-3xl bg-white border border-[#B99A65]/30 p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-all flex flex-col justify-between ${
-                                                            isOutOfStock ? 'opacity-60 bg-stone-100' : ''
-                                                        }`}
+                                                        className={`rounded-3xl bg-white border border-[#B99A65]/30 p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-all flex flex-col justify-between ${isOutOfStock ? 'opacity-60 bg-stone-100' : ''
+                                                            }`}
                                                     >
                                                         {/* Image */}
                                                         <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-stone-100 mb-2">
@@ -2177,11 +2154,10 @@ export default function OrderApp({
                                                     value={customerName}
                                                     onChange={(e) => setCustomerName(e.target.value)}
                                                     placeholder="Ketik nama Anda (contoh: Anindya Laksmi)"
-                                                    className={`w-full px-3.5 py-2.5 rounded-xl bg-white border text-xs text-[#211D1B] focus:outline-none transition-all ${
-                                                        !customerName.trim()
+                                                    className={`w-full px-3.5 py-2.5 rounded-xl bg-white border text-xs text-[#211D1B] focus:outline-none transition-all ${!customerName.trim()
                                                             ? 'border-amber-500 ring-2 ring-amber-500/20'
                                                             : 'border-stone-300 focus:border-[#B99A65]'
-                                                    }`}
+                                                        }`}
                                                 />
                                                 <p className="text-[10px] text-stone-500 leading-tight">
                                                     Nama ini akan digunakan oleh staf pramusaji untuk mengonfirmasi dan menyajikan hidangan ke meja Anda.
@@ -2271,11 +2247,10 @@ export default function OrderApp({
                                                 <button
                                                     type="button"
                                                     onClick={() => setPaymentMethod('cash')}
-                                                    className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center gap-1.5 text-center ${
-                                                        paymentMethod === 'cash'
+                                                    className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center gap-1.5 text-center ${paymentMethod === 'cash'
                                                             ? 'bg-[#32151F] text-[#D4B886] border-[#32151F] shadow-sm'
                                                             : 'bg-[#FAF7F2] text-stone-700 border-stone-200 hover:border-stone-300'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <Banknote className="w-5 h-5" />
                                                     <span>Tunai di Kasir (Cash)</span>
@@ -2284,11 +2259,10 @@ export default function OrderApp({
                                                 <button
                                                     type="button"
                                                     onClick={() => setPaymentMethod('qris')}
-                                                    className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center gap-1.5 text-center relative ${
-                                                        paymentMethod === 'qris'
+                                                    className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center gap-1.5 text-center relative ${paymentMethod === 'qris'
                                                             ? 'bg-[#32151F] text-[#D4B886] border-[#32151F] shadow-sm'
                                                             : 'bg-[#FAF7F2] text-stone-700 border-stone-200 hover:border-stone-300'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <QrCode className="w-5 h-5" />
                                                     <span>Payment Gateway Midtrans</span>
@@ -2445,7 +2419,7 @@ export default function OrderApp({
                                                     <div className="py-2">
                                                         <div className="flex items-center justify-between relative max-w-md mx-auto">
                                                             <div className="absolute top-1/2 left-0 right-0 h-1 bg-[#32151F] -translate-y-1/2 z-0" />
-                                                            <div 
+                                                            <div
                                                                 className="absolute top-1/2 left-0 h-1 bg-gradient-to-r from-[#B99A65] to-[#D4B886] -translate-y-1/2 z-0 transition-all duration-500"
                                                                 style={{ width: `${Math.min(100, (step - 1) * 33.3)}%` }}
                                                             />
@@ -2457,16 +2431,14 @@ export default function OrderApp({
                                                                 { s: 4, label: 'Selesai' },
                                                             ].map(item => (
                                                                 <div key={item.s} className="relative z-10 flex flex-col items-center">
-                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
-                                                                        step >= item.s
+                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${step >= item.s
                                                                             ? 'bg-gradient-to-tr from-[#B99A65] to-[#D4B886] text-[#211D1B] ring-4 ring-[#211D1B] shadow-md'
                                                                             : 'bg-[#32151F] text-stone-500 border border-stone-700'
-                                                                    }`}>
+                                                                        }`}>
                                                                         {step > item.s ? <Check className="w-4 h-4 stroke-[2.5]" /> : item.s}
                                                                     </div>
-                                                                    <span className={`text-[10px] mt-1.5 font-bold uppercase tracking-wider ${
-                                                                        step >= item.s ? 'text-[#D4B886]' : 'text-stone-500'
-                                                                    }`}>
+                                                                    <span className={`text-[10px] mt-1.5 font-bold uppercase tracking-wider ${step >= item.s ? 'text-[#D4B886]' : 'text-stone-500'
+                                                                        }`}>
                                                                         {item.label}
                                                                     </span>
                                                                 </div>
@@ -2682,31 +2654,31 @@ export default function OrderApp({
                                                             <span>{it.quantity}x {it.menu_name_snapshot}</span>
                                                             <span className="font-mono text-stone-600">{formatRupiah(it.subtotal)}</span>
 
-                                                {/* Refund Action & Status Badges */}
-                                                <div className="flex items-center gap-2 flex-wrap pt-2">
-                                                    {order.order_status === 'Pending' && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleOpenRefundModal(order)}
-                                                            className="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs font-bold hover:bg-rose-100 transition-all flex items-center gap-1.5"
-                                                        >
-                                                            <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
-                                                            <span>Ajukan Pembatalan & Refund</span>
-                                                        </button>
-                                                    )}
-                                                    {order.order_status === 'Refund Requested' && (
-                                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-semibold">
-                                                            <RotateCcw className="w-3.5 h-3.5 text-purple-700 animate-spin" />
-                                                            <span>Pengajuan Refund Sedang Ditinjau Admin</span>
-                                                        </div>
-                                                    )}
-                                                    {order.order_status === 'Refunded' && (
-                                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-semibold">
-                                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                                            <span>Dana Telah Dikembalikan (Refunded)</span>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                            {/* Refund Action & Status Badges */}
+                                                            <div className="flex items-center gap-2 flex-wrap pt-2">
+                                                                {order.order_status === 'Pending' && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleOpenRefundModal(order)}
+                                                                        className="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs font-bold hover:bg-rose-100 transition-all flex items-center gap-1.5"
+                                                                    >
+                                                                        <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                                                                        <span>Ajukan Pembatalan & Refund</span>
+                                                                    </button>
+                                                                )}
+                                                                {order.order_status === 'Refund Requested' && (
+                                                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-semibold">
+                                                                        <RotateCcw className="w-3.5 h-3.5 text-purple-700 animate-spin" />
+                                                                        <span>Pengajuan Refund Sedang Ditinjau Admin</span>
+                                                                    </div>
+                                                                )}
+                                                                {order.order_status === 'Refunded' && (
+                                                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-semibold">
+                                                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                                                        <span>Dana Telah Dikembalikan (Refunded)</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -2770,15 +2742,14 @@ export default function OrderApp({
                                     {initialChats.map(chat => {
                                         const isMe = chat.sender_type === 'customer';
                                         return (
-                                            <div 
-                                                key={chat.id} 
+                                            <div
+                                                key={chat.id}
                                                 className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                                             >
-                                                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs ${
-                                                    isMe 
-                                                        ? 'bg-gradient-to-br from-[#D4B886] to-[#B99A65] text-[#211D1B] rounded-br-md shadow' 
+                                                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs ${isMe
+                                                        ? 'bg-gradient-to-br from-[#D4B886] to-[#B99A65] text-[#211D1B] rounded-br-md shadow'
                                                         : 'bg-[#32151F] text-[#F4EFE6] border border-[#B99A65]/25 rounded-bl-md shadow'
-                                                }`}>
+                                                    }`}>
                                                     {!isMe && (
                                                         <span className="font-bold text-[10px] text-[#B99A65] block uppercase tracking-wider mb-0.5">
                                                             Kasir NUSARA
@@ -2814,10 +2785,10 @@ export default function OrderApp({
                             TAB: PENGATURAN AKUN PELANGGAN & 2FA GOOGLE AUTHENTICATOR
                         ---------------------------------------------------- */}
                         {activeTab === 'settings' && (
-                            <CustomerSettings 
-                                user={auth?.user || null} 
-                                isGuest={isGuest} 
-                                onBackToMenu={() => setActiveTab('menu')} 
+                            <CustomerSettings
+                                user={auth?.user || null}
+                                isGuest={isGuest}
+                                onBackToMenu={() => setActiveTab('menu')}
                             />
                         )}
                     </main>
@@ -2939,22 +2910,20 @@ export default function OrderApp({
                                     <button
                                         type="button"
                                         onClick={() => setPaymentMethod('cash')}
-                                        className={`py-1.5 px-2 rounded-xl border text-[11px] font-bold text-center ${
-                                            paymentMethod === 'cash'
+                                        className={`py-1.5 px-2 rounded-xl border text-[11px] font-bold text-center ${paymentMethod === 'cash'
                                                 ? 'bg-[#32151F] text-[#D4B886] border-[#32151F]'
                                                 : 'bg-white text-stone-600 border-stone-200'
-                                        }`}
+                                            }`}
                                     >
                                         Kasir / Tunai
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setPaymentMethod('qris')}
-                                        className={`py-1.5 px-2 rounded-xl border text-[11px] font-bold text-center ${
-                                            paymentMethod === 'qris'
+                                        className={`py-1.5 px-2 rounded-xl border text-[11px] font-bold text-center ${paymentMethod === 'qris'
                                                 ? 'bg-[#32151F] text-[#D4B886] border-[#32151F]'
                                                 : 'bg-white text-stone-600 border-stone-200'
-                                        }`}
+                                            }`}
                                     >
                                         Midtrans QRIS {!midtransIsConfigured && '(Belum Aktif)'}
                                     </button>
@@ -3031,9 +3000,8 @@ export default function OrderApp({
                                 setActiveTab('menu');
                                 window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
-                            className={`flex flex-col items-center py-1 transition-all ${
-                                activeTab === 'menu' ? 'text-[#D4B886] font-bold' : 'text-[#F4EFE6]/60 hover:text-white'
-                            }`}
+                            className={`flex flex-col items-center py-1 transition-all ${activeTab === 'menu' ? 'text-[#D4B886] font-bold' : 'text-[#F4EFE6]/60 hover:text-white'
+                                }`}
                         >
                             <Home className="w-5 h-5" />
                             <span className="text-[10px] mt-1 tracking-tight">Beranda</span>
@@ -3047,9 +3015,8 @@ export default function OrderApp({
                                 const el = document.getElementById('katalog-menu');
                                 el?.scrollIntoView({ behavior: 'smooth' });
                             }}
-                            className={`flex flex-col items-center py-1 transition-all ${
-                                activeTab === 'menu' ? 'text-[#D4B886] font-bold' : 'text-[#F4EFE6]/60 hover:text-white'
-                            }`}
+                            className={`flex flex-col items-center py-1 transition-all ${activeTab === 'menu' ? 'text-[#D4B886] font-bold' : 'text-[#F4EFE6]/60 hover:text-white'
+                                }`}
                         >
                             <UtensilsCrossed className="w-5 h-5" />
                             <span className="text-[10px] mt-1 tracking-tight">Menu</span>
@@ -3076,9 +3043,8 @@ export default function OrderApp({
                         <button
                             type="button"
                             onClick={() => setActiveTab('active_order')}
-                            className={`flex flex-col items-center py-1 transition-all relative ${
-                                activeTab === 'active_order' ? 'text-[#D4B886] font-bold' : 'text-[#F4EFE6]/60 hover:text-white'
-                            }`}
+                            className={`flex flex-col items-center py-1 transition-all relative ${activeTab === 'active_order' ? 'text-[#D4B886] font-bold' : 'text-[#F4EFE6]/60 hover:text-white'
+                                }`}
                         >
                             <Clock className="w-5 h-5" />
                             <span className="text-[10px] mt-1 tracking-tight">Pesanan</span>
@@ -3212,9 +3178,8 @@ export default function OrderApp({
                                     onClick={() => setSelectedStars(star)}
                                     className="p-1 transition-transform hover:scale-125"
                                 >
-                                    <Star className={`w-8 h-8 ${
-                                        star <= selectedStars ? 'text-amber-400 fill-amber-400' : 'text-stone-600'
-                                    }`} />
+                                    <Star className={`w-8 h-8 ${star <= selectedStars ? 'text-amber-400 fill-amber-400' : 'text-stone-600'
+                                        }`} />
                                 </button>
                             ))}
                         </div>
