@@ -102,7 +102,16 @@ class CashierController extends Controller
             });
         }
 
-        $orders = $ordersQuery->limit(100)->get()->map(function ($order) {
+        // Active queue for today (First-come first-served)
+        $activeQueueOrderIds = DB::table('orders')
+            ->whereIn('order_status', ['Pending', 'Awaiting Payment', 'Paid', 'Confirmed', 'Preparing'])
+            ->whereDate('created_at', $today)
+            ->orderBy('id', 'asc')
+            ->pluck('id')
+            ->toArray();
+        $totalActiveQueue = count($activeQueueOrderIds);
+
+        $orders = $ordersQuery->limit(100)->get()->map(function ($order) use ($activeQueueOrderIds, $totalActiveQueue) {
             $order->items = DB::table('order_items')
                 ->where('order_id', $order->id)
                 ->get();
@@ -110,6 +119,10 @@ class CashierController extends Controller
             $order->payment = DB::table('payments')
                 ->where('order_id', $order->id)
                 ->first();
+
+            $pos = array_search($order->id, $activeQueueOrderIds);
+            $order->queue_number = ($pos !== false) ? ($pos + 1) : null;
+            $order->total_queue = $totalActiveQueue;
 
             return $order;
         });

@@ -103,7 +103,17 @@ class OrderController extends Controller
             }
         }
 
-        $orders = $ordersQuery->get()->map(function ($order) {
+        $todayWib = now('Asia/Jakarta')->toDateString();
+        // Antrean pesanan aktif hari ini (Urutan pertama datang pertama dilayani)
+        $activeQueueOrderIds = DB::table('orders')
+            ->whereIn('order_status', ['Pending', 'Awaiting Payment', 'Paid', 'Confirmed', 'Preparing'])
+            ->whereDate('created_at', $todayWib)
+            ->orderBy('id', 'asc')
+            ->pluck('id')
+            ->toArray();
+        $totalActiveQueue = count($activeQueueOrderIds);
+
+        $orders = $ordersQuery->get()->map(function ($order) use ($activeQueueOrderIds, $totalActiveQueue) {
             $order->items = DB::table('order_items')
                 ->where('order_id', $order->id)
                 ->get();
@@ -116,6 +126,12 @@ class OrderController extends Controller
             $order->rating = DB::table('order_ratings')
                 ->where('order_id', $order->id)
                 ->first();
+
+            // Hitung posisi nomor antrean hari ini
+            $pos = array_search($order->id, $activeQueueOrderIds);
+            $order->queue_number = ($pos !== false) ? ($pos + 1) : null;
+            $order->total_queue = $totalActiveQueue;
+
             return $order;
         });
 

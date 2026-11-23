@@ -729,9 +729,16 @@ export default function WaiterDashboard({
                                                 {/* Header info */}
                                                 <div className="flex items-center justify-between pb-2.5 border-b border-[#241F1D]">
                                                     <div>
-                                                        <span className="text-xs font-mono font-bold text-[#D4B886]">
-                                                            #{order.order_code}
-                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-mono font-bold text-[#D4B886]">
+                                                                #{order.order_code}
+                                                            </span>
+                                                            {order.queue_number ? (
+                                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                                                    Antrean #{order.queue_number}
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
                                                         <div className="text-[11px] text-[#9E938B] mt-0.5 flex items-center gap-1.5">
                                                             <Users className="w-3.5 h-3.5 text-[#9E938B]" />
                                                             <span>{order.customer_name || order.customer?.name || 'Tamu Dine-in'}</span>
@@ -994,7 +1001,14 @@ export default function WaiterDashboard({
                                     {filteredPreparingOrders.map((ord) => (
                                         <div key={ord.id} className="p-4 rounded-2xl bg-[#161312] border border-[#241F1D] text-xs space-y-3">
                                             <div className="flex items-center justify-between pb-2 border-b border-[#241F1D]">
-                                                <span className="font-mono text-xs text-amber-400 font-bold">#{ord.order_code}</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-mono text-xs text-amber-400 font-bold">#{ord.order_code}</span>
+                                                    {ord.queue_number ? (
+                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                                            Antrean #{ord.queue_number}
+                                                        </span>
+                                                    ) : null}
+                                                </div>
                                                 <span className="px-2 py-0.5 rounded bg-amber-950/60 border border-amber-900/60 text-[10px] text-amber-300 font-bold">
                                                     {ord.table_number || ord.table?.table_number || 'Dine-in'}
                                                 </span>

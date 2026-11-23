@@ -80,6 +80,15 @@ class WaiterController extends Controller
             'servedToday' => $servedTodayCount,
         ];
 
+        // Active queue for today (First-come first-served)
+        $activeQueueOrderIds = DB::table('orders')
+            ->whereIn('order_status', ['Pending', 'Awaiting Payment', 'Paid', 'Confirmed', 'Preparing'])
+            ->whereDate('created_at', $today)
+            ->orderBy('id', 'asc')
+            ->pluck('id')
+            ->toArray();
+        $totalActiveQueue = count($activeQueueOrderIds);
+
         // 2. Fetch Dine-in Orders Ready to Serve (Priority Queue)
         $readyOrders = DB::table('orders')
             ->leftJoin('customers', 'orders.customer_id', '=', 'customers.id')
@@ -96,11 +105,14 @@ class WaiterController extends Controller
             )
             ->orderBy('orders.updated_at', 'asc') // Oldest ready order first
             ->get()
-            ->map(function ($order) {
+            ->map(function ($order) use ($activeQueueOrderIds, $totalActiveQueue) {
                 $items = DB::table('order_items')
                     ->where('order_id', $order->id)
                     ->get();
                 $order->items = $items;
+                $pos = array_search($order->id, $activeQueueOrderIds);
+                $order->queue_number = ($pos !== false) ? ($pos + 1) : null;
+                $order->total_queue = $totalActiveQueue;
                 return $order;
             });
 
@@ -119,11 +131,14 @@ class WaiterController extends Controller
             ->orderBy('orders.updated_at', 'asc')
             ->limit(10)
             ->get()
-            ->map(function ($order) {
+            ->map(function ($order) use ($activeQueueOrderIds, $totalActiveQueue) {
                 $items = DB::table('order_items')
                     ->where('order_id', $order->id)
                     ->get();
                 $order->items = $items;
+                $pos = array_search($order->id, $activeQueueOrderIds);
+                $order->queue_number = ($pos !== false) ? ($pos + 1) : null;
+                $order->total_queue = $totalActiveQueue;
                 return $order;
             });
 
