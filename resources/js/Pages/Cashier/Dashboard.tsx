@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
 import CircularFloorPlan from '../../Components/CircularFloorPlan';
@@ -166,6 +166,26 @@ export default function CashierDashboard({
     const handleLogout = () => {
         setIsLogoutModalOpen(true);
     };
+
+    // Real-Time Background Synchronization (Sinkronisasi Otomatis Tanpa Refresh Halaman)
+    useEffect(() => {
+        let isPolling = false;
+        const interval = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !isPolling) {
+                isPolling = true;
+                router.reload({
+                    only: ['metrics', 'orders', 'tables', 'reservations'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    onFinish: () => {
+                        isPolling = false;
+                    },
+                });
+            }
+        }, 3500);
+
+        return () => clearInterval(interval);
+    }, []);
 
     // Format currency IDR
     const formatIDR = (val: number) => {

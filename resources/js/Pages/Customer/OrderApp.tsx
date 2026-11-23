@@ -303,6 +303,26 @@ export default function OrderApp({
         return initialOrders.find(o => ['Pending', 'Preparing', 'Ready'].includes(o.order_status)) || null;
     }, [initialOrders]);
 
+    // Background polling for customer order status (updates real-time when kitchen prepares/waiter serves)
+    React.useEffect(() => {
+        let isPolling = false;
+        const interval = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !isPolling) {
+                isPolling = true;
+                router.reload({
+                    only: ['orders', 'tables'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    onFinish: () => {
+                        isPolling = false;
+                    },
+                });
+            }
+        }, 4000);
+
+        return () => clearInterval(interval);
+    }, []);
+
     React.useEffect(() => {
         if (initialMenuId) {
             const m = menus.find(item => item.id === Number(initialMenuId));

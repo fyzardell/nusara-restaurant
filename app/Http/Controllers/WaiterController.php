@@ -167,11 +167,12 @@ class WaiterController extends Controller
             });
 
         // 5. Fetch 10 Restaurant Tables Floor Overview with active sessions & live orders
+        $todayStr = Carbon::today('Asia/Jakarta')->toDateString();
         $tables = DB::table('restaurant_tables')
             ->where('is_active', true)
             ->orderBy('table_number', 'asc')
             ->get()
-            ->map(function ($tbl) {
+            ->map(function ($tbl) use ($todayStr) {
                 // Find latest active session
                 $activeSession = DB::table('table_sessions')
                     ->where('table_id', $tbl->id)
@@ -206,11 +207,35 @@ class WaiterController extends Controller
                 $activeOrdersCount = $activeOrders->count();
                 $latestOrder = $activeOrders->first();
 
-                // If active session is Pending Validation, reflect that in table status
-                if ($activeSession && $activeSession->status === 'Pending Validation' && $tbl->status === 'Available') {
-                    $tbl->status = 'Pending Validation';
-                } elseif ($activeOrdersCount > 0) {
+                // Find active reservation for today on this table
+                $activeReservation = DB::table('reservations')
+                    ->join('reservation_tables', 'reservations.id', '=', 'reservation_tables.reservation_id')
+                    ->leftJoin('customers', 'reservations.customer_id', '=', 'customers.id')
+                    ->leftJoin('dining_experiences', 'reservations.experience_id', '=', 'dining_experiences.id')
+                    ->where('reservation_tables.table_id', $tbl->id)
+                    ->whereIn('reservations.status', ['Pending', 'Confirmed', 'Seated'])
+                    ->whereDate('reservations.reservation_datetime', $todayStr)
+                    ->select(
+                        'reservations.id',
+                        'reservations.reservation_code',
+                        'reservations.reservation_datetime',
+                        'reservations.guest_count',
+                        'reservations.status',
+                        'customers.name as customer_name',
+                        'customers.phone_normalized as customer_phone',
+                        'dining_experiences.name as experience_name'
+                    )
+                    ->orderBy('reservations.reservation_datetime', 'asc')
+                    ->first();
+
+                // 1. Meja terpakai jika customer sudah memesan di halaman order
+                // 2. Meja tercatat reservasi jika ada booking untuk hari ini
+                if ($activeOrdersCount > 0) {
                     $tbl->status = 'Occupied';
+                } elseif ($activeReservation && !in_array($tbl->status, ['Cleaning', 'Maintenance', 'Inactive'])) {
+                    $tbl->status = 'Reserved';
+                } elseif ($activeSession && $activeSession->status === 'Pending Validation' && $tbl->status === 'Available') {
+                    $tbl->status = 'Pending Validation';
                 }
 
                 $tbl->active_orders_count = $activeOrdersCount;
@@ -221,11 +246,21 @@ class WaiterController extends Controller
                     'total' => (float) $latestOrder->total,
                 ] : null;
 
+                $tbl->active_reservation = $activeReservation ? [
+                    'id' => $activeReservation->id,
+                    'reservation_code' => $activeReservation->reservation_code,
+                    'customer_name' => $activeReservation->customer_name ?: 'Tamu Reservasi',
+                    'customer_phone' => $activeReservation->customer_phone,
+                    'guest_count' => $activeReservation->guest_count,
+                    'time' => Carbon::parse($activeReservation->reservation_datetime)->format('H:i') . ' WIB',
+                    'experience_name' => $activeReservation->experience_name ?: 'A La Carte',
+                    'status' => $activeReservation->status,
+                ] : null;
+
                 return $tbl;
             });
 
         // 6. Reservations (for Calendar Floor Plan synchronization)
-        $todayStr = Carbon::today()->toDateString();
         $reservations = DB::table('reservations')
             ->leftJoin('customers', 'reservations.customer_id', '=', 'customers.id')
             ->leftJoin('dining_experiences', 'reservations.experience_id', '=', 'dining_experiences.id')
@@ -441,5 +476,51 @@ class WaiterController extends Controller
         ]);
 
         return back()->with('success', "Simulasi: Tamu memindai QR {$table->table_number}. Meja menunggu validasi waiter.");
+    }
+
+    /**
+     * Waiter manual table status update (synchronous with Admin desk)
+     */
+    public function updateTableStatus(Request $request, $tableId)
+    {
+        $user = Auth::user();
+        $request->validate([
+            'status' => 'required|in:Available,Occupied,Reserved,Cleaning,Maintenance,Inactive',
+        ]);
+
+        $table = DB::table('restaurant_tables')->where('id', $tableId)->first();
+        if (!$table) {
+            return back()->with('error', 'Meja tidak ditemukan.');
+        }
+
+        DB::table('restaurant_tables')->where('id', $tableId)->update([
+            'status' => $request->status,
+            'updated_at' => now(),
+        ]);
+
+        // If marked available, close any open sessions
+        if ($request->status === 'Available') {
+            DB::table('table_sessions')
+                ->where('table_id', $tableId)
+                ->whereIn('status', ['Pending Validation', 'Open'])
+                ->update([
+                    'status' => 'Closed',
+                    'closed_by' => $user->id,
+                    'ended_at' => now(),
+                    'updated_at' => now(),
+                ]);
+        }
+
+        DB::table('audit_logs')->insert([
+            'user_id' => $user->id,
+            'action' => 'UPDATE_TABLE_STATUS_WAITER',
+            'entity_type' => 'restaurant_tables',
+            'entity_id' => $tableId,
+            'description' => "Waiter {$user->name} mengubah status {$table->table_number} dari {$table->status} menjadi {$request->status}",
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return back()->with('success', "Status {$table->table_number} berhasil diubah menjadi {$request->status}!");
     }
 }
