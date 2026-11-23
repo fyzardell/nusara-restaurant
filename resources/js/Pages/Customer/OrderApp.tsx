@@ -454,29 +454,56 @@ export default function OrderApp({
             } catch {}
             setIsCartOpen(false);
 
-            // Jika Midtrans Snap Token tersedia (QRIS atau Bank Transfer)
-            if (data.snap_token && (window as any).snap) {
-                (window as any).snap.pay(data.snap_token, {
-                    onSuccess: function (result: any) {
-                        alert('Pembayaran Berhasil! Pesanan Anda segera disiapkan oleh dapur NUSARA.');
-                        router.reload();
-                        setActiveTab('history');
-                    },
-                    onPending: function (result: any) {
-                        alert('Pesanan tersimpan! Silakan selesaikan pembayaran QRIS / Virtual Account Anda.');
-                        router.reload();
-                        setActiveTab('history');
-                    },
-                    onError: function (result: any) {
-                        alert('Pembayaran belum terselesaikan.');
-                        router.reload();
-                        setActiveTab('history');
-                    },
-                    onClose: function () {
-                        router.reload();
-                        setActiveTab('history');
+            // Jika metode pembayaran QRIS atau Transfer Bank
+            if (paymentMethod === 'qris' || paymentMethod === 'bank_transfer') {
+                if (data.snap_token) {
+                    const triggerSnap = () => {
+                        (window as any).snap.pay(data.snap_token, {
+                            onSuccess: function (result: any) {
+                                alert('Pembayaran Berhasil! Pesanan Anda segera disiapkan oleh dapur NUSARA.');
+                                router.reload();
+                                setActiveTab('history');
+                            },
+                            onPending: function (result: any) {
+                                alert('Pesanan tersimpan! Silakan selesaikan pembayaran QRIS / Virtual Account Anda.');
+                                router.reload();
+                                setActiveTab('history');
+                            },
+                            onError: function (result: any) {
+                                alert('Pembayaran belum terselesaikan.');
+                                router.reload();
+                                setActiveTab('history');
+                            },
+                            onClose: function () {
+                                router.reload();
+                                setActiveTab('history');
+                            }
+                        });
+                    };
+
+                    if ((window as any).snap) {
+                        triggerSnap();
+                    } else {
+                        const script = document.createElement('script');
+                        script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
+                        script.setAttribute('data-client-key', 'Mid-client-vRlZ-ZTbkviZQkzo');
+                        script.onload = () => {
+                            if ((window as any).snap) {
+                                triggerSnap();
+                            } else {
+                                alert('Modul pembayaran Midtrans gagal dimuat di browser. Silakan nonaktifkan adblocker.');
+                                router.reload();
+                                setActiveTab('history');
+                            }
+                        };
+                        document.body.appendChild(script);
                     }
-                });
+                } else {
+                    const errDetail = data.midtrans_error ? `\nDetail: ${data.midtrans_error}` : '';
+                    alert(`Gagal membuka pembayaran online Midtrans.${errDetail}\n\nPastikan Server Key di file .env VPS sudah terpasang dan cache config sudah di-refresh.`);
+                    router.reload();
+                    setActiveTab('history');
+                }
             } else {
                 alert(`Pesanan #${data.order_code} berhasil dibuat! Silakan lakukan pembayaran di kasir.`);
                 router.reload();

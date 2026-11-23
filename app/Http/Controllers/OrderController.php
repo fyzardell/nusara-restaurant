@@ -301,6 +301,7 @@ class OrderController extends Controller
             ]);
 
             $snapToken = null;
+            $midtransError = null;
             if (in_array($request->payment_method, ['qris', 'bank_transfer'])) {
                 try {
                     $midtrans = app(\App\Services\MidtransService::class);
@@ -327,7 +328,8 @@ class OrderController extends Controller
                         'updated_at' => now(),
                     ]);
                 } catch (\Exception $midtransEx) {
-                    \Illuminate\Support\Facades\Log::error('Midtrans Snap Error: ' . $midtransEx->getMessage());
+                    $midtransError = $midtransEx->getMessage();
+                    \Illuminate\Support\Facades\Log::error('Midtrans Snap Error: ' . $midtransError);
                 }
             }
 
@@ -346,6 +348,7 @@ class OrderController extends Controller
                     'order_code' => $orderCode,
                     'order_id' => $orderId,
                     'snap_token' => $snapToken,
+                    'midtrans_error' => $midtransError,
                     'payment_method' => $request->payment_method,
                     'total' => $total,
                     'message' => "Pesanan #{$orderCode} berhasil dibuat!",
