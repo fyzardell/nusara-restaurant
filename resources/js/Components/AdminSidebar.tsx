@@ -54,6 +54,11 @@ export default function AdminSidebar({
         setIsMobileOpen(false);
         if (onTabSelect) {
             onTabSelect(tabKey);
+            if (typeof window !== 'undefined') {
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', tabKey);
+                window.history.replaceState({}, '', url.toString());
+            }
         } else {
             router.visit(href);
         }
