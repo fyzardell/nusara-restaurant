@@ -131,7 +131,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
         redirect: redirectParam,
     });
 
-    const executeLogin = async (idToUse?: string, passToUse?: string) => {
+    const executeLogin = async (idToUse?: string, passToUse?: string, customRedirect?: string) => {
         clearLoginErrors();
         setIsLoggingIn(true);
         setLoadingStatusText('Memverifikasi Akun...');
@@ -139,6 +139,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
 
         const id = idToUse ?? loginData.login_id;
         const pass = passToUse ?? loginData.password;
+        const targetRedirect = customRedirect !== undefined ? customRedirect : (loginData.redirect || redirectParam);
 
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -155,7 +156,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                     login_id: id,
                     password: pass,
                     remember: loginData.remember,
-                    redirect: redirectParam,
+                    redirect: targetRedirect,
                 }),
             });
 
@@ -179,7 +180,11 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
             }
 
             const data = await res.json();
-            setLoadingStatusText('Menyiapkan Meja & Sesi...');
+            setLoadingStatusText(
+                targetRedirect && targetRedirect.includes('table=') 
+                    ? 'Menghubungkan ke Meja 01...' 
+                    : 'Menyiapkan Meja & Sesi...'
+            );
 
             // Biarkan animasi Nusara Assemble berjalan mulus sampai seluruh elemen dan kilau emas selesai (~3.8s)
             const elapsed = Date.now() - startTime;
@@ -189,7 +194,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                 if (data.redirect) {
                     window.location.href = data.redirect;
                 } else {
-                    window.location.href = redirectParam || '/';
+                    window.location.href = targetRedirect || '/';
                 }
             }, remaining);
         } catch {
@@ -212,14 +217,15 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
 
     const handleSelectDemoAccount = (account: DemoAccount, autoSubmit: boolean = false) => {
         setMode('login');
+        const targetRedirect = account.redirect || redirectParam;
         setLoginData({
             login_id: account.email,
             password: account.password,
             remember: true,
-            redirect: redirectParam,
+            redirect: targetRedirect,
         });
         if (autoSubmit) {
-            executeLogin(account.email, account.password);
+            executeLogin(account.email, account.password, targetRedirect);
         }
     };
 
@@ -431,23 +437,36 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
 
                             {showDemoDrawer && (
                                 <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-[#32151F]/40 animate-in fade-in duration-300">
-                                    {demoAccounts.map((acc) => (
-                                        <button
-                                            key={acc.email}
-                                            type="button"
-                                            onClick={() => handleSelectDemoAccount(acc, true)}
-                                            className="p-2.5 rounded-xl bg-[#211D1B] border border-[#B99A65]/30 hover:border-[#D4B886] hover:bg-[#32151F]/60 text-left transition-all text-[10px] group flex flex-col justify-between"
-                                            title="Klik untuk langsung masuk menggunakan akun ini"
-                                        >
-                                            <div className="flex items-center justify-between w-full mb-1">
-                                                <span className="font-semibold text-[#D4B886]">{acc.badge}</span>
-                                                <span className="text-[9px] text-[#B99A65] font-mono opacity-70 group-hover:opacity-100 flex items-center gap-0.5">
-                                                    Masuk &rarr;
-                                                </span>
-                                            </div>
-                                            <div className="text-[#F4EFE6]/70 truncate">{acc.email}</div>
-                                        </button>
-                                    ))}
+                                    {demoAccounts.map((acc) => {
+                                        const isSpecialMeja = acc.email === 'meja01@nusara.id';
+                                        return (
+                                            <button
+                                                key={acc.email}
+                                                type="button"
+                                                onClick={() => handleSelectDemoAccount(acc, true)}
+                                                className={`p-2.5 rounded-xl border text-left transition-all text-[10px] group flex flex-col justify-between ${
+                                                    isSpecialMeja 
+                                                        ? 'col-span-2 bg-[#32151F]/60 border-[#D4B886]/60 hover:bg-[#32151F]/90 hover:border-[#D4B886] shadow-sm' 
+                                                        : 'bg-[#211D1B] border-[#B99A65]/30 hover:border-[#D4B886] hover:bg-[#32151F]/60'
+                                                }`}
+                                                title={`Klik untuk langsung masuk sebagai ${acc.title}`}
+                                            >
+                                                <div className="flex items-center justify-between w-full mb-1">
+                                                    <span className="font-semibold text-[#D4B886] flex items-center gap-1.5">
+                                                        {isSpecialMeja && <QrCode className="w-3.5 h-3.5 text-[#D4B886]" />}
+                                                        <span>{acc.badge}</span>
+                                                    </span>
+                                                    <span className="text-[9px] text-[#B99A65] font-mono opacity-80 group-hover:opacity-100 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform font-bold">
+                                                        {acc.redirect ? 'Mulai Dine-in (Meja 01) &rarr;' : 'Masuk &rarr;'}
+                                                    </span>
+                                                </div>
+                                                <div className="text-[#F4EFE6]/70 truncate text-[10px] flex items-center justify-between">
+                                                    <span className="font-mono">{acc.email}</span>
+                                                    {acc.desc && <span className="text-[9px] text-[#B99A65]/80 italic hidden sm:inline ml-2">{acc.desc}</span>}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

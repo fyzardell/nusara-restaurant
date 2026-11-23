@@ -71,6 +71,7 @@ export interface DemoAccount {
     password: string;
     badge: string;
     desc: string;
+    redirect?: string;
 }
 
 export interface OrderItem {

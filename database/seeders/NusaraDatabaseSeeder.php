@@ -96,6 +96,31 @@ class NusaraDatabaseSeeder extends Seeder
             ]);
         }
 
+        // Tamu Meja 01 (Dine-in Customer Account)
+        $tableCustomer = DB::table('users')->where('email', 'meja01@nusara.id')->first();
+        $tableCustomerId = $tableCustomer ? $tableCustomer->id : DB::table('users')->insertGetId([
+            'role_id' => $roleIds['customer'],
+            'name' => 'Tamu Meja 01',
+            'email' => 'meja01@nusara.id',
+            'password' => $password,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $tableCustProfile = DB::table('customers')->where('user_id', $tableCustomerId)->first();
+        if (!$tableCustProfile) {
+            DB::table('customers')->insert([
+                'user_id' => $tableCustomerId,
+                'name' => 'Tamu Meja 01',
+                'phone_normalized' => '+6281200000001',
+                'email' => 'meja01@nusara.id',
+                'phone_verified_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
         // 3. Restaurant Settings
         $settingExists = DB::table('restaurant_settings')->first();
         if (!$settingExists) {

@@ -29,6 +29,16 @@ class AuthController extends Controller
                 'desc' => 'Dapat menyimpan menu favorit & melihat riwayat pesanan',
             ],
             [
+                'role' => 'customer',
+                'title' => 'Tamu Dine-in (Meja 01)',
+                'email' => 'meja01@nusara.id',
+                'phone' => '+6281200000001',
+                'password' => 'password123',
+                'badge' => 'Tamu Meja 01',
+                'desc' => 'Makan di tempat via QR Meja & live chat atas nama Meja 01',
+                'redirect' => '/order?type=dine_in&table=01',
+            ],
+            [
                 'role' => 'admin',
                 'title' => 'Executive Administrator',
                 'email' => 'admin@nusara.id',
@@ -91,9 +101,33 @@ class AuthController extends Controller
         }
 
         if (!$user) {
-            throw ValidationException::withMessages([
-                'login_id' => ['Akun dengan identitas tersebut tidak ditemukan.'],
-            ]);
+            // Auto-provision akun demo Meja 01 jika belum di-seed
+            if (in_array(strtolower($loginId), ['meja01@nusara.id', '+6281200000001'])) {
+                $customerRoleId = DB::table('roles')->where('name', 'customer')->value('id') ?? 4;
+                $newUserId = DB::table('users')->insertGetId([
+                    'role_id' => $customerRoleId,
+                    'name' => 'Tamu Meja 01',
+                    'email' => 'meja01@nusara.id',
+                    'password' => Hash::make('password123'),
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                DB::table('customers')->insert([
+                    'user_id' => $newUserId,
+                    'name' => 'Tamu Meja 01',
+                    'phone_normalized' => '+6281200000001',
+                    'email' => 'meja01@nusara.id',
+                    'phone_verified_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $user = DB::table('users')->where('id', $newUserId)->first();
+            } else {
+                throw ValidationException::withMessages([
+                    'login_id' => ['Akun dengan identitas tersebut tidak ditemukan.'],
+                ]);
+            }
         }
 
         if (!$user->is_active) {
