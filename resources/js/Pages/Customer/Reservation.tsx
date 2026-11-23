@@ -156,7 +156,7 @@ export default function Reservation({
 
     // Multi-table selection state
     const [selectedTableIds, setSelectedTableIds] = useState<number[]>([]);
-    const [isDpAgreed, setIsDpAgreed] = useState<boolean>(false);
+    const [isDpAgreed, setIsDpAgreed] = useState<boolean>(true);
 
     // Format Rupiah
     const formatRupiah = (val: number | null | undefined) => {
@@ -485,7 +485,7 @@ export default function Reservation({
         return data.customer_name.trim().length > 1 && data.customer_phone.trim().length >= 9;
     }, [data.customer_name, data.customer_phone]);
 
-    const isStep5Valid = isDpAgreed && !processing && !isSubmittingReservation;
+    const isStep5Valid = !processing && !isSubmittingReservation;
 
     // Nama-nama meja terpilih untuk ringkasan
     const selectedTableNamesString = useMemo(() => {
@@ -500,7 +500,7 @@ export default function Reservation({
     const ensureSnapLoaded = async (): Promise<boolean> => {
         if ((window as any).snap) return true;
         return new Promise<boolean>((resolve) => {
-            const clientKey = 'SB-Mid-client-vRlZ-ZTbkviZQkzo';
+            const clientKey = 'Mid-client-vRlZ-ZTbkviZQkzo';
             const script = document.createElement('script');
             script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
             script.setAttribute('data-client-key', clientKey);
@@ -1854,11 +1854,11 @@ export default function Reservation({
                                     </div>
 
                                     {/* Action Bar Langkah 5 */}
-                                    <div className="pt-6 border-t border-[#FAF6F0] flex items-center justify-between">
+                                    <div className="pt-6 border-t border-[#FAF6F0] flex flex-col sm:flex-row items-center justify-between gap-4">
                                         <button
                                             type="button"
                                             onClick={() => setCurrentStep(4)}
-                                            className="px-5 py-3 rounded-full border border-[#E8DFD3] text-xs font-bold text-[#6E625A] hover:bg-[#FAF6F0] transition-all flex items-center gap-1.5"
+                                            className="w-full sm:w-auto px-5 py-3.5 rounded-full border border-[#E8DFD3] text-xs font-bold text-[#6E625A] hover:bg-[#FAF6F0] transition-all flex items-center justify-center gap-1.5"
                                         >
                                             <ChevronLeft className="w-4 h-4" />
                                             <span>Kembali ke Data Tamu</span>
@@ -1866,18 +1866,18 @@ export default function Reservation({
 
                                         <button
                                             type="submit"
-                                            disabled={!isStep5Valid || isSubmittingReservation}
-                                            className="px-8 py-4 rounded-full bg-gradient-to-r from-[#32151F] via-[#4A1525] to-[#32151F] text-[#D4B886] hover:text-[#FAF6F0] border border-[#B99A65]/50 hover:border-[#D4B886] font-bold text-xs uppercase tracking-wider transition-all shadow-xl hover:shadow-2xl flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed group"
+                                            disabled={processing || isSubmittingReservation}
+                                            className="w-full sm:w-auto px-8 py-4 rounded-full bg-gradient-to-r from-[#32151F] via-[#4A1525] to-[#32151F] text-[#D4B886] hover:text-[#FAF6F0] border-2 border-[#B99A65] hover:border-[#D4B886] font-bold text-xs uppercase tracking-wider transition-all shadow-xl hover:shadow-2xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group"
                                         >
                                             {processing || isSubmittingReservation ? (
                                                 <>
                                                     <RefreshCw className="w-4 h-4 animate-spin" />
-                                                    <span>Mempersiapkan Pembayaran Midtrans...</span>
+                                                    <span>Membuka Midtrans Snap...</span>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <span>Bayar DP via Midtrans & Kunci Meja</span>
-                                                    <ShieldCheck className="w-4 h-4 text-[#D4B886] transition-transform group-hover:scale-110" />
+                                                    <span>Bayar DP {formatRupiah(calculatedDpAmount)} via Midtrans (Buka QRIS & Virtual Account)</span>
+                                                    <ArrowRight className="w-4 h-4 text-[#D4B886] transition-transform group-hover:translate-x-1" />
                                                 </>
                                             )}
                                         </button>
