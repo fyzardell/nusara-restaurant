@@ -103,6 +103,6 @@ Route::middleware('auth')->prefix('waiter')->group(function () {
 
 // Fallback 404 Route for unmatched web requests (Luxury NUSARA 404 Experience)
 Route::fallback(function () {
-    return Inertia\Inertia::render('Errors/NotFound')->toResponse(request())->setStatusCode(404);
+    return Inertia::render('Errors/NotFound')->toResponse(request())->setStatusCode(404);
 });
 

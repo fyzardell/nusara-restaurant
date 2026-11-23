@@ -175,8 +175,6 @@ export default function CashierDashboard({
                 isPolling = true;
                 router.reload({
                     only: ['metrics', 'orders', 'tables', 'reservations'],
-                    preserveScroll: true,
-                    preserveState: true,
                     onFinish: () => {
                         isPolling = false;
                     },

@@ -126,6 +126,7 @@ interface Props {
     chatMessages: ChatMessage[];
     tables: RestaurantTable[];
     settings: RestaurantSettings;
+    customer?: any;
     initialTable?: string | null;
     tableAvailabilityError?: TableAvailabilityError | null;
     initialType?: 'dine_in' | 'takeaway';
@@ -149,6 +150,7 @@ export default function OrderApp({
     chatMessages: initialChats = [], 
     tables = [], 
     settings,
+    customer,
     initialTable,
     tableAvailabilityError,
     initialType,
@@ -461,8 +463,6 @@ export default function OrderApp({
                 isPolling = true;
                 router.reload({
                     only: ['orders', 'tables', 'chatMessages'],
-                    preserveScroll: true,
-                    preserveState: true,
                     data: selectedTable ? { table: selectedTable } : {},
                     onFinish: () => {
                         isPolling = false;
@@ -477,7 +477,9 @@ export default function OrderApp({
     // Otomatis verifikasi pesanan online Midtrans di latar belakang (langsung ke 'Preparing' saat pembayaran berhasil di ponsel)
     useEffect(() => {
         const pendingOnlineOrder = initialOrders.find(
-            o => o.payment_status === 'Pending' && o.payment_method !== 'cash' && !['Cancelled', 'Refunded'].includes(o.order_status)
+            o => ((o.payment?.payment_status === 'Pending' || (o as any).payment_status === 'Pending') && 
+                  (o.payment?.payment_method !== 'cash' && (o as any).payment_method !== 'cash') && 
+                  !['Cancelled', 'Refunded'].includes(o.order_status))
         );
         if (!pendingOnlineOrder) return;
 
@@ -498,7 +500,7 @@ export default function OrderApp({
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    router.reload({ only: ['orders'], preserveScroll: true, preserveState: true });
+                    router.reload({ only: ['orders'] });
                 }
             } catch (e) {
                 // Silently ignore temporary network retry
@@ -2526,7 +2528,11 @@ export default function OrderApp({
                                                                 {order.transaction?.payment_url && (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => handlePayWithSnap(order.transaction.payment_url, order.id)}
+                                                                        onClick={() => {
+                                                                            if (order.transaction?.payment_url) {
+                                                                                handlePayWithSnap(order.transaction.payment_url, order.id);
+                                                                            }
+                                                                        }}
                                                                         className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:from-[#a88954] hover:to-[#c3a775] text-[#211D1B] font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
                                                                     >
                                                                         <QrCode className="w-4 h-4" />

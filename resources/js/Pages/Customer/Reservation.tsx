@@ -212,8 +212,6 @@ export default function Reservation({
                 isPolling = true;
                 router.reload({
                     only: ['reservationsHistory'],
-                    preserveScroll: true,
-                    preserveState: true,
                     onFinish: () => {
                         isPolling = false;
                     },

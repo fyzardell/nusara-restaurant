@@ -168,8 +168,6 @@ export default function WaiterDashboard({
                 isPolling = true;
                 router.reload({
                     only: ['metrics', 'readyOrders', 'preparingOrders', 'recentServedOrders', 'tables', 'reservations'],
-                    preserveScroll: true,
-                    preserveState: true,
                     onFinish: () => {
                         isPolling = false;
                     },

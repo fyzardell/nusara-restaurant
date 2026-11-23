@@ -378,8 +378,6 @@ export default function AdminDashboard({
                 isPolling = true;
                 router.reload({
                     only: ['metrics', 'orders', 'tables', 'reservations', 'refundRequests'],
-                    preserveScroll: true,
-                    preserveState: true,
                     onFinish: () => {
                         isPolling = false;
                     },
