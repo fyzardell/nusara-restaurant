@@ -1,5 +1,5 @@
 // resources/js/Pages/Admin/Dashboard.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
 import {
@@ -42,7 +42,17 @@ import {
     ArrowRight,
     Plus,
     FolderPlus,
-    AlertCircle
+    AlertCircle,
+    RotateCcw,
+    CheckCircle2,
+    XCircle,
+    Phone,
+    Building2,
+    Wallet,
+    FileText,
+    Check,
+    Banknote,
+    Copy
 } from 'lucide-react';
 import CircularFloorPlan from '../../Components/CircularFloorPlan';
 
@@ -51,7 +61,7 @@ import CircularFloorPlan from '../../Components/CircularFloorPlan';
    - adminUser, onSelect, metrics bersifat opsional agar kompatibel
      dengan semua pemanggil lama (Dashboard lama & halaman Chat).
 ============================================================ */
-export type DashboardTab = 'overview' | 'orders' | 'menus' | 'tables' | 'reservations' | 'audit';
+export type DashboardTab = 'overview' | 'orders' | 'menus' | 'tables' | 'reservations' | 'refunds' | 'audit';
 export type AdminTab = DashboardTab | 'chats';
 
 const adminTabs: { key: AdminTab; label: string; icon: React.ElementType }[] = [
@@ -60,6 +70,7 @@ const adminTabs: { key: AdminTab; label: string; icon: React.ElementType }[] = [
     { key: 'menus', label: 'Menu & Stok', icon: UtensilsCrossed },
     { key: 'tables', label: 'Meja & QR', icon: QrCode },
     { key: 'reservations', label: 'Reservasi', icon: Calendar },
+    { key: 'refunds', label: 'Refund', icon: RotateCcw },
     { key: 'audit', label: 'Audit Log', icon: History },
     { key: 'chats', label: 'Konsierge / Chat', icon: MessageSquare },
 ];
@@ -68,7 +79,7 @@ export function AdminHeader({ adminUser, active, onSelect, metrics }: {
     adminUser?: User;
     active?: AdminTab | string;
     onSelect?: (tab: DashboardTab) => void;
-    metrics?: { activeOrders: number; pendingReservations: number; unreadChatCount?: number };
+    metrics?: { activeOrders: number; pendingReservations: number; unreadChatCount?: number; pendingRefunds?: number };
 }) {
     const current = active ?? 'overview';
 
@@ -84,6 +95,13 @@ export function AdminHeader({ adminUser, active, onSelect, metrics }: {
             return (
                 <span className="px-1.5 rounded-full text-[10px] bg-rose-500 text-white font-extrabold">
                     {metrics.pendingReservations}
+                </span>
+            );
+        }
+        if (key === 'refunds' && metrics && (metrics.pendingRefunds ?? 0) > 0) {
+            return (
+                <span className="px-1.5 rounded-full text-[10px] bg-rose-500 text-white font-extrabold animate-pulse">
+                    {metrics.pendingRefunds}
                 </span>
             );
         }
@@ -159,12 +177,29 @@ export function AdminHeader({ adminUser, active, onSelect, metrics }: {
 /* ============================================================
    DASHBOARD PAGE
 ============================================================ */
+export interface RefundRequestItem {
+    id: number;
+    type: 'order' | 'reservation';
+    type_label: string;
+    reference_code: string;
+    customer_name: string;
+    customer_phone?: string | null;
+    amount: number;
+    bank_or_wallet: string;
+    account_number: string;
+    account_holder: string;
+    reason: string;
+    status: 'Pending' | 'Refunded';
+    created_at: string;
+}
+
 interface Props {
-    metrics: AdminMetrics;
+    metrics: AdminMetrics & { pendingRefunds?: number };
     orders: Order[];
     menus: Menu[];
     tables: RestaurantTable[];
     reservations: Reservation[];
+    refundRequests?: RefundRequestItem[];
     auditLogs: AuditLog[];
     settings: RestaurantSettings;
     adminUser: User;
@@ -186,6 +221,7 @@ export default function AdminDashboard({
     menus: initialMenus,
     tables: initialTables,
     reservations: initialReservations,
+    refundRequests = [],
     auditLogs,
     settings,
     adminUser,
@@ -200,7 +236,7 @@ export default function AdminDashboard({
     const [activeTab, setActiveTab] = useState<DashboardTab>(() => {
         if (typeof window === 'undefined') return 'overview';
         const t = new URLSearchParams(window.location.search).get('tab');
-        const valid: DashboardTab[] = ['orders', 'menus', 'tables', 'reservations', 'audit'];
+        const valid: DashboardTab[] = ['orders', 'menus', 'tables', 'reservations', 'refunds', 'audit'];
         return valid.includes(t as DashboardTab) ? (t as DashboardTab) : 'overview';
     });
     const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(true);
@@ -257,6 +293,69 @@ export default function AdminDashboard({
     const [newMenuIsFeatured, setNewMenuIsFeatured] = useState<boolean>(false);
     const [newMenuImageUrl, setNewMenuImageUrl] = useState('');
     const [menuError, setMenuError] = useState('');
+
+    // Filter states for Refunds
+    const [refundFilterType, setRefundFilterType] = useState<'all' | 'order' | 'reservation'>('all');
+    const [refundStatusFilter, setRefundStatusFilter] = useState<'all' | 'Pending' | 'Refunded'>('all');
+    const [refundSearch, setRefundSearch] = useState<string>('');
+    const [processingRefundKey, setProcessingRefundKey] = useState<string | null>(null);
+    const [copiedAccountKey, setCopiedAccountKey] = useState<string | null>(null);
+
+    const handleCopyAccount = (key: string, text: string) => {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text);
+        }
+        setCopiedAccountKey(key);
+        setTimeout(() => setCopiedAccountKey(null), 2500);
+    };
+
+    const handleApproveRefund = (item: RefundRequestItem) => {
+        const nominalStr = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(item.amount);
+        if (!window.confirm(`Konfirmasi Transfer Pengembalian Dana:\n\nApakah dana sebesar ${nominalStr} sudah berhasil Anda transfer ke ${item.bank_or_wallet} (${item.account_number} a/n ${item.account_holder})?`)) {
+            return;
+        }
+        const key = `${item.type}-${item.id}`;
+        setProcessingRefundKey(key);
+        router.post(`/refund/${item.type}/${item.id}/approve`, {
+            admin_notes: `Pengembalian dana ${nominalStr} telah diselesaikan oleh Admin ke ${item.bank_or_wallet} ${item.account_number} a/n ${item.account_holder}.`
+        }, {
+            preserveScroll: true,
+            onFinish: () => setProcessingRefundKey(null)
+        });
+    };
+
+    const handleRejectRefund = (item: RefundRequestItem) => {
+        const reason = window.prompt(`Masukkan alasan penolakan pengajuan refund untuk ${item.reference_code}:`, 'Data rekening tidak valid atau pesanan sudah selesai diproses');
+        if (!reason) return;
+        const key = `${item.type}-${item.id}`;
+        setProcessingRefundKey(key);
+        router.post(`/refund/${item.type}/${item.id}/reject`, {
+            reject_reason: reason
+        }, {
+            preserveScroll: true,
+            onFinish: () => setProcessingRefundKey(null)
+        });
+    };
+
+    // Real-Time Background Synchronization (Sinkronisasi Otomatis Tanpa Refresh Halaman)
+    useEffect(() => {
+        let isPolling = false;
+        const interval = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !isPolling) {
+                isPolling = true;
+                router.reload({
+                    only: ['metrics', 'orders', 'tables', 'reservations', 'refundRequests'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    onFinish: () => {
+                        isPolling = false;
+                    },
+                });
+            }
+        }, 3500);
+
+        return () => clearInterval(interval);
+    }, []);
 
     const handleCreateCategory = (e: React.FormEvent) => {
         e.preventDefault();
@@ -735,6 +834,22 @@ export default function AdminDashboard({
                                     )}
                                 </button>
 
+                                <button onClick={() => goTab('refunds')} className={navCls('refunds')}>
+                                    <div className="flex items-center gap-2.5">
+                                        <RotateCcw className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Pengajuan Refund</span>
+                                    </div>
+                                    {(metrics.pendingRefunds ?? 0) > 0 ? (
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-400 font-bold border border-rose-500/30">
+                                            {metrics.pendingRefunds}
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] text-[#9E938B] font-mono">
+                                            {refundRequests.length}
+                                        </span>
+                                    )}
+                                </button>
+
                                 {/* Riwayat Chat (halaman terpisah: /admin/chats) */}
                                 <Link
                                     href="/admin/chats"
@@ -874,6 +989,7 @@ export default function AdminDashboard({
                                 {activeTab === 'menus' && 'Katalog Menu & Stok'}
                                 {activeTab === 'tables' && 'Meja Restoran & Sesi QR'}
                                 {activeTab === 'reservations' && 'Jadwal Reservasi Tamu'}
+                                {activeTab === 'refunds' && 'Pengajuan Pengembalian Dana (Refund)'}
                                 {activeTab === 'audit' && 'Audit Log & Keamanan'}
                             </span>
                         </div>
@@ -881,9 +997,9 @@ export default function AdminDashboard({
 
                     {/* Top Right Controls */}
                     <div className="flex items-center gap-2">
-                        {activeTab === 'orders' && (
+                        {(activeTab === 'orders' || activeTab === 'refunds') && (
                             <button
-                                onClick={() => router.reload({ only: ['orders', 'metrics'] })}
+                                onClick={() => router.reload({ only: activeTab === 'orders' ? ['orders', 'metrics'] : ['refundRequests', 'metrics'] })}
                                 className="px-3 py-1.5 rounded-lg bg-[#241F1D] border border-[#342D2A] text-xs font-semibold text-[#F4EFE6] hover:bg-[#2D2622] flex items-center gap-1.5 transition-colors"
                             >
                                 <RefreshCw className="w-3.5 h-3.5 text-[#B99A65]" />
@@ -1797,6 +1913,413 @@ export default function AdminDashboard({
                                         </tbody>
                                     </table>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ====================================================
+                        TAB: PENGAJUAN PENGEMBALIAN DANA (REFUND)
+                    ==================================================== */}
+                    {activeTab === 'refunds' && (
+                        <div className="space-y-6 animate-fade-in">
+                            {/* Header Section */}
+                            <div className="pb-3 border-b border-[#241F1D] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-2 rounded-xl bg-[#32151F] border border-[#B99A65]/40 text-[#D4B886]">
+                                            <RotateCcw className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-heading text-lg font-bold text-[#F4EFE6]">
+                                                Pusat Pengajuan Pengembalian Dana (Refund)
+                                            </h3>
+                                            <p className="text-xs text-[#9E938B]">
+                                                Kelola dan transfer dana pembatalan pesanan santap meja dan DP reservasi tamu secara terpusat.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-[#9E938B]">
+                                        Total <strong className="text-[#D4B886] font-mono">{refundRequests.length}</strong> pengajuan
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* KPI Metrics Summary Cards */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div className="p-4 rounded-2xl bg-[#161312] border border-amber-500/30 shadow-xs relative overflow-hidden">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                                            Menunggu Review & Transfer
+                                        </span>
+                                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                                    </div>
+                                    <div className="font-heading text-2xl font-bold text-white">
+                                        {formatRupiah(refundRequests.filter(r => r.status === 'Pending').reduce((acc, c) => acc + c.amount, 0))}
+                                    </div>
+                                    <span className="text-xs text-[#9E938B] mt-1 block">
+                                        <strong className="text-amber-400 font-mono">{refundRequests.filter(r => r.status === 'Pending').length}</strong> permohonan perlu tindakan
+                                    </span>
+                                </div>
+
+                                <div className="p-4 rounded-2xl bg-[#161312] border border-emerald-500/30 shadow-xs">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                                            Dana Telah Ditransfer
+                                        </span>
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                    </div>
+                                    <div className="font-heading text-2xl font-bold text-white">
+                                        {formatRupiah(refundRequests.filter(r => r.status === 'Refunded').reduce((acc, c) => acc + c.amount, 0))}
+                                    </div>
+                                    <span className="text-xs text-[#9E938B] mt-1 block">
+                                        <strong className="text-emerald-400 font-mono">{refundRequests.filter(r => r.status === 'Refunded').length}</strong> transaksi berhasil diselesaikan
+                                    </span>
+                                </div>
+
+                                <div className="p-4 rounded-2xl bg-[#161312] border border-[#241F1D] shadow-xs">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[11px] font-bold text-[#D4B886] uppercase tracking-wider">
+                                            Total Nominal Pengajuan
+                                        </span>
+                                        <Banknote className="w-4 h-4 text-[#D4B886]" />
+                                    </div>
+                                    <div className="font-heading text-2xl font-bold text-[#F4EFE6]">
+                                        {formatRupiah(refundRequests.reduce((acc, c) => acc + c.amount, 0))}
+                                    </div>
+                                    <span className="text-xs text-[#9E938B] mt-1 block">
+                                        Akumulasi dari seluruh sumber kanal
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Filters Bar */}
+                            <div className="p-4 rounded-2xl bg-[#161312] border border-[#241F1D] space-y-3">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                    {/* Type Filter Buttons */}
+                                    <div className="flex items-center gap-1.5 p-1 bg-[#141110] rounded-xl border border-[#241F1D] text-xs">
+                                        <button
+                                            type="button"
+                                            onClick={() => setRefundFilterType('all')}
+                                            className={`px-3 py-1.5 rounded-lg transition-all font-semibold ${
+                                                refundFilterType === 'all'
+                                                    ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40 shadow-xs'
+                                                    : 'text-[#9E938B] hover:text-white'
+                                            }`}
+                                        >
+                                            Semua Pengajuan ({refundRequests.length})
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setRefundFilterType('order')}
+                                            className={`px-3 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5 ${
+                                                refundFilterType === 'order'
+                                                    ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40 shadow-xs'
+                                                    : 'text-[#9E938B] hover:text-white'
+                                            }`}
+                                        >
+                                            <ShoppingBag className="w-3.5 h-3.5" />
+                                            <span>Pesanan Meja ({refundRequests.filter(r => r.type === 'order').length})</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setRefundFilterType('reservation')}
+                                            className={`px-3 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5 ${
+                                                refundFilterType === 'reservation'
+                                                    ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40 shadow-xs'
+                                                    : 'text-[#9E938B] hover:text-white'
+                                            }`}
+                                        >
+                                            <Calendar className="w-3.5 h-3.5" />
+                                            <span>DP Reservasi ({refundRequests.filter(r => r.type === 'reservation').length})</span>
+                                        </button>
+                                    </div>
+
+                                    {/* Status Filter */}
+                                    <div className="flex items-center gap-1.5 text-xs">
+                                        <button
+                                            type="button"
+                                            onClick={() => setRefundStatusFilter('all')}
+                                            className={`px-3 py-1.5 rounded-lg transition-all font-medium ${
+                                                refundStatusFilter === 'all'
+                                                    ? 'bg-[#241F1D] text-white font-bold'
+                                                    : 'text-[#9E938B] hover:text-white'
+                                            }`}
+                                        >
+                                            Semua Status
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setRefundStatusFilter('Pending')}
+                                            className={`px-3 py-1.5 rounded-lg transition-all font-medium flex items-center gap-1 ${
+                                                refundStatusFilter === 'Pending'
+                                                    ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40'
+                                                    : 'text-[#9E938B] hover:text-amber-400'
+                                            }`}
+                                        >
+                                            <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                            <span>Menunggu ({refundRequests.filter(r => r.status === 'Pending').length})</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setRefundStatusFilter('Refunded')}
+                                            className={`px-3 py-1.5 rounded-lg transition-all font-medium flex items-center gap-1 ${
+                                                refundStatusFilter === 'Refunded'
+                                                    ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40'
+                                                    : 'text-[#9E938B] hover:text-emerald-400'
+                                            }`}
+                                        >
+                                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                                            <span>Selesai ({refundRequests.filter(r => r.status === 'Refunded').length})</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Search Bar */}
+                                <div className="relative">
+                                    <Search className="w-4 h-4 text-[#9E938B] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                                    <input
+                                        type="text"
+                                        value={refundSearch}
+                                        onChange={(e) => setRefundSearch(e.target.value)}
+                                        placeholder="Cari kode transaksi (ORD- / RSV-), nama tamu, rekening, bank..."
+                                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#141110] border border-[#241F1D] text-xs text-white placeholder-[#6E625A] focus:outline-none focus:border-[#B99A65]"
+                                    />
+                                    {refundSearch && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setRefundSearch('')}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9E938B] hover:text-white"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Refund Requests List */}
+                            <div className="space-y-4">
+                                {refundRequests
+                                    .filter(item => {
+                                        if (refundFilterType !== 'all' && item.type !== refundFilterType) return false;
+                                        if (refundStatusFilter !== 'all' && item.status !== refundStatusFilter) return false;
+                                        if (refundSearch.trim()) {
+                                            const q = refundSearch.toLowerCase();
+                                            const mCode = item.reference_code.toLowerCase().includes(q);
+                                            const mName = item.customer_name.toLowerCase().includes(q);
+                                            const mPhone = (item.customer_phone || '').toLowerCase().includes(q);
+                                            const mAcc = item.account_number.toLowerCase().includes(q);
+                                            const mBank = item.bank_or_wallet.toLowerCase().includes(q);
+                                            if (!mCode && !mName && !mPhone && !mAcc && !mBank) return false;
+                                        }
+                                        return true;
+                                    })
+                                    .map(item => {
+                                        const key = `${item.type}-${item.id}`;
+                                        const isProcessing = processingRefundKey === key;
+                                        const isCopied = copiedAccountKey === key;
+                                        const waPhone = (item.customer_phone || '').replace(/[^0-9]/g, '');
+                                        const waUrl = waPhone ? `https://wa.me/${waPhone}?text=${encodeURIComponent(`Halo Bapak/Ibu ${item.customer_name}, perihal pengajuan pengembalian dana (${item.reference_code}) sebesar ${formatRupiah(item.amount)} di NUSARA Nusantara & Rasa.`)}` : null;
+
+                                        return (
+                                            <div
+                                                key={key}
+                                                className={`p-5 rounded-2xl bg-[#161312] border transition-all ${
+                                                    item.status === 'Pending'
+                                                        ? 'border-amber-500/40 shadow-sm'
+                                                        : 'border-[#241F1D] opacity-90'
+                                                }`}
+                                            >
+                                                {/* Top Meta Header */}
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#241F1D]">
+                                                    <div className="flex items-center gap-2.5 flex-wrap">
+                                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                                                            item.type === 'order'
+                                                                ? 'bg-purple-950/80 text-purple-300 border border-purple-600/40'
+                                                                : 'bg-amber-950/80 text-amber-300 border border-amber-600/40'
+                                                        }`}>
+                                                            {item.type === 'order' ? <ShoppingBag className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
+                                                            <span>{item.type_label}</span>
+                                                        </span>
+
+                                                        <span className="font-mono text-xs font-bold text-white">
+                                                            #{item.reference_code}
+                                                        </span>
+
+                                                        <span className="text-[11px] text-[#9E938B]">
+                                                            · Diajukan pada {item.created_at}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2">
+                                                        {item.status === 'Pending' ? (
+                                                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1.5 animate-pulse">
+                                                                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                                                <span>Menunggu Persetujuan Admin</span>
+                                                            </span>
+                                                        ) : (
+                                                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                                                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                                                <span>Dana Telah Dikembalikan</span>
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Card Content Grid */}
+                                                <div className="py-4 grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                                                    {/* Column 1: Customer & Reason (7 cols) */}
+                                                    <div className="lg:col-span-7 space-y-3">
+                                                        <div>
+                                                            <span className="text-[10px] uppercase font-bold text-[#9E938B] tracking-wider block">
+                                                                Identitas Pemohon
+                                                            </span>
+                                                            <div className="flex items-center gap-3 mt-1">
+                                                                <span className="text-sm font-bold text-white">
+                                                                    {item.customer_name}
+                                                                </span>
+                                                                {item.customer_phone && (
+                                                                    <span className="text-xs text-[#D4B886] font-mono">
+                                                                        {item.customer_phone}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Reason Quote Box */}
+                                                        <div className="p-3.5 rounded-xl bg-[#141110] border border-[#2D2622] text-xs">
+                                                            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#D4B886] mb-1">
+                                                                <FileText className="w-3.5 h-3.5" />
+                                                                <span>Alasan Pembatalan / Refund:</span>
+                                                            </div>
+                                                            <p className="text-stone-300 italic">
+                                                                "{item.reason}"
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Column 2: Bank / e-Wallet Destination & Nominal (5 cols) */}
+                                                    <div className="lg:col-span-5 space-y-3">
+                                                        <div className="p-4 rounded-xl bg-[#141110] border border-[#2D2622] space-y-2.5">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[10px] uppercase font-bold text-[#9E938B] tracking-wider">
+                                                                    Rekening / Akun Tujuan
+                                                                </span>
+                                                                <span className="px-2 py-0.5 rounded bg-[#32151F] text-[#D4B886] text-[10px] font-bold uppercase tracking-wider border border-[#B99A65]/30">
+                                                                    {item.bank_or_wallet}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-[#1E1A18] border border-[#241F1D]">
+                                                                <span className="font-mono text-sm font-bold text-[#D4B886] tracking-wider">
+                                                                    {item.account_number}
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleCopyAccount(key, item.account_number)}
+                                                                    className="px-2 py-1 rounded bg-[#241F1D] text-[10px] font-semibold text-[#F4EFE6] hover:bg-[#32151F] hover:text-[#D4B886] transition-colors flex items-center gap-1 shrink-0"
+                                                                    title="Salin nomor rekening"
+                                                                >
+                                                                    {isCopied ? (
+                                                                        <>
+                                                                            <Check className="w-3 h-3 text-emerald-400" />
+                                                                            <span className="text-emerald-400 font-bold">Tersalin</span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Copy className="w-3 h-3" />
+                                                                            <span>Salin</span>
+                                                                        </>
+                                                                    )}
+                                                                </button>
+                                                            </div>
+
+                                                            <div className="text-[11px] text-[#9E938B]">
+                                                                Atas Nama: <strong className="text-white">{item.account_holder}</strong>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Nominal Box */}
+                                                        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-gradient-to-r from-[#32151F] to-[#211D1B] border border-[#B99A65]/40">
+                                                            <span className="text-xs font-semibold text-[#9E938B]">
+                                                                Nominal Refund
+                                                            </span>
+                                                            <span className="font-heading text-lg font-bold text-[#D4B886]">
+                                                                {formatRupiah(item.amount)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Bottom Action Footer */}
+                                                <div className="pt-3 border-t border-[#241F1D] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2">
+                                                        {waUrl && (
+                                                            <a
+                                                                href={waUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-600/40 text-emerald-300 hover:bg-emerald-900/60 transition-colors text-xs font-semibold flex items-center gap-1.5"
+                                                            >
+                                                                <Phone className="w-3.5 h-3.5" />
+                                                                <span>Chat Tamu via WhatsApp</span>
+                                                            </a>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2">
+                                                        {item.status === 'Pending' ? (
+                                                            <>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={isProcessing}
+                                                                    onClick={() => handleRejectRefund(item)}
+                                                                    className="px-3.5 py-2 rounded-xl bg-rose-950/40 border border-rose-600/40 text-rose-300 hover:bg-rose-900/60 transition-colors text-xs font-bold disabled:opacity-50"
+                                                                >
+                                                                    Tolak Pengajuan
+                                                                </button>
+
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={isProcessing}
+                                                                    onClick={() => handleApproveRefund(item)}
+                                                                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] hover:brightness-110 active:scale-95 transition-all text-xs font-extrabold flex items-center gap-1.5 shadow-md disabled:opacity-50"
+                                                                >
+                                                                    {isProcessing ? (
+                                                                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                                    ) : (
+                                                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                                                    )}
+                                                                    <span>Setujui & Selesaikan Refund</span>
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold">
+                                                                <CheckCircle2 className="w-4 h-4" />
+                                                                <span>Pengembalian dana telah tervalidasi selesai.</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                {refundRequests.length === 0 && (
+                                    <div className="text-center py-16 px-4 rounded-2xl bg-[#161312] border border-[#241F1D] space-y-3">
+                                        <div className="w-12 h-12 rounded-full bg-[#241F1D] text-[#D4B886] flex items-center justify-center mx-auto">
+                                            <RotateCcw className="w-6 h-6" />
+                                        </div>
+                                        <h4 className="font-heading text-base font-bold text-white">
+                                            Belum Ada Pengajuan Pengembalian Dana
+                                        </h4>
+                                        <p className="text-xs text-[#9E938B] max-w-md mx-auto">
+                                            Saat tamu mengajukan pembatalan pesanan santap meja (sebelum masuk dapur) atau refund DP reservasi, permohonan akan otomatis tampil di halaman ini.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

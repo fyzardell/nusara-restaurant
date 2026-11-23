@@ -127,11 +127,79 @@ class CashierController extends Controller
             return $order;
         });
 
-        // 3. Restaurant Tables
+        // 3. Restaurant Tables & Real-Time Active Orders (Synchronized with Admin & Waiter)
         $tables = DB::table('restaurant_tables')
             ->where('is_active', true)
             ->get()
-            ->map(function ($table) {
+            ->map(function ($table) use ($today) {
+                // Find active orders on this table (Pending, Awaiting Payment, Paid, Confirmed, Preparing, Ready, Delivered)
+                $activeOrders = DB::table('orders')
+                    ->where(function ($q) use ($table) {
+                        $q->where('table_number', $table->table_number)
+                          ->orWhere('table_number', 'Meja ' . str_pad($table->id, 2, '0', STR_PAD_LEFT))
+                          ->orWhere('table_number', (string) $table->id)
+                          ->orWhere('table_session_id', function ($sub) use ($table) {
+                              $sub->select('id')->from('table_sessions')
+                                  ->where('table_id', $table->id)
+                                  ->whereIn('status', ['Open', 'Pending Validation'])
+                                  ->limit(1);
+                          });
+                    })
+                    ->whereIn('order_status', ['Pending', 'Awaiting Payment', 'Paid', 'Confirmed', 'Preparing', 'Ready', 'Delivered'])
+                    ->orderBy('id', 'desc')
+                    ->get();
+
+                $activeOrdersCount = $activeOrders->count();
+                $latestOrder = $activeOrders->first();
+
+                // Find active reservation for today on this table
+                $activeReservation = DB::table('reservations')
+                    ->join('reservation_tables', 'reservations.id', '=', 'reservation_tables.reservation_id')
+                    ->leftJoin('customers', 'reservations.customer_id', '=', 'customers.id')
+                    ->leftJoin('dining_experiences', 'reservations.experience_id', '=', 'dining_experiences.id')
+                    ->where('reservation_tables.table_id', $table->id)
+                    ->whereIn('reservations.status', ['Pending', 'Confirmed', 'Seated'])
+                    ->whereDate('reservations.reservation_datetime', $today)
+                    ->select(
+                        'reservations.id',
+                        'reservations.reservation_code',
+                        'reservations.reservation_datetime',
+                        'reservations.guest_count',
+                        'reservations.status',
+                        'customers.name as customer_name',
+                        'customers.phone_normalized as customer_phone',
+                        'dining_experiences.name as experience_name'
+                    )
+                    ->orderBy('reservations.reservation_datetime', 'asc')
+                    ->first();
+
+                // 1. Meja terpakai jika customer sudah memesan di halaman order
+                // 2. Meja tercatat reservasi jika ada booking untuk hari ini
+                if ($activeOrdersCount > 0) {
+                    $table->status = 'Occupied';
+                } elseif ($activeReservation && !in_array($table->status, ['Cleaning', 'Maintenance', 'Inactive'])) {
+                    $table->status = 'Reserved';
+                }
+
+                $table->active_orders_count = $activeOrdersCount;
+                $table->active_order = $latestOrder ? [
+                    'order_code' => $latestOrder->order_code,
+                    'customer_name' => $latestOrder->customer_name,
+                    'order_status' => $latestOrder->order_status,
+                    'total' => (float) $latestOrder->total,
+                ] : null;
+
+                $table->active_reservation = $activeReservation ? [
+                    'id' => $activeReservation->id,
+                    'reservation_code' => $activeReservation->reservation_code,
+                    'customer_name' => $activeReservation->customer_name ?: 'Tamu Reservasi',
+                    'customer_phone' => $activeReservation->customer_phone,
+                    'guest_count' => $activeReservation->guest_count,
+                    'time' => Carbon::parse($activeReservation->reservation_datetime)->format('H:i') . ' WIB',
+                    'experience_name' => $activeReservation->experience_name ?: 'A La Carte',
+                    'status' => $activeReservation->status,
+                ] : null;
+
                 $table->active_session = DB::table('table_sessions')
                     ->where('table_id', $table->id)
                     ->whereIn('status', ['Pending Validation', 'Open'])
@@ -343,7 +411,7 @@ class CashierController extends Controller
     {
         $user = Auth::user();
         $request->validate([
-            'status' => 'required|in:Pending,Confirmed,Seated,Completed,Cancelled',
+            'status' => 'required|in:Pending,Confirmed,Seated,Completed,Cancelled,Refund Requested,Refunded',
         ]);
 
         $res = DB::table('reservations')->where('id', $reservationId)->first();

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
 import CircularFloorPlan from '../../Components/CircularFloorPlan';
@@ -150,6 +150,35 @@ export default function WaiterDashboard({
             onFinish: () => setCleaningTableId(null),
         });
     };
+
+    // Action: Waiter Ubah Status Meja Kapanpun (Full Operational Control sama seperti Admin)
+    const handleUpdateTableStatus = (tableId: number, status: string) => {
+        router.post(`/waiter/table/${tableId}/status`, {
+            status: status,
+        }, {
+            preserveScroll: true,
+        });
+    };
+
+    // Real-Time Background Synchronization (Sinkronisasi Otomatis Tanpa Refresh)
+    useEffect(() => {
+        let isPolling = false;
+        const interval = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !isPolling) {
+                isPolling = true;
+                router.reload({
+                    only: ['metrics', 'readyOrders', 'preparingOrders', 'recentServedOrders', 'tables', 'reservations'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    onFinish: () => {
+                        isPolling = false;
+                    },
+                });
+            }
+        }, 3500);
+
+        return () => clearInterval(interval);
+    }, []);
 
     // Filtered Tables
     const filteredTables = useMemo(() => {
@@ -812,6 +841,7 @@ export default function WaiterDashboard({
                                 onValidateTable={handleValidateTable}
                                 onStartCleaning={handleStartCleaning}
                                 onFinishCleaning={handleFinishCleaning}
+                                onUpdateStatus={handleUpdateTableStatus}
                             />
 
                             {/* Tables Detail Cards Grid */}
@@ -961,6 +991,25 @@ export default function WaiterDashboard({
                                                             <span>Meja Bersih & Siap Digunakan</span>
                                                         </div>
                                                     )}
+
+                                                    {/* Ubah Status Manual (Pramusaji Floor) */}
+                                                    <div className="pt-2 border-t border-[#241F1D]">
+                                                        <label className="text-[10px] font-bold text-[#9E938B] block mb-1 uppercase">
+                                                            Ubah Status Meja:
+                                                        </label>
+                                                        <select
+                                                            value={tbl.status}
+                                                            onChange={(e) => handleUpdateTableStatus(tbl.id, e.target.value)}
+                                                            className="w-full px-2 py-1.5 rounded-lg bg-[#241F1D] border border-[#342D2A] text-[#F4EFE6] text-xs font-semibold focus:outline-none focus:border-[#B99A65]"
+                                                        >
+                                                            <option value="Available">Available (Siap Digunakan)</option>
+                                                            <option value="Occupied">Occupied (Tamu Duduk / Terisi)</option>
+                                                            <option value="Reserved">Reserved (Dipesan / Booking)</option>
+                                                            <option value="Cleaning">Cleaning (Pembersihan)</option>
+                                                            <option value="Maintenance">Maintenance (Perawatan)</option>
+                                                            <option value="Inactive">Inactive (Ditutup)</option>
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             </div>
                                         );

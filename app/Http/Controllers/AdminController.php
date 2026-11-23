@@ -96,11 +96,80 @@ class AdminController extends Controller
             ->orderBy('categories.name', 'asc')
             ->get();
 
-        // 4. Restaurant Tables & Active Sessions
+        // 4. Restaurant Tables & Active Orders / Sessions (Real-Time Floor Plan Synchronization)
+        $todayWib = Carbon::today('Asia/Jakarta')->toDateString();
         $tables = DB::table('restaurant_tables')
             ->where('is_active', true)
             ->get()
-            ->map(function ($table) {
+            ->map(function ($table) use ($todayWib) {
+                // Find active orders on this table (Pending, Awaiting Payment, Paid, Confirmed, Preparing, Ready, Delivered)
+                $activeOrders = DB::table('orders')
+                    ->where(function ($q) use ($table) {
+                        $q->where('table_number', $table->table_number)
+                          ->orWhere('table_number', 'Meja ' . str_pad($table->id, 2, '0', STR_PAD_LEFT))
+                          ->orWhere('table_number', (string) $table->id)
+                          ->orWhere('table_session_id', function ($sub) use ($table) {
+                              $sub->select('id')->from('table_sessions')
+                                  ->where('table_id', $table->id)
+                                  ->whereIn('status', ['Open', 'Pending Validation'])
+                                  ->limit(1);
+                          });
+                    })
+                    ->whereIn('order_status', ['Pending', 'Awaiting Payment', 'Paid', 'Confirmed', 'Preparing', 'Ready', 'Delivered'])
+                    ->orderBy('id', 'desc')
+                    ->get();
+
+                $activeOrdersCount = $activeOrders->count();
+                $latestOrder = $activeOrders->first();
+
+                // Find active reservation for today on this table
+                $activeReservation = DB::table('reservations')
+                    ->join('reservation_tables', 'reservations.id', '=', 'reservation_tables.reservation_id')
+                    ->leftJoin('customers', 'reservations.customer_id', '=', 'customers.id')
+                    ->leftJoin('dining_experiences', 'reservations.experience_id', '=', 'dining_experiences.id')
+                    ->where('reservation_tables.table_id', $table->id)
+                    ->whereIn('reservations.status', ['Pending', 'Confirmed', 'Seated'])
+                    ->whereDate('reservations.reservation_datetime', $todayWib)
+                    ->select(
+                        'reservations.id',
+                        'reservations.reservation_code',
+                        'reservations.reservation_datetime',
+                        'reservations.guest_count',
+                        'reservations.status',
+                        'customers.name as customer_name',
+                        'customers.phone_normalized as customer_phone',
+                        'dining_experiences.name as experience_name'
+                    )
+                    ->orderBy('reservations.reservation_datetime', 'asc')
+                    ->first();
+
+                // 1. Meja terpakai jika customer sudah memesan di halaman order
+                // 2. Meja tercatat reservasi jika ada booking untuk hari ini
+                if ($activeOrdersCount > 0) {
+                    $table->status = 'Occupied';
+                } elseif ($activeReservation && !in_array($table->status, ['Cleaning', 'Maintenance', 'Inactive'])) {
+                    $table->status = 'Reserved';
+                }
+
+                $table->active_orders_count = $activeOrdersCount;
+                $table->active_order = $latestOrder ? [
+                    'order_code' => $latestOrder->order_code,
+                    'customer_name' => $latestOrder->customer_name,
+                    'order_status' => $latestOrder->order_status,
+                    'total' => (float) $latestOrder->total,
+                ] : null;
+
+                $table->active_reservation = $activeReservation ? [
+                    'id' => $activeReservation->id,
+                    'reservation_code' => $activeReservation->reservation_code,
+                    'customer_name' => $activeReservation->customer_name ?: 'Tamu Reservasi',
+                    'customer_phone' => $activeReservation->customer_phone,
+                    'guest_count' => $activeReservation->guest_count,
+                    'time' => Carbon::parse($activeReservation->reservation_datetime)->format('H:i') . ' WIB',
+                    'experience_name' => $activeReservation->experience_name ?: 'A La Carte',
+                    'status' => $activeReservation->status,
+                ] : null;
+
                 $table->active_session = DB::table('table_sessions')
                     ->where('table_id', $table->id)
                     ->whereIn('status', ['Pending Validation', 'Open'])
@@ -109,15 +178,19 @@ class AdminController extends Controller
                 return $table;
             });
 
-        // 5. Reservations
+        // 5. Reservations (with table linkage)
         $reservations = DB::table('reservations')
             ->leftJoin('customers', 'reservations.customer_id', '=', 'customers.id')
             ->leftJoin('dining_experiences', 'reservations.experience_id', '=', 'dining_experiences.id')
+            ->leftJoin('reservation_tables', 'reservations.id', '=', 'reservation_tables.reservation_id')
+            ->leftJoin('restaurant_tables', 'reservation_tables.table_id', '=', 'restaurant_tables.id')
             ->select(
                 'reservations.*',
                 'customers.name as customer_name',
                 'customers.phone_normalized as customer_phone',
-                'dining_experiences.name as experience_name'
+                'dining_experiences.name as experience_name',
+                'restaurant_tables.table_number as table_number',
+                'restaurant_tables.id as table_id'
             )
             ->orderBy('reservations.reservation_datetime', 'asc')
             ->get();
@@ -233,6 +306,123 @@ class AdminController extends Controller
             ->where('is_read', false)
             ->count();
 
+        // 8. Refund Requests from Orders & Reservations
+        $refundRequests = [];
+
+        // From Orders (Santap di Meja & Takeaway)
+        $orderRefunds = DB::table('orders')
+            ->leftJoin('customers', 'orders.customer_id', '=', 'customers.id')
+            ->where(function ($q) {
+                $q->whereIn('orders.order_status', ['Refund Requested', 'Refunded'])
+                  ->orWhere('orders.customer_notes', 'LIKE', '%[Pengajuan Refund%');
+            })
+            ->select(
+                'orders.id',
+                'orders.order_code',
+                'orders.order_status',
+                'orders.order_type',
+                'orders.table_number',
+                'orders.total',
+                'orders.customer_notes',
+                'orders.created_at',
+                DB::raw("COALESCE(orders.customer_name, customers.name, 'Tamu Meja') as customer_name"),
+                'customers.phone_normalized as customer_phone'
+            )
+            ->orderBy('orders.id', 'desc')
+            ->get();
+
+        foreach ($orderRefunds as $ord) {
+            $notes = $ord->customer_notes ?? '';
+            $bank = 'Bank / e-Wallet';
+            $accNum = '-';
+            $holder = $ord->customer_name;
+            $reason = 'Pembatalan pesanan sebelum diproses dapur';
+
+            if (preg_match('/\[Pengajuan Refund Order:\s*([^\d]+)\s*([0-9\-\s]+)\s*a\/n\s*([^\-]+)\s*-\s*Alasan:\s*([^\]]+)\]/i', $notes, $matches)) {
+                $bank = trim($matches[1]);
+                $accNum = trim($matches[2]);
+                $holder = trim($matches[3]);
+                $reason = trim($matches[4]);
+            }
+
+            $refundRequests[] = [
+                'id' => $ord->id,
+                'type' => 'order',
+                'type_label' => 'Pesanan Makanan (' . ($ord->order_type === 'dine_in' ? ($ord->table_number ?: 'Dine-in') : 'Takeaway') . ')',
+                'reference_code' => $ord->order_code,
+                'customer_name' => $ord->customer_name,
+                'customer_phone' => $ord->customer_phone,
+                'amount' => (float) $ord->total,
+                'bank_or_wallet' => $bank,
+                'account_number' => $accNum,
+                'account_holder' => $holder,
+                'reason' => $reason,
+                'status' => $ord->order_status === 'Refunded' ? 'Refunded' : ($ord->order_status === 'Refund Requested' ? 'Pending' : 'Pending'),
+                'created_at' => Carbon::parse($ord->created_at)->format('d M Y, H:i') . ' WIB',
+            ];
+        }
+
+        // From Reservations (DP Jamuan Meja)
+        $reservationRefunds = DB::table('reservations')
+            ->leftJoin('customers', 'reservations.customer_id', '=', 'customers.id')
+            ->leftJoin('dining_experiences', 'reservations.experience_id', '=', 'dining_experiences.id')
+            ->where(function ($q) {
+                $q->whereIn('reservations.status', ['Refund Requested', 'Refunded'])
+                  ->orWhere('reservations.special_request', 'LIKE', '%[Pengajuan Refund%');
+            })
+            ->select(
+                'reservations.id',
+                'reservations.reservation_code',
+                'reservations.reservation_datetime',
+                'reservations.guest_count',
+                'reservations.status',
+                'reservations.special_request',
+                'reservations.created_at',
+                'customers.name as customer_name',
+                'customers.phone_normalized as customer_phone',
+                'dining_experiences.name as experience_name'
+            )
+            ->orderBy('reservations.id', 'desc')
+            ->get();
+
+        foreach ($reservationRefunds as $res) {
+            $notes = $res->special_request ?? '';
+            $bank = 'Bank / e-Wallet';
+            $accNum = '-';
+            $holder = $res->customer_name ?: 'Tamu Reservasi';
+            $reason = 'Pembatalan jadwal jamuan';
+            $dpAmount = 150000;
+
+            if (preg_match('/\[DP Jaminan Meja:\s*Rp\s*([0-9\.]+)/i', $notes, $dpMatches)) {
+                $dpAmount = (float) str_replace('.', '', $dpMatches[1]);
+            }
+
+            if (preg_match('/\[Pengajuan Refund DP:\s*([^\d]+)\s*([0-9\-\s]+)\s*a\/n\s*([^\-]+)\s*-\s*Alasan:\s*([^\]]+)\]/i', $notes, $matches)) {
+                $bank = trim($matches[1]);
+                $accNum = trim($matches[2]);
+                $holder = trim($matches[3]);
+                $reason = trim($matches[4]);
+            }
+
+            $refundRequests[] = [
+                'id' => $res->id,
+                'type' => 'reservation',
+                'type_label' => 'Reservasi Meja (' . ($res->experience_name ?: 'A La Carte') . ' · ' . $res->guest_count . ' Pax)',
+                'reference_code' => $res->reservation_code,
+                'customer_name' => $res->customer_name ?: 'Tamu Reservasi',
+                'customer_phone' => $res->customer_phone,
+                'amount' => (float) $dpAmount,
+                'bank_or_wallet' => $bank,
+                'account_number' => $accNum,
+                'account_holder' => $holder,
+                'reason' => $reason,
+                'status' => $res->status === 'Refunded' ? 'Refunded' : ($res->status === 'Refund Requested' ? 'Pending' : 'Pending'),
+                'created_at' => Carbon::parse($res->created_at)->format('d M Y, H:i') . ' WIB',
+            ];
+        }
+
+        $pendingRefundsCount = collect($refundRequests)->where('status', 'Pending')->count();
+
         return Inertia::render('Admin/Dashboard', [
             'metrics' => [
                 'todayRevenue' => (float) $todayRevenue,
@@ -243,11 +433,13 @@ class AdminController extends Controller
                 'totalTables' => $totalTablesCount,
                 'pendingReservations' => $pendingReservationsCount,
                 'unreadChatCount' => $unreadChatCount,
+                'pendingRefunds' => $pendingRefundsCount,
             ],
             'orders' => $orders,
             'menus' => $menus,
             'tables' => $tables,
             'reservations' => $reservations,
+            'refundRequests' => $refundRequests,
             'auditLogs' => $auditLogs,
             'settings' => $settings,
             'adminUser' => $user,
@@ -255,6 +447,128 @@ class AdminController extends Controller
             'monthlySales' => $months,
             'bestSellerTrends' => $bestSellerTrends,
         ]);
+    }
+
+    /**
+     * Approve and finalize refund request (from Order or Reservation)
+     */
+    public function approveRefund(Request $request, $type, $id)
+    {
+        $user = Auth::user();
+
+        if ($type === 'order') {
+            $order = DB::table('orders')->where('id', $id)->first();
+            if (!$order) {
+                return back()->with('error', 'Pesanan tidak ditemukan.');
+            }
+            DB::table('orders')->where('id', $id)->update([
+                'order_status' => 'Refunded',
+                'updated_at' => now(),
+            ]);
+
+            // Release table if no other active orders exist on it
+            if ($order->table_number) {
+                $otherActive = DB::table('orders')
+                    ->where('table_number', $order->table_number)
+                    ->where('id', '!=', $id)
+                    ->whereIn('order_status', ['Pending', 'Preparing', 'Ready', 'Delivered'])
+                    ->exists();
+                if (!$otherActive) {
+                    DB::table('restaurant_tables')->where('table_number', $order->table_number)->update([
+                        'status' => 'Available',
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
+            DB::table('audit_logs')->insert([
+                'user_id' => $user->id,
+                'action' => 'REFUND_APPROVED',
+                'entity_type' => 'orders',
+                'entity_id' => $id,
+                'description' => "Admin {$user->name} menyetujui pengembalian dana (Refund) pesanan #{$order->order_code}.",
+                'created_at' => now(),
+            ]);
+
+            return back()->with('success', "Pengembalian dana (Refund) untuk pesanan #{$order->order_code} berhasil disetujui & diselesaikan.");
+        } elseif ($type === 'reservation') {
+            $reservation = DB::table('reservations')->where('id', $id)->first();
+            if (!$reservation) {
+                return back()->with('error', 'Reservasi tidak ditemukan.');
+            }
+            DB::table('reservations')->where('id', $id)->update([
+                'status' => 'Refunded',
+                'updated_at' => now(),
+            ]);
+
+            DB::table('audit_logs')->insert([
+                'user_id' => $user->id,
+                'action' => 'REFUND_APPROVED',
+                'entity_type' => 'reservations',
+                'entity_id' => $id,
+                'description' => "Admin {$user->name} menyetujui pengembalian dana DP reservasi #{$reservation->reservation_code}.",
+                'created_at' => now(),
+            ]);
+
+            return back()->with('success', "Pengembalian dana DP untuk reservasi #{$reservation->reservation_code} berhasil disetujui & diselesaikan.");
+        }
+
+        return back()->with('error', 'Tipe pengajuan tidak valid.');
+    }
+
+    /**
+     * Reject refund request with notes
+     */
+    public function rejectRefund(Request $request, $type, $id)
+    {
+        $user = Auth::user();
+        $reason = $request->input('reject_reason', 'Pengajuan refund ditolak oleh manajemen restoran.');
+
+        if ($type === 'order') {
+            $order = DB::table('orders')->where('id', $id)->first();
+            if (!$order) {
+                return back()->with('error', 'Pesanan tidak ditemukan.');
+            }
+            DB::table('orders')->where('id', $id)->update([
+                'order_status' => 'Pending',
+                'customer_notes' => trim(($order->customer_notes ?? '') . " [Refund Ditolak: {$reason}]"),
+                'updated_at' => now(),
+            ]);
+
+            DB::table('audit_logs')->insert([
+                'user_id' => $user->id,
+                'action' => 'REFUND_REJECTED',
+                'entity_type' => 'orders',
+                'entity_id' => $id,
+                'description' => "Admin {$user->name} menolak refund pesanan #{$order->order_code}. Alasan: {$reason}",
+                'created_at' => now(),
+            ]);
+
+            return back()->with('success', "Pengajuan refund untuk pesanan #{$order->order_code} telah ditolak.");
+        } elseif ($type === 'reservation') {
+            $reservation = DB::table('reservations')->where('id', $id)->first();
+            if (!$reservation) {
+                return back()->with('error', 'Reservasi tidak ditemukan.');
+            }
+            DB::table('reservations')->where('id', $id)->update([
+                'status' => 'Confirmed',
+                'special_request' => trim(($reservation->special_request ?? '') . " [Refund Ditolak: {$reason}]"),
+                'updated_at' => now(),
+            ]);
+
+            DB::table('audit_logs')->insert([
+                'user_id' => $user->id,
+                'action' => 'REFUND_REJECTED',
+                'entity_type' => 'reservations',
+                'entity_id' => $id,
+                'description' => "Admin {$user->name} menolak refund reservasi #{$reservation->reservation_code}. Alasan: {$reason}",
+                'created_at' => now(),
+            ]);
+
+            return back()->with('success', "Pengajuan refund untuk reservasi #{$reservation->reservation_code} telah ditolak.");
+        }
+
+        return back()->with('error', 'Tipe pengajuan tidak valid.');
     }
 
     public function updateOrderStatus(Request $request, $orderId)
@@ -492,7 +806,7 @@ class AdminController extends Controller
     {
         $user = Auth::user();
         $request->validate([
-            'status' => 'required|in:Pending,Confirmed,Rejected,Cancelled,Completed,No Show',
+            'status' => 'required|in:Pending,Confirmed,Rejected,Cancelled,Completed,No Show,Refund Requested,Refunded',
         ]);
 
         $reservation = DB::table('reservations')->where('id', $reservationId)->first();

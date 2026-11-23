@@ -53,7 +53,11 @@ import {
     Salad,
     IceCream,
     Leaf,
-    Crown
+    Crown,
+    RotateCcw,
+    Lock,
+    Building2,
+    Wallet
 } from 'lucide-react';
 
 function TypingGreeting({ name }: { name: string }) {
@@ -285,6 +289,93 @@ export default function OrderApp({
     const [chatInput, setChatInput] = useState('');
     const [isSendingChat, setIsSendingChat] = useState(false);
 
+    // Refund Modal State for Customer Order
+    const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+    const [selectedOrderForRefund, setSelectedOrderForRefund] = useState<Order | null>(null);
+    const [refundBank, setRefundBank] = useState('BCA');
+    const [refundAccountNumber, setRefundAccountNumber] = useState('');
+    const [refundAccountHolder, setRefundAccountHolder] = useState('');
+    const [refundReason, setRefundReason] = useState('');
+    const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+    const [refundError, setRefundError] = useState('');
+
+    const handleOpenRefundModal = (order: Order) => {
+        if (order.order_status !== 'Pending') {
+            alert('Pengajuan refund hanya dapat dilakukan saat pesanan masih dalam antrean (sebelum dimasak dapur).');
+            return;
+        }
+        setSelectedOrderForRefund(order);
+        setRefundBank('BCA');
+        setRefundAccountNumber('');
+        setRefundAccountHolder(customer?.name || (order as any).customer_name || '');
+        setRefundReason('');
+        setRefundError('');
+        setIsRefundModalOpen(true);
+    };
+
+    const handleSubmitOrderRefund = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedOrderForRefund) return;
+        if (!refundAccountNumber.trim() || !refundAccountHolder.trim() || !refundReason.trim()) {
+            setRefundError('Mohon lengkapi bank/e-wallet, nomor rekening, nama pemilik, dan alasan refund.');
+            return;
+        }
+
+        setIsSubmittingRefund(true);
+        setRefundError('');
+
+        try {
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+            const res = await fetch(`/order/${selectedOrderForRefund.id}/refund`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({
+                    bank_or_wallet: refundBank,
+                    account_number: refundAccountNumber,
+                    account_holder: refundAccountHolder,
+                    reason: refundReason,
+                }),
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                alert(data.message || 'Pengajuan pengembalian dana berhasil dikirimkan!');
+                setIsRefundModalOpen(false);
+                router.reload();
+            } else {
+                setRefundError(data.message || 'Gagal mengajukan pengembalian dana.');
+            }
+        } catch (err: any) {
+            setRefundError(err?.message || 'Terjadi kesalahan sistem saat mengajukan refund.');
+        } finally {
+            setIsSubmittingRefund(false);
+        }
+    };
+
+    // 3 Menu Promo Unggulan untuk Hero Full Desktop
+    const promoMenus = useMemo(() => {
+        const candidates = menus.filter(m => m.is_featured || m.is_best_seller);
+        const list = candidates.length >= 3 ? candidates : menus;
+        const discounts = [20, 25, 15];
+        const badges = ['Promo Spesial 20%', 'Promo Terlaris 25%', 'Chef Choice 15%'];
+        return list.slice(0, 3).map((item, idx) => {
+            const disc = discounts[idx] || 20;
+            const origPrice = Math.round((item.price / (1 - disc / 100)) / 1000) * 1000;
+            return {
+                ...item,
+                promoBadge: badges[idx] || `${disc}% OFF`,
+                originalPrice: origPrice,
+                promoPrice: item.price,
+                discountPercent: disc
+            };
+        });
+    }, [menus]);
+
+
     // Filtered Menus
     const displayedMenus = useMemo(() => {
         let list = menus;
@@ -311,8 +402,28 @@ export default function OrderApp({
     }, [initialOrders]);
 
     const completedOrders = useMemo(() => {
-        return initialOrders.filter(o => ['Served', 'Picked Up', 'Completed', 'Cancelled'].includes(o.order_status));
+        return initialOrders.filter(o => ['Served', 'Picked Up', 'Completed', 'Cancelled', 'Refund Requested', 'Refunded'].includes(o.order_status));
     }, [initialOrders]);
+
+    // Background polling for customer order status (updates real-time when kitchen prepares/waiter serves)
+    useEffect(() => {
+        let isPolling = false;
+        const interval = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !isPolling) {
+                isPolling = true;
+                router.reload({
+                    only: ['orders', 'tables'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    onFinish: () => {
+                        isPolling = false;
+                    },
+                });
+            }
+        }, 4000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         if (initialMenuId) {
@@ -339,6 +450,22 @@ export default function OrderApp({
             default: return 1;
         }
     };
+
+    const getStatusBadgeText = (status: string | any, paymentMethod?: string, isPaid?: boolean) => {
+        const s = String(status || '');
+        if (s === 'Pending' || s === 'Awaiting Payment') {
+            if (paymentMethod === 'cash') return 'Menunggu ACC Kasir';
+            return 'Menunggu Pembayaran';
+        }
+        if (s === 'Preparing' || s === 'Paid' || s === 'Confirmed') return 'Sedang Dalam Antrean';
+        if (s === 'Ready') return 'Siap Saji';
+        if (s === 'Served' || s === 'Picked Up' || s === 'Completed') return 'Selesai Terhidang';
+        if (s === 'Refund Requested') return 'Pengajuan Refund';
+        if (s === 'Refunded') return 'Dana Dikembalikan';
+        if (s === 'Cancelled') return 'Dibatalkan';
+        return s;
+    };
+
 
     const getStatusTrackerText = (status: string | any, paymentMethod?: string) => {
         const s = String(status || '');
@@ -578,6 +705,7 @@ export default function OrderApp({
             if (paymentMethod === 'qris') {
                 if (!data.snap_token) {
                     throw new Error(data.message || 'Token pembayaran Midtrans tidak ditemukan.');
+
                 }
                 await handlePayWithSnap(data.snap_token);
             } else {
@@ -2296,6 +2424,32 @@ export default function OrderApp({
                                                         <div key={it.id} className="flex justify-between text-xs text-[#211D1B]">
                                                             <span>{it.quantity}x {it.menu_name_snapshot}</span>
                                                             <span className="font-mono text-stone-600">{formatRupiah(it.subtotal)}</span>
+
+                                                {/* Refund Action & Status Badges */}
+                                                <div className="flex items-center gap-2 flex-wrap pt-2">
+                                                    {order.order_status === 'Pending' && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleOpenRefundModal(order)}
+                                                            className="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs font-bold hover:bg-rose-100 transition-all flex items-center gap-1.5"
+                                                        >
+                                                            <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                                                            <span>Ajukan Pembatalan & Refund</span>
+                                                        </button>
+                                                    )}
+                                                    {order.order_status === 'Refund Requested' && (
+                                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-semibold">
+                                                            <RotateCcw className="w-3.5 h-3.5 text-purple-700 animate-spin" />
+                                                            <span>Pengajuan Refund Sedang Ditinjau Admin</span>
+                                                        </div>
+                                                    )}
+                                                    {order.order_status === 'Refunded' && (
+                                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-semibold">
+                                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                                            <span>Dana Telah Dikembalikan (Refunded)</span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -2819,7 +2973,165 @@ export default function OrderApp({
             )}
 
             {/* ========================================================
-                MODAL 3: CONFIRMATION LOGOUT
+                MODAL: PENGAJUAN PENGEMBALIAN DANA (REFUND ORDER)
+            ======================================================== */}
+            {isRefundModalOpen && selectedOrderForRefund && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div className="relative w-full max-w-lg bg-[#211D1B] border border-[#B99A65]/40 rounded-3xl p-6 shadow-2xl text-[#F4EFE6] space-y-4 max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between pb-3 border-b border-stone-800">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300">
+                                    <RotateCcw className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="font-heading text-lg font-bold text-[#F4EFE6]">
+                                        Ajukan Pengembalian Dana (Refund)
+                                    </h3>
+                                    <span className="font-mono text-xs text-[#D4B886]">
+                                        Pesanan #{selectedOrderForRefund.order_code}
+                                    </span>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsRefundModalOpen(false)}
+                                className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Order info summary */}
+                        <div className="p-3.5 rounded-2xl bg-[#141110] border border-[#2D2622] flex items-center justify-between">
+                            <div>
+                                <span className="text-[10px] text-stone-400 uppercase tracking-wider block">
+                                    Total Nilai Pesanan
+                                </span>
+                                <span className="font-heading text-xl font-bold text-[#D4B886]">
+                                    {formatRupiah(selectedOrderForRefund.total)}
+                                </span>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                Status: Menunggu Dapur
+                            </span>
+                        </div>
+
+                        {/* Ketentuan refund notice */}
+                        <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                            <span>
+                                <strong>Ketentuan Pembatalan:</strong> Pembatalan dan refund 100% hanya dapat diajukan sebelum pesanan masuk ke tahap persiapan memasak oleh dapur NUSARA. Dana akan dikembalikan melalui transfer ke rekening/e-wallet Anda.
+                            </span>
+                        </div>
+
+                        {refundError && (
+                            <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-200 text-xs">
+                                {refundError}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmitOrderRefund} className="space-y-3.5">
+                            <div>
+                                <label className="text-xs font-semibold text-stone-300 block mb-1.5">
+                                    Pilih Bank / Dompet Digital (e-Wallet)
+                                </label>
+                                <select
+                                    value={refundBank}
+                                    onChange={(e) => setRefundBank(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#141110] border border-[#2D2622] text-xs text-white focus:outline-none focus:border-[#B99A65]"
+                                >
+                                    <optgroup label="Virtual Account / Bank Transfer">
+                                        <option value="BCA">BCA (Bank Central Asia)</option>
+                                        <option value="Mandiri">Bank Mandiri</option>
+                                        <option value="BNI">BNI (Bank Negara Indonesia)</option>
+                                        <option value="BRI">BRI (Bank Rakyat Indonesia)</option>
+                                        <option value="Permata">Bank Permata</option>
+                                        <option value="BSI">BSI (Bank Syariah Indonesia)</option>
+                                    </optgroup>
+                                    <optgroup label="Dompet Digital (e-Wallet)">
+                                        <option value="GoPay">GoPay</option>
+                                        <option value="OVO">OVO</option>
+                                        <option value="DANA">DANA</option>
+                                        <option value="ShopeePay">ShopeePay</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-stone-300 block mb-1.5">
+                                    Nomor Rekening / Nomor Ponsel Terdaftar
+                                </label>
+                                <input
+                                    type="text"
+                                    value={refundAccountNumber}
+                                    onChange={(e) => setRefundAccountNumber(e.target.value)}
+                                    placeholder="Contoh: 1234567890 atau 08123456789"
+                                    required
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#141110] border border-[#2D2622] text-xs text-white placeholder-stone-500 focus:outline-none focus:border-[#B99A65]"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-stone-300 block mb-1.5">
+                                    Nama Pemilik Rekening / Akun (Sesuai KTP)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={refundAccountHolder}
+                                    onChange={(e) => setRefundAccountHolder(e.target.value)}
+                                    placeholder="Nama lengkap pemilik rekening"
+                                    required
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#141110] border border-[#2D2622] text-xs text-white placeholder-stone-500 focus:outline-none focus:border-[#B99A65]"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-semibold text-stone-300 block mb-1.5">
+                                    Alasan Pembatalan
+                                </label>
+                                <textarea
+                                    rows={2}
+                                    value={refundReason}
+                                    onChange={(e) => setRefundReason(e.target.value)}
+                                    placeholder="Contoh: Salah pilih menu / Mendadak harus meninggalkan restoran..."
+                                    required
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#141110] border border-[#2D2622] text-xs text-white placeholder-stone-500 focus:outline-none focus:border-[#B99A65] resize-none"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsRefundModalOpen(false)}
+                                    className="py-2.5 px-4 rounded-xl border border-stone-700 bg-stone-900/60 hover:bg-stone-800 text-stone-300 text-xs font-semibold transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmittingRefund}
+                                    className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-700 to-rose-800 hover:from-rose-600 hover:to-rose-700 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                >
+                                    {isSubmittingRefund ? (
+                                        <>
+                                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                            <span>Mengirim...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <RotateCcw className="w-3.5 h-3.5" />
+                                            <span>Kirim Pengajuan</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================
+                MODAL 3: CONFIRMATION LOGOUT (CEGAH KEPENCET KELUAR)
             ======================================================== */}
             <LogoutConfirmModal
                 isOpen={isLogoutModalOpen}

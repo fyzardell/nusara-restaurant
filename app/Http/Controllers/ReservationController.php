@@ -342,12 +342,12 @@ class ReservationController extends Controller
 
         $code = 'RSV-' . strtoupper(Str::random(6));
 
-        // Format Special Request dengan info DP Jaminan Midtrans
+        // Format Special Request dengan info DP Jaminan
         $specialRequest = $request->special_request ?? '';
         if ($request->filled('dp_amount') && floatval($request->dp_amount) > 0) {
             $dpFmt = number_format(floatval($request->dp_amount), 0, ',', '.');
             $method = strtoupper($request->dp_payment_method ?? 'QRIS');
-            $specialRequest = "[DP Jaminan Meja: Rp {$dpFmt} via {$method} Midtrans] " . $specialRequest;
+            $specialRequest = "[DP Jaminan Meja: Rp {$dpFmt} via {$method}] " . $specialRequest;
         }
 
         $reservationId = DB::table('reservations')->insertGetId([
@@ -411,7 +411,7 @@ class ReservationController extends Controller
             'action' => 'reservation.create',
             'entity_type' => 'Reservation',
             'entity_id' => $reservationId,
-            'description' => "Reservasi online dibuat dengan kode {$code} untuk {$request->guest_count} tamu pada {$request->date} {$request->time} WIB (DP Non-Tunai Midtrans).",
+            'description' => "Reservasi online dibuat dengan kode {$code} untuk {$request->guest_count} tamu pada {$request->date} {$request->time} WIB (DP Non-Tunai).",
             'created_at' => now(),
         ]);
 
@@ -431,8 +431,102 @@ class ReservationController extends Controller
             ]);
         }
 
-        session()->flash('success', "Reservasi {$code} ({$tableNames}) berhasil diajukan! Meja Anda otomatis terkonfirmasi 24 jam setelah DP Midtrans diverifikasi.");
+        session()->flash('success', "Reservasi {$code} ({$tableNames}) berhasil diajukan! Meja Anda otomatis terkonfirmasi 24 jam setelah DP diverifikasi.");
 
         return redirect()->route('reservation');
+    }
+
+    /**
+     * Request refund / cancellation for a paid DP reservation.
+     */
+    public function requestRefund(Request $request, $id)
+    {
+        if (!Auth::check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan masuk ke akun terlebih dahulu.'
+            ], 401);
+        }
+
+        $request->validate([
+            'bank_or_wallet' => 'required|string|max:50',
+            'account_number' => 'required|string|max:50',
+            'account_holder' => 'required|string|max:100',
+            'reason' => 'required|string|max:500',
+        ], [
+            'bank_or_wallet.required' => 'Pilih bank atau e-wallet tujuan pengembalian dana.',
+            'account_number.required' => 'Nomor rekening atau nomor e-wallet tujuan wajib diisi.',
+            'account_holder.required' => 'Nama pemilik rekening/akun wajib diisi.',
+            'reason.required' => 'Mohon sertakan alasan pembatalan & pengajuan refund.',
+        ]);
+
+        $user = Auth::user();
+        $customer = DB::table('customers')->where('user_id', $user->id)->first();
+
+        $reservation = DB::table('reservations')->where('id', $id)->first();
+        if (!$reservation) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data reservasi tidak ditemukan.'
+            ], 404);
+        }
+
+        // Check ownership
+        $isOwner = false;
+        if ($customer && $reservation->customer_id == $customer->id) {
+            $isOwner = true;
+        } elseif ($reservation->created_by == $user->id) {
+            $isOwner = true;
+        }
+
+        if (!$isOwner) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki hak otorisasi untuk mengajukan refund pada reservasi ini.'
+            ], 403);
+        }
+
+        if (in_array($reservation->status, ['Refund Requested', 'Refunded', 'Cancelled', 'Rejected'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reservasi ini telah dibatalkan atau sudah dalam proses pengembalian dana sebelumnya.'
+            ], 422);
+        }
+
+        $refundNote = "[Pengajuan Refund DP: {$request->bank_or_wallet} {$request->account_number} a/n {$request->account_holder} - Alasan: {$request->reason}]";
+        $updatedSpecialRequest = trim(($reservation->special_request ?? '') . "\n" . $refundNote);
+
+        // Update reservation status to Refund Requested
+        DB::table('reservations')->where('id', $id)->update([
+            'status' => 'Refund Requested',
+            'special_request' => $updatedSpecialRequest,
+            'updated_at' => now(),
+        ]);
+
+        // Record status change in reservation_status_histories
+        DB::table('reservation_status_histories')->insert([
+            'reservation_id' => $id,
+            'changed_by' => $user->id,
+            'previous_status' => $reservation->status,
+            'new_status' => 'Refund Requested',
+            'notes' => $refundNote,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Record in audit_logs
+        DB::table('audit_logs')->insert([
+            'user_id' => $user->id,
+            'action' => 'reservation.refund_request',
+            'entity_type' => 'Reservation',
+            'entity_id' => $id,
+            'description' => "Pengajuan refund diajukan oleh tamu untuk reservasi {$reservation->reservation_code} ({$request->bank_or_wallet} {$request->account_number}).",
+            'created_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Pengajuan pengembalian dana (refund) untuk reservasi #{$reservation->reservation_code} berhasil diajukan. Tim Konsierge & Keuangan NUSARA akan memverifikasi dan mentransfer ke {$request->bank_or_wallet} {$request->account_number} (1x24 jam kerja).",
+        ]);
     }
 }

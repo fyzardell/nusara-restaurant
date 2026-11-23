@@ -53,11 +53,19 @@ class MidtransService
             ];
         }
 
-        // Specific payment channels for NUSARA (QRIS & Virtual Accounts only)
+        // Specific payment channels for NUSARA (QRIS, E-Wallets & Virtual Accounts)
         $enabledPayments = match ($paymentMethod) {
-            'qris' => ['qris', 'gopay'],
+            'qris' => ['qris', 'gopay', 'shopeepay'],
+            'gopay' => ['gopay', 'qris'],
+            'shopeepay' => ['shopeepay', 'qris'],
+            'dana', 'ovo', 'ewallet' => ['qris', 'gopay', 'shopeepay'],
+            'bca_va', 'bca' => ['bca_va'],
+            'mandiri_va', 'mandiri', 'echannel' => ['echannel'],
+            'bni_va', 'bni' => ['bni_va'],
+            'bri_va', 'bri' => ['bri_va'],
+            'permata_va', 'permata' => ['permata_va'],
             'bank_transfer' => ['bca_va', 'bni_va', 'bri_va', 'echannel', 'permata_va'],
-            default => ['qris', 'gopay', 'bca_va', 'bni_va', 'bri_va', 'echannel', 'permata_va'],
+            default => ['qris', 'gopay', 'shopeepay', 'bca_va', 'bni_va', 'bri_va', 'echannel', 'permata_va'],
         };
 
         $params = [

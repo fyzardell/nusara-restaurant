@@ -26,10 +26,12 @@ Route::get('/menu', [LandingPageController::class, 'index'])->name('menu');
 // Dedicated Luxury Reservation Page (Customer Flow)
 Route::get('/reservation', [ReservationController::class, 'index'])->name('reservation');
 Route::post('/reservation', [ReservationController::class, 'store'])->name('reservation.store');
+Route::post('/reservation/{id}/refund', [ReservationController::class, 'requestRefund'])->name('reservation.refund');
 
 // Customer Ordering App (Akses Publik / Tamu Meja & Member)
 Route::get('/order', [OrderController::class, 'index'])->name('order.app');
 Route::post('/order/checkout', [OrderController::class, 'checkout'])->name('order.checkout');
+Route::post('/order/{id}/refund', [OrderController::class, 'requestRefund'])->name('order.refund');
 
 // Midtrans Webhook Notification Handler (Public & CSRF Exempted)
 Route::post('/api/midtrans/webhook', [OrderController::class, 'handleWebhook'])->name('midtrans.webhook');
@@ -52,6 +54,8 @@ Route::middleware('auth')->prefix('admin')->group(function () {
     Route::post('/categories', [AdminController::class, 'storeCategory'])->name('admin.category.store');
     Route::post('/table/{id}/status', [AdminController::class, 'updateTableStatus'])->name('admin.table.status');
     Route::post('/reservation/{id}/status', [AdminController::class, 'updateReservationStatus'])->name('admin.reservation.status');
+    Route::post('/refund/{type}/{id}/approve', [AdminController::class, 'approveRefund'])->name('admin.refund.approve');
+    Route::post('/refund/{type}/{id}/reject', [AdminController::class, 'rejectRefund'])->name('admin.refund.reject');
     Route::get('/chats', [AdminController::class, 'chats'])->name('admin.chats');
     Route::get('/chats/{user}', [AdminController::class, 'chatShow'])->name('admin.chats.show');
     Route::post('/chats/{user}', [AdminController::class, 'sendChatMessage'])->name('admin.chats.send_direct');
@@ -75,5 +79,6 @@ Route::middleware('auth')->prefix('waiter')->group(function () {
     Route::post('/order/{id}/serve', [WaiterController::class, 'markServed'])->name('waiter.order.serve');
     Route::post('/table/{id}/cleaning', [WaiterController::class, 'startCleaning'])->name('waiter.table.cleaning');
     Route::post('/table/{id}/available', [WaiterController::class, 'finishCleaning'])->name('waiter.table.available');
+    Route::post('/table/{id}/status', [WaiterController::class, 'updateTableStatus'])->name('waiter.table.status');
     Route::post('/table/{id}/request-occupancy', [WaiterController::class, 'requestOccupancy'])->name('waiter.table.request-occupancy');
 });
