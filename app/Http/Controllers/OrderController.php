@@ -734,4 +734,110 @@ class OrderController extends Controller
             'message' => "Pengajuan pembatalan & pengembalian dana untuk pesanan #{$order->order_code} berhasil dikirim. Tim Kasir & Administrasi akan memproses pengembalian dana ke {$request->bank_or_wallet} ({$request->account_number}).",
         ]);
     }
+
+    /**
+     * Konfirmasi pembayaran online (Midtrans QRIS / Virtual Account) secara instan.
+     * Mengubah payment_status menjadi 'Paid' dan langsung menaikkan status pesanan ke 'Preparing' (memasak).
+     */
+    public function confirmOnlinePayment(Request $request, $orderId)
+    {
+        $order = DB::table('orders')->where('id', $orderId)->first();
+        if (!$order) {
+            return response()->json(['success' => false, 'message' => 'Pesanan tidak ditemukan.'], 404);
+        }
+
+        $payment = DB::table('payments')->where('order_id', $orderId)->first();
+        if (!$payment) {
+            return response()->json(['success' => false, 'message' => 'Data pembayaran tidak ditemukan.'], 404);
+        }
+
+        // Jika sudah lunas sebelumnya
+        if ($payment->payment_status === 'Paid') {
+            return response()->json([
+                'success' => true,
+                'payment_status' => 'Paid',
+                'order_status' => $order->order_status,
+                'message' => 'Pembayaran pesanan ini sudah diverifikasi sebelumnya.',
+            ]);
+        }
+
+        $isVerified = false;
+
+        // Cek status resmi ke Midtrans jika terkonfigurasi
+        $serverKey = config('midtrans.server_key') ?: env('MIDTRANS_SERVER_KEY');
+        if (!empty($serverKey)) {
+            try {
+                \Midtrans\Config::$serverKey = $serverKey;
+                \Midtrans\Config::$isProduction = config('midtrans.is_production', false);
+
+                try {
+                    $status = \Midtrans\Transaction::status($order->order_code);
+                    $trxStatus = $status->transaction_status ?? null;
+                    $fraud = $status->fraud_status ?? null;
+
+                    if (in_array($trxStatus, ['capture', 'settlement'])) {
+                        if ($trxStatus === 'capture' && $fraud === 'challenge') {
+                            $isVerified = false;
+                        } else {
+                            $isVerified = true;
+                        }
+                    }
+                } catch (\Exception $apiEx) {
+                    \Illuminate\Support\Facades\Log::warning("Midtrans Transaction::status notice for {$order->order_code}: " . $apiEx->getMessage());
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Midtrans status check error: " . $e->getMessage());
+            }
+        }
+
+        // Dukungan callback Snap di frontend (onSuccess mengirimkan status code 200/201 atau status settlement)
+        $clientStatus = $request->input('transaction_status') ?? $request->input('status_code');
+        $resultStatus = $request->input('result_status');
+        if ($isVerified || in_array($clientStatus, ['settlement', 'capture', '200', '201']) || $resultStatus === 'success') {
+            $isVerified = true;
+        }
+
+        if ($isVerified) {
+            DB::table('payments')->where('id', $payment->id)->update([
+                'payment_status' => 'Paid',
+                'paid_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Non-cash pembayaran berhasil: langsung masuk ke antrean dapur 'Preparing' (memasak)
+            DB::table('orders')->where('id', $order->id)->update([
+                'order_status' => 'Preparing',
+                'updated_at' => now(),
+            ]);
+
+            DB::table('payment_transactions')->where('payment_id', $payment->id)->update([
+                'transaction_status' => 'settlement',
+                'updated_at' => now(),
+            ]);
+
+            // Riwayat status order
+            DB::table('order_status_histories')->insert([
+                'order_id' => $order->id,
+                'changed_by' => Auth::id() ?? null,
+                'previous_status' => $order->order_status,
+                'new_status' => 'Preparing',
+                'notes' => 'Pembayaran online Midtrans terverifikasi. Pesanan langsung diteruskan ke koki dapur untuk dimasak.',
+                'created_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'payment_status' => 'Paid',
+                'order_status' => 'Preparing',
+                'message' => 'Pembayaran Midtrans berhasil diverifikasi! Pesanan Anda langsung masuk ke tahap 2/4 - Sedang Dimasak di Dapur.',
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'payment_status' => $payment->payment_status,
+            'order_status' => $order->order_status,
+            'message' => 'Pembayaran belum dapat dikonfirmasi oleh Midtrans. Pastikan transaksi QRIS / VA Anda telah selesai.',
+        ], 422);
+    }
 }

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Head, Link, usePage, router } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
 import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
+import CustomerSettings from './CustomerSettings';
 import { 
     Category, 
     Menu, 
@@ -57,7 +58,12 @@ import {
     RotateCcw,
     Lock,
     Building2,
-    Wallet
+    Wallet,
+    Settings,
+    KeyRound,
+    Shield,
+    Soup,
+    Cake
 } from 'lucide-react';
 
 function TypingGreeting({ name }: { name: string }) {
@@ -189,7 +195,7 @@ export default function OrderApp({
     }, [serviceMode, orderType, selectedTable, customerName]);
 
     // Navigation Tab state
-    const [activeTab, setActiveTab] = useState<'menu' | 'cart' | 'active_order' | 'history' | 'favorites' | 'chat'>('menu');
+    const [activeTab, setActiveTab] = useState<'menu' | 'cart' | 'active_order' | 'history' | 'favorites' | 'chat' | 'settings'>('menu');
 
     // Search and Category
     const [searchQuery, setSearchQuery] = useState('');
@@ -577,7 +583,7 @@ export default function OrderApp({
     };
 
     const getCategoryIcon = (slugOrName: string) => {
-        const s = (slugOrName || '').toLowerCase();
+        const s = (slugOrName || '').toLowerCase().replace(/[-_]/g, ' ');
         if (s.includes('pembuka') || s.includes('starter') || s.includes('appetiz') || s.includes('salad')) {
             return Salad;
         }
@@ -599,7 +605,7 @@ export default function OrderApp({
         if (s.includes('utama') || s.includes('main')) {
             return Utensils;
         }
-        return UtensilsCrossed;
+        return Sparkles;
     };
 
     const ensureSnapLoaded = async (clientKey: string): Promise<boolean> => {
@@ -614,7 +620,7 @@ export default function OrderApp({
         });
     };
 
-    const handlePayWithSnap = async (snapToken: string) => {
+    const handlePayWithSnap = async (snapToken: string, targetOrderId?: number) => {
         const snapReady = await ensureSnapLoaded(midtransClientKey);
         if (!snapReady || !(window as any).snap) {
             alert('Modul pembayaran Midtrans gagal dimuat di browser. Pastikan koneksi internet aktif.');
@@ -622,10 +628,30 @@ export default function OrderApp({
         }
 
         (window as any).snap.pay(snapToken, {
-            onSuccess: function () {
+            onSuccess: async function (result: any) {
                 setCart([]);
                 try { localStorage.removeItem('nusara_customer_cart'); } catch {}
-                alert('Pembayaran Berhasil! Pesanan Anda segera disiapkan oleh dapur NUSARA.');
+                
+                // Konfirmasi otomatis pembayaran online ke server backend agar status langsung 'Preparing'
+                try {
+                    const orderIdToConfirm = targetOrderId || result?.order_id;
+                    if (orderIdToConfirm) {
+                        const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+                        await fetch(`/order/${orderIdToConfirm}/confirm-online-payment`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                            },
+                            body: JSON.stringify(result || { result_status: 'success' }),
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error auto-confirming online payment:', e);
+                }
+
+                alert('Pembayaran Berhasil! Pesanan Anda telah diverifikasi dan langsung dimasak di dapur NUSARA.');
                 router.reload({ only: ['orders'] });
                 setActiveTab('active_order');
             },
@@ -649,6 +675,32 @@ export default function OrderApp({
                 setActiveTab('active_order');
             }
         });
+    };
+
+    // Verifikasi Manual Status Pembayaran Online Midtrans
+    const handleVerifyMidtransPayment = async (orderId: number) => {
+        try {
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+            const res = await fetch(`/order/${orderId}/confirm-online-payment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({ result_status: 'check_status' }),
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                alert(data.message || 'Pembayaran berhasil diverifikasi! Pesanan Anda saat ini sedang dimasak di dapur.');
+                router.reload({ only: ['orders'] });
+            } else {
+                alert(data.message || 'Pembayaran belum dapat dikonfirmasi oleh Midtrans. Pastikan transaksi QRIS / VA Anda telah selesai.');
+            }
+        } catch {
+            alert('Terjadi kendala jaringan saat memverifikasi status pembayaran ke Midtrans.');
+        }
     };
 
     // Submit Checkout
@@ -705,9 +757,8 @@ export default function OrderApp({
             if (paymentMethod === 'qris') {
                 if (!data.snap_token) {
                     throw new Error(data.message || 'Token pembayaran Midtrans tidak ditemukan.');
-
                 }
-                await handlePayWithSnap(data.snap_token);
+                await handlePayWithSnap(data.snap_token, data.order_id);
             } else {
                 setCart([]);
                 try {
@@ -779,19 +830,8 @@ export default function OrderApp({
             ======================================================== */}
             <header className="sticky top-0 z-40 bg-[#32151F] text-[#F4EFE6] shadow-xl border-b border-[#B99A65]/30">
                 <div className="max-w-7xl mx-auto px-4 py-3 sm:py-3.5 flex items-center justify-between gap-3">
-                    {/* Left: Brand Logo & Desktop Sidebar Toggle */}
+                    {/* Left: Brand Logo on mobile only (Desktop logo is in the sidebar dock) */}
                     <div className="flex items-center gap-3">
-                        {serviceMode === 'confirmed' && (
-                            <button
-                                type="button"
-                                onClick={() => setIsDesktopSidebarExpanded(prev => !prev)}
-                                className="hidden md:flex p-2 rounded-xl bg-[#211D1B] border border-[#B99A65]/40 text-[#D4B886] hover:bg-[#32151F] hover:border-[#D4B886] transition-all"
-                                title={isDesktopSidebarExpanded ? "Kecilkan Sidebar" : "Perluas Sidebar"}
-                            >
-                                <PanelLeft className="w-5 h-5" />
-                            </button>
-                        )}
-
                         <button 
                             type="button"
                             onClick={() => {
@@ -802,7 +842,7 @@ export default function OrderApp({
                                 }
                             }}
                             title="Kembali ke Beranda Publik"
-                            className="group flex items-center gap-2 text-left"
+                            className="group flex md:hidden items-center gap-2 text-left"
                         >
                             <img 
                                 src="/images/nusara-logo.png" 
@@ -848,13 +888,23 @@ export default function OrderApp({
                         )}
 
                         {auth?.user ? (
-                            <button
-                                onClick={() => setIsLogoutModalOpen(true)}
-                                title="Keluar / Logout Akun"
-                                className="w-9 h-9 rounded-full bg-[#211D1B] border border-rose-500/40 text-rose-300 flex items-center justify-center hover:bg-rose-950/80 active:scale-90 transition-all shadow"
-                            >
-                                <LogOut className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('settings')}
+                                    title="Pengaturan Akun & 2FA"
+                                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs flex items-center justify-center hover:brightness-110 active:scale-95 transition-all shadow"
+                                >
+                                    {auth.user.name.charAt(0).toUpperCase()}
+                                </button>
+                                <button
+                                    onClick={() => setIsLogoutModalOpen(true)}
+                                    title="Keluar / Logout Akun"
+                                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#211D1B] border border-rose-500/40 text-rose-300 flex items-center justify-center hover:bg-rose-950/80 active:scale-90 transition-all shadow"
+                                >
+                                    <LogOut className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
                         ) : (
                             <Link
                                 href="/login"
@@ -1408,6 +1458,35 @@ export default function OrderApp({
                                     </span>
                                 )}
                             </button>
+
+                            {/* 8. Pengaturan Akun */}
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('settings')}
+                                className={isDesktopSidebarExpanded
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
+                                        activeTab === 'settings'
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    }`
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
+                                        activeTab === 'settings'
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    }`
+                                }
+                                title="Pengaturan Akun & 2FA"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Settings className="w-5 h-5 stroke-[2] flex-shrink-0" />
+                                    {isDesktopSidebarExpanded && <span>Pengaturan Akun</span>}
+                                </div>
+                                {!isDesktopSidebarExpanded && (
+                                    <span className="absolute left-14 px-2.5 py-1 rounded-lg bg-[#211D1B] text-[#D4B886] text-xs font-bold shadow-lg border border-[#B99A65]/40 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                        Pengaturan Akun
+                                    </span>
+                                )}
+                            </button>
                         </nav>
 
                         {/* Bottom: Logout / User Action */}
@@ -1424,14 +1503,24 @@ export default function OrderApp({
                                                 <p className="text-[10px] text-stone-400 truncate">{auth.user.email}</p>
                                             </div>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsLogoutModalOpen(true)}
-                                            className="w-full py-1.5 px-2.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 hover:bg-rose-900/60 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors"
-                                        >
-                                            <LogOut className="w-3.5 h-3.5" />
-                                            <span>Keluar Akun</span>
-                                        </button>
+                                        <div className="flex items-center gap-1.5 pt-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => setActiveTab('settings')}
+                                                className="flex-1 py-1.5 px-2 rounded-xl bg-[#211D1B] border border-[#B99A65]/40 text-[#D4B886] hover:bg-[#32151F] text-[11px] font-bold flex items-center justify-center gap-1 transition-colors"
+                                            >
+                                                <Settings className="w-3.5 h-3.5" />
+                                                <span>Pengaturan</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsLogoutModalOpen(true)}
+                                                className="py-1.5 px-2.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 hover:bg-rose-900/60 text-[11px] font-bold flex items-center justify-center transition-colors"
+                                                title="Keluar Akun"
+                                            >
+                                                <LogOut className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
                                     </div>
                                 ) : (
                                     <Link
@@ -1444,17 +1533,30 @@ export default function OrderApp({
                                 )
                             ) : (
                                 auth?.user ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsLogoutModalOpen(true)}
-                                        className="w-10 h-10 rounded-2xl flex items-center justify-center text-rose-400 hover:bg-rose-950/60 border border-rose-500/30 transition-all group relative"
-                                        title="Keluar dari Akun"
-                                    >
-                                        <LogOut className="w-5 h-5" />
-                                        <span className="absolute left-14 px-2.5 py-1 rounded-lg bg-[#211D1B] text-rose-300 text-xs font-bold shadow-lg border border-rose-500/40 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                                            Keluar
-                                        </span>
-                                    </button>
+                                    <div className="flex flex-col items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveTab('settings')}
+                                            className="w-10 h-10 rounded-2xl flex items-center justify-center text-stone-300 hover:text-[#D4B886] hover:bg-white/5 transition-all group relative"
+                                            title="Pengaturan Akun & 2FA"
+                                        >
+                                            <Settings className="w-5 h-5" />
+                                            <span className="absolute left-14 px-2.5 py-1 rounded-lg bg-[#211D1B] text-[#D4B886] text-xs font-bold shadow-lg border border-[#B99A65]/40 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                                Pengaturan
+                                            </span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsLogoutModalOpen(true)}
+                                            className="w-10 h-10 rounded-2xl flex items-center justify-center text-rose-400 hover:bg-rose-950/60 border border-rose-500/30 transition-all group relative"
+                                            title="Keluar dari Akun"
+                                        >
+                                            <LogOut className="w-5 h-5" />
+                                            <span className="absolute left-14 px-2.5 py-1 rounded-lg bg-[#211D1B] text-rose-300 text-xs font-bold shadow-lg border border-rose-500/40 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                                Keluar
+                                            </span>
+                                        </button>
+                                    </div>
                                 ) : (
                                     <Link
                                         href="/login"
@@ -2290,23 +2392,51 @@ export default function OrderApp({
                                                     </div>
 
                                                     {/* Selesaikan Pembayaran Midtrans jika masih Pending */}
-                                                    {order.payment?.payment_status === 'Pending' && order.payment?.payment_method === 'qris' && order.transaction?.payment_url && (
+                                                    {order.payment?.payment_status === 'Pending' && order.payment?.payment_method !== 'cash' && (
                                                         <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/80 to-[#32151F] border border-amber-500/40 space-y-2">
                                                             <div className="flex items-center justify-between text-xs">
                                                                 <span className="font-bold text-amber-300 flex items-center gap-1.5">
                                                                     <AlertCircle className="w-4 h-4 text-amber-400" />
                                                                     Pembayaran Midtrans Belum Selesai
                                                                 </span>
-                                                                <span className="text-[10px] text-stone-300">Menunggu Verifikasi QRIS</span>
+                                                                <span className="text-[10px] text-stone-300">Menunggu Pembayaran Online</span>
                                                             </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handlePayWithSnap(order.transaction.payment_url)}
-                                                                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:from-[#a88954] hover:to-[#c3a775] text-[#211D1B] font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
-                                                            >
-                                                                <QrCode className="w-4 h-4" />
-                                                                <span>Buka QRIS Pembayaran Midtrans</span>
-                                                            </button>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                {order.transaction?.payment_url && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handlePayWithSnap(order.transaction.payment_url, order.id)}
+                                                                        className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:from-[#a88954] hover:to-[#c3a775] text-[#211D1B] font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+                                                                    >
+                                                                        <QrCode className="w-4 h-4" />
+                                                                        <span>Buka QRIS Midtrans</span>
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleVerifyMidtransPayment(order.id)}
+                                                                    className="py-2.5 px-3 rounded-xl bg-stone-900 border border-[#B99A65]/50 hover:bg-[#32151F] text-[#D4B886] font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
+                                                                >
+                                                                    <RefreshCw className="w-4 h-4" />
+                                                                    <span>Cek Status Bayar</span>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Petunjuk Pesanan Tunai Menunggu ACC Kasir */}
+                                                    {order.payment?.payment_method === 'cash' && order.order_status === 'Pending' && (
+                                                        <div className="p-3 rounded-2xl bg-amber-950/40 border border-amber-500/30 flex items-center gap-2.5 text-xs text-amber-200">
+                                                            <Clock className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                                                            <span>Pesanan menunggu konfirmasi kasir. Silakan selesaikan pembayaran tunai di kasir restoran agar dapur segera memasak pesanan Anda.</span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Status Masak di Dapur */}
+                                                    {order.order_status === 'Preparing' && (
+                                                        <div className="p-3 rounded-2xl bg-emerald-950/50 border border-emerald-500/30 flex items-center gap-2.5 text-xs text-emerald-200">
+                                                            <Flame className="w-4 h-4 text-emerald-400 animate-pulse flex-shrink-0" />
+                                                            <span>Pembayaran terverifikasi! Koki dapur NUSARA saat ini sedang memasak hidangan istimewa Anda.</span>
                                                         </div>
                                                     )}
 
@@ -2551,6 +2681,17 @@ export default function OrderApp({
                                     </button>
                                 </form>
                             </div>
+                        )}
+
+                        {/* ----------------------------------------------------
+                            TAB: PENGATURAN AKUN PELANGGAN & 2FA GOOGLE AUTHENTICATOR
+                        ---------------------------------------------------- */}
+                        {activeTab === 'settings' && (
+                            <CustomerSettings 
+                                user={auth?.user || null} 
+                                isGuest={isGuest} 
+                                onBackToMenu={() => setActiveTab('menu')} 
+                            />
                         )}
                     </main>
 
