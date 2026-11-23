@@ -455,7 +455,7 @@ class WaiterController extends Controller
                   ->orWhere('table_number', 'Meja ' . str_pad($table->id, 2, '0', STR_PAD_LEFT))
                   ->orWhere('table_number', (string) $table->id);
             })
-            ->whereIn('order_status', ['Served', 'Delivered', 'Ready'])
+            ->whereIn('order_status', ['Pending', 'Awaiting Payment', 'Paid', 'Confirmed', 'Preparing', 'Ready', 'Served', 'Delivered'])
             ->update([
                 'order_status' => 'Completed',
                 'updated_at' => now(),
@@ -532,7 +532,7 @@ class WaiterController extends Controller
                           ->orWhere('table_number', 'Meja ' . str_pad($table->id, 2, '0', STR_PAD_LEFT))
                           ->orWhere('table_number', (string) $table->id);
                     })
-                    ->whereIn('order_status', ['Served', 'Delivered', 'Ready', 'Completed'])
+                    ->whereIn('order_status', ['Pending', 'Awaiting Payment', 'Paid', 'Confirmed', 'Preparing', 'Ready', 'Served', 'Delivered', 'Completed'])
                     ->update([
                         'order_status' => 'Completed',
                         'updated_at' => now(),

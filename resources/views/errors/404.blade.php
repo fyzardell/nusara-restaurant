@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>404 — Halaman Tidak Ditemukan · NUSARA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #141110;
+            color: #F4EFE6;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow-x: hidden;
+            position: relative;
+        }
+        .bg-glow-1 {
+            position: fixed;
+            top: -150px;
+            left: -150px;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            background: rgba(50, 21, 31, 0.45);
+            filter: blur(140px);
+            pointer-events: none;
+        }
+        .bg-glow-2 {
+            position: fixed;
+            bottom: -150px;
+            right: -150px;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            background: rgba(185, 154, 101, 0.18);
+            filter: blur(150px);
+            pointer-events: none;
+        }
+        header {
+            position: relative;
+            z-index: 10;
+            padding: 24px 32px;
+            border-bottom: 1px solid rgba(50, 21, 31, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        .logo {
+            height: 38px;
+            width: auto;
+        }
+        main {
+            position: relative;
+            z-index: 10;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 24px;
+            text-align: center;
+        }
+        .content-card {
+            max-width: 560px;
+            width: 100%;
+        }
+        .compass-badge {
+            width: 90px;
+            height: 90px;
+            margin: 0 auto 24px auto;
+            border-radius: 24px;
+            background: linear-gradient(135deg, #32151F, #211D1B, #141110);
+            border: 2px solid rgba(185, 154, 101, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+        .compass-badge svg {
+            width: 44px;
+            height: 44px;
+            stroke: #D4B886;
+        }
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 88px;
+            font-weight: 900;
+            line-height: 1;
+            background: linear-gradient(135deg, #B99A65, #F4EFE6, #D4B886);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+        h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 26px;
+            font-weight: 700;
+            color: #F4EFE6;
+            margin-bottom: 12px;
+        }
+        p {
+            font-size: 15px;
+            color: #A8A29E;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #B99A65, #D4B886, #B99A65);
+            color: #211D1B;
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            text-decoration: none;
+            border-radius: 14px;
+            transition: all 0.2s ease;
+            box-shadow: 0 10px 20px rgba(185, 154, 101, 0.25);
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.1);
+        }
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            background: #211D1B;
+            color: #D4B886;
+            border: 1px solid rgba(185, 154, 101, 0.4);
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            text-decoration: none;
+            border-radius: 14px;
+            transition: all 0.2s ease;
+        }
+        .btn-secondary:hover {
+            border-color: #D4B886;
+            color: #FFFFFF;
+            background: #32151F;
+        }
+        footer {
+            position: relative;
+            z-index: 10;
+            padding: 24px;
+            text-align: center;
+            font-size: 12px;
+            color: #78716C;
+            border-top: 1px solid rgba(50, 21, 31, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-glow-1"></div>
+    <div class="bg-glow-2"></div>
+
+    <header>
+        <a href="/">
+            <img src="/images/nusara-logo.png" alt="NUSARA" class="logo">
+        </a>
+        <a href="/" class="btn-secondary" style="padding: 8px 16px; font-size: 11px;">
+            Beranda
+        </a>
+    </header>
+
+    <main>
+        <div class="content-card">
+            <div class="compass-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+                </svg>
+            </div>
+            <h1>404</h1>
+            <h2>Halaman Tidak Ditemukan</h2>
+            <p>Maaf, hidangan istimewa atau tautan yang Anda tuju telah berpindah atau belum tersedia di perjamuan rasa NUSARA.</p>
+            <div class="btn-group">
+                <a href="/" class="btn-primary">Kembali ke Beranda</a>
+                <a href="/order" class="btn-secondary">Katalog Menu</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        &copy; {{ date('Y') }} NUSARA Indonesian Fine Dining Heritage. Hak cipta dilindungi undang-undang.
+    </footer>
+</body>
+</html>

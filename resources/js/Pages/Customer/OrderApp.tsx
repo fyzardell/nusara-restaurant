@@ -64,7 +64,9 @@ import {
     KeyRound,
     Shield,
     Soup,
-    Cake
+    Cake,
+    Ban,
+    Calendar
 } from 'lucide-react';
 
 function TypingGreeting({ name }: { name: string }) {
@@ -108,6 +110,14 @@ function TypingGreeting({ name }: { name: string }) {
     );
 }
 
+export interface TableAvailabilityError {
+    table_number: string;
+    status: 'occupied' | 'reserved' | 'cleaning' | 'inactive' | 'not_found';
+    title: string;
+    message: string;
+    can_choose_other: boolean;
+}
+
 interface Props {
     categories: Category[];
     menus: Menu[];
@@ -117,6 +127,7 @@ interface Props {
     tables: RestaurantTable[];
     settings: RestaurantSettings;
     initialTable?: string | null;
+    tableAvailabilityError?: TableAvailabilityError | null;
     initialType?: 'dine_in' | 'takeaway';
     initialMenuId?: number | null;
     isGuest?: boolean;
@@ -139,6 +150,7 @@ export default function OrderApp({
     tables = [], 
     settings,
     initialTable,
+    tableAvailabilityError,
     initialType,
     initialMenuId,
     isGuest: initialIsGuest = false,
@@ -148,8 +160,23 @@ export default function OrderApp({
     const { auth, flash } = usePage<{ auth: { user: User | null }; flash: { success?: string; error?: string } }>().props;
     const isGuest = !auth?.user;
 
+    const [tableAlertModal, setTableAlertModal] = useState<TableAvailabilityError | null>(() => tableAvailabilityError || null);
+
+    // Jika meja yang dipindai tidak tersedia, hapus cache meja dan bersihkan param table di URL
+    useEffect(() => {
+        if (tableAvailabilityError) {
+            localStorage.removeItem('nusara_selected_table');
+            if (typeof window !== 'undefined') {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('table');
+                window.history.replaceState({}, '', url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : ''));
+            }
+        }
+    }, [tableAvailabilityError]);
+
     // Service Mode: 'unselected' (3 cards) | 'selecting_table' | 'confirmed' (catalog)
     const [serviceMode, setServiceMode] = useState<'unselected' | 'selecting_table' | 'confirmed'>(() => {
+        if (tableAvailabilityError) return 'selecting_table';
         if (typeof window === 'undefined') return 'unselected';
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('table') || urlParams.get('type') || initialTable) return 'confirmed';
@@ -169,10 +196,11 @@ export default function OrderApp({
     });
 
     const [selectedTable, setSelectedTable] = useState<string>(() => {
+        if (tableAvailabilityError) return '';
         if (typeof window === 'undefined') return initialTable || 'Meja 01';
         const urlParams = new URLSearchParams(window.location.search);
         const urlTable = urlParams.get('table');
-        if (urlTable) return urlTable;
+        if (urlTable && !tableAvailabilityError) return urlTable;
         const saved = localStorage.getItem('nusara_selected_table');
         return saved || initialTable || 'Meja 01';
     });
@@ -1145,9 +1173,12 @@ export default function OrderApp({
                                 </label>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                     {tables.map(table => {
-                                        const isOccupied = table.status === 'Occupied';
-                                        const isReserved = table.status === 'Reserved';
-                                        const isAvailable = !isOccupied && !isReserved;
+                                        const curStatus = ((table as any).current_status || table.status || '').toLowerCase();
+                                        const isOccupied = curStatus === 'occupied';
+                                        const isReserved = curStatus === 'reserved';
+                                        const isCleaning = curStatus === 'cleaning';
+                                        const isInactive = curStatus === 'inactive' || curStatus === 'maintenance' || !table.is_active;
+                                        const isAvailable = (curStatus === 'available' || (table as any).is_selectable) && !isOccupied && !isReserved && !isCleaning && !isInactive;
 
                                         return (
                                             <button
@@ -1163,8 +1194,12 @@ export default function OrderApp({
                                                     isAvailable
                                                         ? 'bg-white border-[#B99A65]/40 hover:border-[#32151F] hover:shadow-md cursor-pointer'
                                                         : isOccupied
-                                                        ? 'bg-rose-50/70 border-rose-200 cursor-not-allowed opacity-70'
-                                                        : 'bg-amber-50/70 border-amber-200 cursor-not-allowed opacity-75'
+                                                        ? 'bg-rose-50/70 border-rose-200 cursor-not-allowed opacity-75'
+                                                        : isReserved
+                                                        ? 'bg-amber-50/70 border-amber-200 cursor-not-allowed opacity-75'
+                                                        : isCleaning
+                                                        ? 'bg-sky-50/70 border-sky-200 cursor-not-allowed opacity-75'
+                                                        : 'bg-stone-100/70 border-stone-300 cursor-not-allowed opacity-60'
                                                 }`}
                                             >
                                                 <div>
@@ -1172,8 +1207,16 @@ export default function OrderApp({
                                                         <span className="font-heading font-extrabold text-sm sm:text-base text-[#32151F]">
                                                             {table.table_number}
                                                         </span>
-                                                        <span className={`w-2 h-2 rounded-full ${
-                                                            isAvailable ? 'bg-emerald-500' : isOccupied ? 'bg-rose-500' : 'bg-amber-500'
+                                                        <span className={`w-2.5 h-2.5 rounded-full ${
+                                                            isAvailable 
+                                                                ? 'bg-emerald-500 ring-2 ring-emerald-200' 
+                                                                : isOccupied 
+                                                                ? 'bg-rose-500 ring-2 ring-rose-200' 
+                                                                : isReserved 
+                                                                ? 'bg-amber-500 ring-2 ring-amber-200'
+                                                                : isCleaning
+                                                                ? 'bg-sky-500 ring-2 ring-sky-200 animate-pulse'
+                                                                : 'bg-stone-400'
                                                         }`} />
                                                     </div>
                                                     <span className="text-[11px] text-stone-500 block mt-0.5">
@@ -1186,12 +1229,18 @@ export default function OrderApp({
                                                         <span className="text-emerald-700">Tersedia · Klik untuk Pilih</span>
                                                     )}
                                                     {isOccupied && (
-                                                        <span className="text-rose-700">Sedang Makan (Terisi)</span>
+                                                        <span className="text-rose-700">Sedang Digunakan (Terisi)</span>
                                                     )}
                                                     {isReserved && (
                                                         <span className="text-amber-700">
                                                             Direservasi {table.reserved_until ? `s/d ${table.reserved_until}` : ''}
                                                         </span>
+                                                    )}
+                                                    {isCleaning && (
+                                                        <span className="text-sky-700">Sedang Dibersihkan</span>
+                                                    )}
+                                                    {isInactive && (
+                                                        <span className="text-stone-500">Tidak Beroperasi</span>
                                                     )}
                                                 </div>
                                             </button>
@@ -3385,6 +3434,74 @@ export default function OrderApp({
                             >
                                 Ke Beranda
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================
+                MODAL 5: TABLE UNAVAILABLE / OCCUPIED / RESERVED / CLEANING
+                (Tampil jika tamu memindai QR meja yang sedang tidak tersedia)
+            ======================================================== */}
+            {tableAlertModal && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+                    <div className="relative w-full max-w-md bg-[#141110] border-2 border-[#B99A65]/60 rounded-3xl p-6 sm:p-8 shadow-2xl text-[#F4EFE6] text-center overflow-hidden">
+                        {/* Ambient Glow */}
+                        <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#32151F] rounded-full blur-3xl pointer-events-none" />
+                        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-[#B99A65]/20 rounded-full blur-3xl pointer-events-none" />
+
+                        <div className="relative z-10 space-y-4">
+                            {/* Icon Indicator based on status */}
+                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#32151F] to-[#211D1B] border-2 border-[#B99A65]/60 text-[#D4B886] mx-auto flex items-center justify-center shadow-lg">
+                                {tableAlertModal.status === 'occupied' && <Users className="w-8 h-8 text-[#D4B886]" />}
+                                {tableAlertModal.status === 'reserved' && <Calendar className="w-8 h-8 text-[#D4B886]" />}
+                                {tableAlertModal.status === 'cleaning' && <Sparkles className="w-8 h-8 text-[#D4B886]" />}
+                                {(tableAlertModal.status === 'inactive' || tableAlertModal.status === 'not_found') && <Ban className="w-8 h-8 text-[#D4B886]" />}
+                            </div>
+
+                            {/* Table Badge */}
+                            <div>
+                                <span className="inline-block px-3.5 py-1 rounded-full bg-[#B99A65]/20 border border-[#B99A65]/50 text-[#D4B886] text-xs font-bold uppercase tracking-widest">
+                                    {tableAlertModal.table_number}
+                                </span>
+                            </div>
+
+                            {/* Title & Message */}
+                            <div className="space-y-2">
+                                <h3 className="font-heading text-xl sm:text-2xl font-bold text-[#F4EFE6]">
+                                    {tableAlertModal.title}
+                                </h3>
+                                <p className="text-xs sm:text-sm text-stone-300 leading-relaxed max-w-sm mx-auto">
+                                    {tableAlertModal.message}
+                                </p>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="pt-3 space-y-2.5">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setTableAlertModal(null);
+                                        setSelectedTable('');
+                                        setServiceMode('selecting_table');
+                                        localStorage.removeItem('nusara_selected_table');
+                                    }}
+                                    className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-[#B99A65]/20 flex items-center justify-center gap-2"
+                                >
+                                    <UtensilsCrossed className="w-4 h-4" />
+                                    <span>Pilih Meja Lain yang Tersedia</span>
+                                </button>
+
+                                <a
+                                    href="https://wa.me/6281299990000?text=Halo%20Concierge%20NUSARA,%20saya%20memerlukan%20bantuan%20mengenai%20ketersediaan%20meja%20di%20restoran."
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full py-3 px-5 rounded-2xl bg-[#211D1B] border border-[#B99A65]/40 text-[#D4B886] hover:text-white hover:bg-[#32151F] font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                                >
+                                    <MessageSquare className="w-4 h-4" />
+                                    <span>Bantuan Concierge / Pramusaji</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>

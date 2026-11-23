@@ -100,3 +100,9 @@ Route::middleware('auth')->prefix('waiter')->group(function () {
     Route::post('/table/{id}/status', [WaiterController::class, 'updateTableStatus'])->name('waiter.table.status');
     Route::post('/table/{id}/request-occupancy', [WaiterController::class, 'requestOccupancy'])->name('waiter.table.request-occupancy');
 });
+
+// Fallback 404 Route for unmatched web requests (Luxury NUSARA 404 Experience)
+Route::fallback(function () {
+    return Inertia\Inertia::render('Errors/NotFound')->toResponse(request())->setStatusCode(404);
+});
+

@@ -85,6 +85,101 @@ class OrderController extends Controller
             }
         }
 
+        $todayWib = now('Asia/Jakarta')->toDateString();
+
+        // 4.1 Validasi Ketersediaan Meja jika dipindai via QR (Tamu maupun Member)
+        $tableAvailabilityError = null;
+        if ($initialTable) {
+            $scannedTable = DB::table('restaurant_tables')->where('table_number', $initialTable)->first();
+            
+            // Cek apakah tamu/member saat ini memiliki pesanan aktif di meja ini hari ini
+            $hasMyActiveOrderOnTable = false;
+            if ($user && $customer) {
+                $hasMyActiveOrderOnTable = DB::table('orders')
+                    ->where('table_number', $initialTable)
+                    ->where('customer_id', $customer->id)
+                    ->whereDate('created_at', $todayWib)
+                    ->whereNotIn('order_status', ['Completed', 'Cancelled'])
+                    ->exists();
+            }
+            $guestOrderIds = session('guest_order_ids', []);
+            if (!$hasMyActiveOrderOnTable && !empty($guestOrderIds)) {
+                $hasMyActiveOrderOnTable = DB::table('orders')
+                    ->where('table_number', $initialTable)
+                    ->whereIn('id', $guestOrderIds)
+                    ->whereDate('created_at', $todayWib)
+                    ->whereNotIn('order_status', ['Completed', 'Cancelled'])
+                    ->exists();
+            }
+
+            if (!$hasMyActiveOrderOnTable) {
+                if (!$scannedTable) {
+                    $tableAvailabilityError = [
+                        'table_number' => $initialTable,
+                        'status' => 'not_found',
+                        'title' => 'Meja Tidak Terdaftar',
+                        'message' => "Nomor meja {$initialTable} tidak ditemukan di sistem perjamuan NUSARA.",
+                        'can_choose_other' => true,
+                    ];
+                    $initialTable = null;
+                } elseif (!$scannedTable->is_active || in_array($scannedTable->status, ['Inactive', 'Maintenance'])) {
+                    $tableAvailabilityError = [
+                        'table_number' => $initialTable,
+                        'status' => 'inactive',
+                        'title' => 'Meja Tidak Beroperasi',
+                        'message' => "Mohon maaf, {$initialTable} saat ini sedang tidak beroperasi untuk perjamuan.",
+                        'can_choose_other' => true,
+                    ];
+                    $initialTable = null;
+                } elseif ($scannedTable->status === 'Cleaning') {
+                    $tableAvailabilityError = [
+                        'table_number' => $initialTable,
+                        'status' => 'cleaning',
+                        'title' => 'Meja Sedang Dibersihkan',
+                        'message' => "Pramusaji kami sedang membersihkan dan menata kembali {$initialTable} agar higienis dan siap menyambut Anda. Silakan pilih meja lain yang tersedia.",
+                        'can_choose_other' => true,
+                    ];
+                    $initialTable = null;
+                } elseif ($scannedTable->status === 'Reserved') {
+                    $tableAvailabilityError = [
+                        'table_number' => $initialTable,
+                        'status' => 'reserved',
+                        'title' => 'Meja Telah Direservasi',
+                        'message' => "Mohon maaf, {$initialTable} telah dipesan terlebih dahulu untuk tamu reservasi perjamuan lain. Silakan pilih meja lain yang tersedia.",
+                        'can_choose_other' => true,
+                    ];
+                    $initialTable = null;
+                } elseif ($scannedTable->status === 'Occupied') {
+                    $tableAvailabilityError = [
+                        'table_number' => $initialTable,
+                        'status' => 'occupied',
+                        'title' => 'Meja Sedang Digunakan',
+                        'message' => "Mohon maaf, {$initialTable} saat ini sedang ditempati oleh tamu lain yang sedang menikmati hidangan. Silakan pilih meja lain yang tersedia.",
+                        'can_choose_other' => true,
+                    ];
+                    $initialTable = null;
+                } else {
+                    // Cek apakah ada pesanan aktif hari ini di database untuk meja ini
+                    $activeOccupantOrder = DB::table('orders')
+                        ->where('table_number', $initialTable)
+                        ->whereDate('created_at', $todayWib)
+                        ->whereIn('order_status', ['Pending', 'Awaiting Payment', 'Paid', 'Confirmed', 'Preparing', 'Ready', 'Served'])
+                        ->exists();
+
+                    if ($activeOccupantOrder) {
+                        $tableAvailabilityError = [
+                            'table_number' => $initialTable,
+                            'status' => 'occupied',
+                            'title' => 'Meja Sedang Digunakan',
+                            'message' => "Mohon maaf, {$initialTable} saat ini sedang digunakan oleh tamu lain. Silakan pilih meja santap lain yang tersedia.",
+                            'can_choose_other' => true,
+                        ];
+                        $initialTable = null;
+                    }
+                }
+            }
+        }
+
         // 5. Order History & Live Tracking
         $ordersQuery = DB::table('orders')->orderBy('id', 'desc');
 
@@ -180,22 +275,13 @@ class OrderController extends Controller
             ->get()
             ->keyBy('table_id');
 
+        // 6. 10 Meja Dine-in dengan Status Real-time Berbasis Database Riil
         $rawTables = DB::table('restaurant_tables')
             ->where('is_active', true)
             ->orderBy('id', 'asc')
             ->get();
 
-        // Simulasi jadwal cerdas (Meja 02 & 05: Sedang Makan, Meja 03 & 07: Dibooking, Meja 09: Disewa Privat)
-        // Jika belum ada pesanan aktif di database riil, jadwal ini memastikan UI langsung mendemonstrasikan status & jam selesai.
-        $fallbackSchedules = [
-            'Meja 02' => ['status' => 'occupied', 'until' => '14:30 WIB', 'desc' => 'Sedang makan s/d 14:30 WIB'],
-            'Meja 03' => ['status' => 'reserved', 'until' => '18:30 WIB', 'desc' => 'Dibooking reservasi s/d 18:30 WIB'],
-            'Meja 05' => ['status' => 'occupied', 'until' => '15:15 WIB', 'desc' => 'Sedang makan s/d 15:15 WIB'],
-            'Meja 07' => ['status' => 'reserved', 'until' => '19:00 WIB', 'desc' => 'Dibooking reservasi s/d 19:00 WIB'],
-            'Meja 09' => ['status' => 'private',  'until' => '21:00 WIB', 'desc' => 'Disewa khusus privat s/d 21:00 WIB (VIP Suite)'],
-        ];
-
-        $tables = $rawTables->map(function ($table) use ($activeOrdersByTable, $activeReservations, $fallbackSchedules) {
+        $tables = $rawTables->map(function ($table) use ($activeOrdersByTable, $activeReservations) {
             $tableNum = $table->table_number;
             $activeOrder = $activeOrdersByTable->get($tableNum);
             $activeRes = $activeReservations->get($table->id);
@@ -206,37 +292,36 @@ class OrderController extends Controller
             $desc = 'Tersedia • Siap Ditempati';
             $isSelectable = true;
 
-            if ($activeOrder) {
+            if (!$table->is_active || in_array($table->status, ['Inactive', 'Maintenance'])) {
+                $status = 'inactive';
+                $statusLabel = 'Tidak Beroperasi';
+                $desc = 'Meja sedang tidak beroperasi';
+                $isSelectable = false;
+            } elseif ($table->status === 'Cleaning') {
+                $status = 'cleaning';
+                $statusLabel = 'Sedang Dibersihkan';
+                $desc = 'Sedang dibersihkan & disanitasi';
+                $isSelectable = false;
+            } elseif ($activeOrder || $table->status === 'Occupied') {
                 $status = 'occupied';
                 $statusLabel = 'Sedang Makan';
-                $until = \Carbon\Carbon::parse($activeOrder->created_at)->addMinutes(90)->setTimezone('Asia/Jakarta')->format('H:i') . ' WIB';
-                $desc = 'Sedang makan s/d ' . $until;
+                if ($activeOrder) {
+                    $until = \Carbon\Carbon::parse($activeOrder->created_at)->addMinutes(90)->setTimezone('Asia/Jakarta')->format('H:i') . ' WIB';
+                    $desc = 'Sedang makan s/d ' . $until;
+                } else {
+                    $desc = 'Sedang digunakan tamu lain';
+                }
                 $isSelectable = false;
-            } elseif ($activeRes) {
+            } elseif ($activeRes || $table->status === 'Reserved') {
                 $status = 'reserved';
                 $statusLabel = 'Dibooking';
-                $duration = $activeRes->duration_minutes ?: 120;
-                $until = \Carbon\Carbon::parse($activeRes->reservation_datetime)->addMinutes($duration)->setTimezone('Asia/Jakarta')->format('H:i') . ' WIB';
-                $desc = 'Dibooking reservasi s/d ' . $until;
-                $isSelectable = false;
-            } elseif ($table->status === 'Occupied') {
-                $status = 'occupied';
-                $statusLabel = 'Sedang Makan';
-                $until = '15:00 WIB';
-                $desc = 'Sedang makan s/d 15:00 WIB';
-                $isSelectable = false;
-            } elseif ($table->status === 'Reserved') {
-                $status = 'reserved';
-                $statusLabel = 'Dibooking';
-                $until = '19:00 WIB';
-                $desc = 'Dibooking reservasi s/d 19:00 WIB';
-                $isSelectable = false;
-            } elseif (isset($fallbackSchedules[$tableNum])) {
-                $sched = $fallbackSchedules[$tableNum];
-                $status = $sched['status'];
-                $statusLabel = $status === 'occupied' ? 'Sedang Makan' : ($status === 'reserved' ? 'Dibooking' : 'Disewa Privat');
-                $until = $sched['until'];
-                $desc = $sched['desc'];
+                if ($activeRes) {
+                    $duration = $activeRes->duration_minutes ?: 120;
+                    $until = \Carbon\Carbon::parse($activeRes->reservation_datetime)->addMinutes($duration)->setTimezone('Asia/Jakarta')->format('H:i') . ' WIB';
+                    $desc = 'Dibooking reservasi s/d ' . $until;
+                } else {
+                    $desc = 'Dibooking reservasi perjamuan';
+                }
                 $isSelectable = false;
             }
 
@@ -274,6 +359,7 @@ class OrderController extends Controller
             'settings' => $settings,
             'customer' => $customer,
             'initialTable' => $initialTable,
+            'tableAvailabilityError' => $tableAvailabilityError,
             'initialType' => $initialType,
             'initialMenuId' => $initialMenuId,
             'isGuest' => !$user,
@@ -340,6 +426,44 @@ class OrderController extends Controller
                         'name' => $customerName,
                         'updated_at' => now(),
                     ]);
+                }
+            }
+        }
+
+        if ($request->order_type === 'dine_in') {
+            $checkTableNum = trim($request->table_number);
+            $checkTable = DB::table('restaurant_tables')->where('table_number', $checkTableNum)->first();
+            if (!$checkTable || !$checkTable->is_active || in_array($checkTable->status, ['Inactive', 'Maintenance'])) {
+                return back()->with('error', "Meja {$checkTableNum} tidak valid atau sedang tidak beroperasi.");
+            }
+            if ($checkTable->status === 'Cleaning') {
+                return back()->with('error', "Meja {$checkTableNum} sedang dibersihkan dan disanitasi oleh pramusaji. Silakan pilih meja lain yang tersedia.");
+            }
+            if ($checkTable->status === 'Reserved') {
+                return back()->with('error', "Meja {$checkTableNum} telah direservasi untuk tamu lain. Silakan pilih meja lain yang tersedia.");
+            }
+            if ($checkTable->status === 'Occupied') {
+                $todayDate = now('Asia/Jakarta')->toDateString();
+                $isMyTable = false;
+                if ($user && $customer) {
+                    $isMyTable = DB::table('orders')
+                        ->where('table_number', $checkTableNum)
+                        ->where('customer_id', $customer->id)
+                        ->whereDate('created_at', $todayDate)
+                        ->whereNotIn('order_status', ['Completed', 'Cancelled'])
+                        ->exists();
+                }
+                $guestOrderIds = session('guest_order_ids', []);
+                if (!$isMyTable && !empty($guestOrderIds)) {
+                    $isMyTable = DB::table('orders')
+                        ->where('table_number', $checkTableNum)
+                        ->whereIn('id', $guestOrderIds)
+                        ->whereDate('created_at', $todayDate)
+                        ->whereNotIn('order_status', ['Completed', 'Cancelled'])
+                        ->exists();
+                }
+                if (!$isMyTable) {
+                    return back()->with('error', "Meja {$checkTableNum} sedang digunakan oleh tamu lain. Silakan pilih meja santap lain yang tersedia.");
                 }
             }
         }
