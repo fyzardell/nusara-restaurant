@@ -330,8 +330,14 @@ class AuthController extends Controller
      */
     public function redirectToGoogle(Request $request)
     {
-        $clientId = config('services.google.client_id') ?: env('GOOGLE_CLIENT_ID');
-        $redirectUri = config('services.google.redirect') ?: env('GOOGLE_REDIRECT_URI', 'http://127.0.0.1:8000/auth/google/callback');
+        $clientId = env('GOOGLE_CLIENT_ID') ?: config('services.google.client_id');
+        
+        // Deteksi dinamis: jika dibuka di localhost, gunakan localhost callback; jika di nusara.my.id gunakan domain live
+        if (str_contains($request->getHost(), '127.0.0.1') || str_contains($request->getHost(), 'localhost')) {
+            $redirectUri = 'http://127.0.0.1:8000/auth/google/callback';
+        } else {
+            $redirectUri = env('GOOGLE_REDIRECT_URI') ?: config('services.google.redirect') ?: ($request->getSchemeAndHttpHost() . '/auth/google/callback');
+        }
 
         if (empty($clientId)) {
             return redirect()->route('login')->with('error', 'Login Google belum dikonfigurasi. Silakan tambahkan GOOGLE_CLIENT_ID dan GOOGLE_CLIENT_SECRET di file .env Anda.');
@@ -367,9 +373,14 @@ class AuthController extends Controller
             return redirect()->route('login')->with('error', 'Kode otorisasi Google tidak ditemukan.');
         }
 
-        $clientId = config('services.google.client_id') ?: env('GOOGLE_CLIENT_ID');
-        $clientSecret = config('services.google.client_secret') ?: env('GOOGLE_CLIENT_SECRET');
-        $redirectUri = config('services.google.redirect') ?: env('GOOGLE_REDIRECT_URI', 'http://127.0.0.1:8000/auth/google/callback');
+        $clientId = env('GOOGLE_CLIENT_ID') ?: config('services.google.client_id');
+        $clientSecret = env('GOOGLE_CLIENT_SECRET') ?: config('services.google.client_secret');
+
+        if (str_contains($request->getHost(), '127.0.0.1') || str_contains($request->getHost(), 'localhost')) {
+            $redirectUri = 'http://127.0.0.1:8000/auth/google/callback';
+        } else {
+            $redirectUri = env('GOOGLE_REDIRECT_URI') ?: config('services.google.redirect') ?: ($request->getSchemeAndHttpHost() . '/auth/google/callback');
+        }
 
         try {
             $tokenResponse = \Illuminate\Support\Facades\Http::asForm()->post('https://oauth2.googleapis.com/token', [
