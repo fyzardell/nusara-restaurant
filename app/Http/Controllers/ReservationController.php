@@ -342,12 +342,12 @@ class ReservationController extends Controller
 
         $code = 'RSV-' . strtoupper(Str::random(6));
 
-        // Format Special Request dengan info DP Jaminan Midtrans
+        // Format Special Request dengan info DP Jaminan
         $specialRequest = $request->special_request ?? '';
         if ($request->filled('dp_amount') && floatval($request->dp_amount) > 0) {
             $dpFmt = number_format(floatval($request->dp_amount), 0, ',', '.');
             $method = strtoupper($request->dp_payment_method ?? 'QRIS');
-            $specialRequest = "[DP Jaminan Meja: Rp {$dpFmt} via {$method} Midtrans] " . $specialRequest;
+            $specialRequest = "[DP Jaminan Meja: Rp {$dpFmt} via {$method}] " . $specialRequest;
         }
 
         $reservationId = DB::table('reservations')->insertGetId([
@@ -411,7 +411,7 @@ class ReservationController extends Controller
             'action' => 'reservation.create',
             'entity_type' => 'Reservation',
             'entity_id' => $reservationId,
-            'description' => "Reservasi online dibuat dengan kode {$code} untuk {$request->guest_count} tamu pada {$request->date} {$request->time} WIB (DP Non-Tunai Midtrans).",
+            'description' => "Reservasi online dibuat dengan kode {$code} untuk {$request->guest_count} tamu pada {$request->date} {$request->time} WIB (DP Non-Tunai).",
             'created_at' => now(),
         ]);
 
@@ -431,7 +431,7 @@ class ReservationController extends Controller
             ]);
         }
 
-        session()->flash('success', "Reservasi {$code} ({$tableNames}) berhasil diajukan! Meja Anda otomatis terkonfirmasi 24 jam setelah DP Midtrans diverifikasi.");
+        session()->flash('success', "Reservasi {$code} ({$tableNames}) berhasil diajukan! Meja Anda otomatis terkonfirmasi 24 jam setelah DP diverifikasi.");
 
         return redirect()->route('reservation');
     }
