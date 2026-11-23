@@ -343,7 +343,7 @@ class CashierController extends Controller
     {
         $user = Auth::user();
         $request->validate([
-            'status' => 'required|in:Pending,Confirmed,Seated,Completed,Cancelled',
+            'status' => 'required|in:Pending,Confirmed,Seated,Completed,Cancelled,Refund Requested,Refunded',
         ]);
 
         $res = DB::table('reservations')->where('id', $reservationId)->first();
