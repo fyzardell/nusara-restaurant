@@ -195,6 +195,7 @@ export interface RefundRequestItem {
 }
 
 interface Props {
+    initialTab?: DashboardTab;
     metrics: AdminMetrics & { pendingRefunds?: number };
     orders: Order[];
     menus: Menu[];
@@ -217,6 +218,7 @@ const orderBadgeClass = (status: string) =>
         : 'bg-sky-950/80 text-sky-300 border border-sky-600/40';
 
 export default function AdminDashboard({
+    initialTab,
     metrics,
     orders: initialOrders,
     menus: initialMenus,
@@ -235,11 +237,22 @@ export default function AdminDashboard({
     // App Shell 4 State: Navigation, Panels, and View
     // Tab awal bisa dibuka lewat /admin?tab=orders dari halaman lain (mis. halaman Chat)
     const [activeTab, setActiveTab] = useState<DashboardTab>(() => {
-        if (typeof window === 'undefined') return 'overview';
+        if (typeof window === 'undefined') return initialTab || 'overview';
         const t = new URLSearchParams(window.location.search).get('tab');
         const valid: DashboardTab[] = ['orders', 'menus', 'tables', 'reservations', 'refunds', 'audit'];
-        return valid.includes(t as DashboardTab) ? (t as DashboardTab) : 'overview';
+        if (t && valid.includes(t as DashboardTab)) return t as DashboardTab;
+        if (initialTab && valid.includes(initialTab)) return initialTab;
+        return 'overview';
     });
+
+    useEffect(() => {
+        if (initialTab) {
+            const valid: DashboardTab[] = ['orders', 'menus', 'tables', 'reservations', 'refunds', 'audit'];
+            if (valid.includes(initialTab)) {
+                setActiveTab(initialTab);
+            }
+        }
+    }, [initialTab]);
     const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
@@ -318,10 +331,19 @@ export default function AdminDashboard({
         }
         const key = `${item.type}-${item.id}`;
         setProcessingRefundKey(key);
-        router.post(`/refund/${item.type}/${item.id}/approve`, {
+        router.post(`/admin/refund/${item.type}/${item.id}/approve`, {
             admin_notes: `Pengembalian dana ${nominalStr} telah diselesaikan oleh Admin ke ${item.bank_or_wallet} ${item.account_number} a/n ${item.account_holder}.`
         }, {
             preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setActiveTab('refunds');
+                if (typeof window !== 'undefined') {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('tab', 'refunds');
+                    window.history.replaceState({}, '', url.toString());
+                }
+            },
             onFinish: () => setProcessingRefundKey(null)
         });
     };
@@ -331,10 +353,19 @@ export default function AdminDashboard({
         if (!reason) return;
         const key = `${item.type}-${item.id}`;
         setProcessingRefundKey(key);
-        router.post(`/refund/${item.type}/${item.id}/reject`, {
+        router.post(`/admin/refund/${item.type}/${item.id}/reject`, {
             reject_reason: reason
         }, {
             preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setActiveTab('refunds');
+                if (typeof window !== 'undefined') {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('tab', 'refunds');
+                    window.history.replaceState({}, '', url.toString());
+                }
+            },
             onFinish: () => setProcessingRefundKey(null)
         });
     };
@@ -733,7 +764,15 @@ export default function AdminDashboard({
                 ? 'bg-[#241F1D] text-white font-semibold shadow-inner'
                 : 'text-[#9E938B] hover:text-[#F4EFE6] hover:bg-[#1E1A18]'
         }`;
-    const goTab = (tab: DashboardTab) => { setActiveTab(tab); setIsMobileSidebarOpen(false); };
+    const goTab = (tab: DashboardTab) => {
+        setActiveTab(tab);
+        setIsMobileSidebarOpen(false);
+        if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tab);
+            window.history.replaceState({}, '', url.toString());
+        }
+    };
 
     return (
         <div className="h-screen w-screen bg-[#110F0E] text-[#F4EFE6] font-dashboard selection:bg-[#B99A65] selection:text-[#110F0E] flex overflow-hidden">
@@ -1380,7 +1419,7 @@ export default function AdminDashboard({
                                         </p>
                                     </div>
                                     <button
-                                        onClick={() => setActiveTab('orders')}
+                                        onClick={() => goTab('orders')}
                                         className="text-xs text-[#B99A65] hover:text-[#D4B886] font-semibold flex items-center gap-1"
                                     >
                                         <span>Buka Semua Antrean</span>
@@ -2498,7 +2537,7 @@ export default function AdminDashboard({
                                     {dayReservations.map(res => (
                                         <div
                                             key={res.id}
-                                            onClick={() => setActiveTab('reservations')}
+                                            onClick={() => goTab('reservations')}
                                             className="p-3 rounded-xl bg-[#141110] border border-[#241F1D] hover:border-[#D4B886]/40 text-xs space-y-1 transition-all cursor-pointer group"
                                             title="Klik untuk membuka tab Reservasi"
                                         >

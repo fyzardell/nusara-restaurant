@@ -51,7 +51,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/chat/send', [OrderController::class, 'sendMessage'])->name('chat.send');
     Route::post('/chat/read', [OrderController::class, 'markAsRead'])->name('chat.read');
     Route::post('/favorites/toggle', [OrderController::class, 'toggleFavorite'])->name('favorites.toggle');
-
     // Customer Account Settings & 2FA
     Route::get('/customer/profile', [CustomerAccountController::class, 'getProfile'])->name('customer.profile');
     Route::post('/customer/profile/update', [CustomerAccountController::class, 'updateProfile'])->name('customer.profile.update');
@@ -59,6 +58,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/customer/2fa/setup', [CustomerAccountController::class, 'setup2fa'])->name('customer.2fa.setup');
     Route::post('/customer/2fa/confirm', [CustomerAccountController::class, 'confirm2fa'])->name('customer.2fa.confirm');
     Route::post('/customer/2fa/disable', [CustomerAccountController::class, 'disable2fa'])->name('customer.2fa.disable');
+
+    Route::post('/refund/{type}/{id}/approve', [AdminController::class, 'approveRefund']);
+    Route::post('/refund/{type}/{id}/reject', [AdminController::class, 'rejectRefund']);
 });
 
 // Admin Single Branch Management Dashboard

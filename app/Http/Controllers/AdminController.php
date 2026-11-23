@@ -425,6 +425,7 @@ class AdminController extends Controller
         $pendingRefundsCount = collect($refundRequests)->where('status', 'Pending')->count();
 
         return Inertia::render('Admin/Dashboard', [
+            'initialTab' => $request->query('tab', 'overview'),
             'metrics' => [
                 'todayRevenue' => (float) $todayRevenue,
                 'monthlyRevenue' => (float) $monthlyRevenue,
@@ -460,7 +461,7 @@ class AdminController extends Controller
         if ($type === 'order') {
             $order = DB::table('orders')->where('id', $id)->first();
             if (!$order) {
-                return back()->with('error', 'Pesanan tidak ditemukan.');
+                return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('error', 'Pesanan tidak ditemukan.');
             }
             DB::table('orders')->where('id', $id)->update([
                 'order_status' => 'Refunded',
@@ -491,16 +492,43 @@ class AdminController extends Controller
                 'created_at' => now(),
             ]);
 
-            return back()->with('success', "Pengembalian dana (Refund) untuk pesanan #{$order->order_code} berhasil disetujui & diselesaikan.");
+            return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('success', "Pengembalian dana (Refund) untuk pesanan #{$order->order_code} berhasil disetujui & diselesaikan.");
         } elseif ($type === 'reservation') {
             $reservation = DB::table('reservations')->where('id', $id)->first();
             if (!$reservation) {
-                return back()->with('error', 'Reservasi tidak ditemukan.');
+                return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('error', 'Reservasi tidak ditemukan.');
             }
             DB::table('reservations')->where('id', $id)->update([
                 'status' => 'Refunded',
                 'updated_at' => now(),
             ]);
+
+            // Lepaskan status meja jika meja tidak memiliki reservasi / order aktif lainnya
+            $resTableIds = DB::table('reservation_tables')->where('reservation_id', $id)->pluck('table_id')->toArray();
+            if (!empty($resTableIds)) {
+                foreach ($resTableIds as $tId) {
+                    $otherActiveOrders = DB::table('table_sessions')
+                        ->join('orders', 'table_sessions.id', '=', 'orders.table_session_id')
+                        ->where('table_sessions.table_id', $tId)
+                        ->whereIn('orders.order_status', ['Pending', 'Preparing', 'Ready', 'Delivered'])
+                        ->exists();
+
+                    $otherActiveReservations = DB::table('reservation_tables')
+                        ->join('reservations', 'reservation_tables.reservation_id', '=', 'reservations.id')
+                        ->where('reservation_tables.table_id', $tId)
+                        ->where('reservations.id', '!=', $id)
+                        ->whereIn('reservations.status', ['Pending', 'Confirmed', 'Seated'])
+                        ->whereDate('reservations.reservation_datetime', now()->toDateString())
+                        ->exists();
+
+                    if (!$otherActiveOrders && !$otherActiveReservations) {
+                        DB::table('restaurant_tables')->where('id', $tId)->update([
+                            'status' => 'Available',
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+            }
 
             DB::table('audit_logs')->insert([
                 'user_id' => $user->id,
@@ -511,10 +539,10 @@ class AdminController extends Controller
                 'created_at' => now(),
             ]);
 
-            return back()->with('success', "Pengembalian dana DP untuk reservasi #{$reservation->reservation_code} berhasil disetujui & diselesaikan.");
+            return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('success', "Pengembalian dana DP untuk reservasi #{$reservation->reservation_code} berhasil disetujui & diselesaikan.");
         }
 
-        return back()->with('error', 'Tipe pengajuan tidak valid.');
+        return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('error', 'Tipe pengajuan tidak valid.');
     }
 
     /**
@@ -528,7 +556,7 @@ class AdminController extends Controller
         if ($type === 'order') {
             $order = DB::table('orders')->where('id', $id)->first();
             if (!$order) {
-                return back()->with('error', 'Pesanan tidak ditemukan.');
+                return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('error', 'Pesanan tidak ditemukan.');
             }
             DB::table('orders')->where('id', $id)->update([
                 'order_status' => 'Pending',
@@ -545,11 +573,11 @@ class AdminController extends Controller
                 'created_at' => now(),
             ]);
 
-            return back()->with('success', "Pengajuan refund untuk pesanan #{$order->order_code} telah ditolak.");
+            return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('success', "Pengajuan refund untuk pesanan #{$order->order_code} telah ditolak.");
         } elseif ($type === 'reservation') {
             $reservation = DB::table('reservations')->where('id', $id)->first();
             if (!$reservation) {
-                return back()->with('error', 'Reservasi tidak ditemukan.');
+                return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('error', 'Reservasi tidak ditemukan.');
             }
             DB::table('reservations')->where('id', $id)->update([
                 'status' => 'Confirmed',
@@ -566,10 +594,10 @@ class AdminController extends Controller
                 'created_at' => now(),
             ]);
 
-            return back()->with('success', "Pengajuan refund untuk reservasi #{$reservation->reservation_code} telah ditolak.");
+            return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('success', "Pengajuan refund untuk reservasi #{$reservation->reservation_code} telah ditolak.");
         }
 
-        return back()->with('error', 'Tipe pengajuan tidak valid.');
+        return redirect()->to(route('admin.dashboard') . '?tab=refunds')->with('error', 'Tipe pengajuan tidak valid.');
     }
 
     public function updateOrderStatus(Request $request, $orderId)
