@@ -31,7 +31,9 @@ import {
     RefreshCw,
     ExternalLink,
     ArrowLeft,
-    LogOut
+    LogOut,
+    Lock,
+    Banknote
 } from 'lucide-react';
 import FlashToast from '../../Components/FlashToast';
 import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
@@ -494,6 +496,20 @@ export default function Reservation({
             .join(' & ');
     }, [isAnyBuyout, selectedTableIds, tables]);
 
+    // Helper memastikan script Snap Midtrans termuat
+    const ensureSnapLoaded = async (): Promise<boolean> => {
+        if ((window as any).snap) return true;
+        return new Promise<boolean>((resolve) => {
+            const clientKey = 'SB-Mid-client-vRlZ-ZTbkviZQkzo';
+            const script = document.createElement('script');
+            script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
+            script.setAttribute('data-client-key', clientKey);
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.head.appendChild(script);
+        });
+    };
+
     // Submit Reservasi dengan Integrasi Midtrans Snap DP
     const handleSubmitReservation = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -535,38 +551,46 @@ export default function Reservation({
             }
 
             // Jika Midtrans Snap Token tersedia (DP Pembayaran Online)
-            if (resData.snap_token && (window as any).snap) {
-                (window as any).snap.pay(resData.snap_token, {
-                    onSuccess: function (result: any) {
-                        alert(`Pembayaran DP Berhasil! Reservasi ${resData.reservation_code} telah terkonfirmasi.`);
-                        router.reload();
-                        setPageView('history');
-                        setCurrentStep(1);
-                    },
-                    onPending: function (result: any) {
-                        alert(`Reservasi ${resData.reservation_code} tersimpan! Silakan selesaikan pembayaran DP Anda via QRIS / Virtual Account.`);
-                        router.reload();
-                        setPageView('history');
-                        setCurrentStep(1);
-                    },
-                    onError: function (result: any) {
-                        alert('Pembayaran DP belum berhasil atau dibatalkan.');
-                        router.reload();
-                        setPageView('history');
-                        setCurrentStep(1);
-                    },
-                    onClose: function () {
-                        router.reload();
-                        setPageView('history');
-                        setCurrentStep(1);
-                    }
-                });
-            } else {
-                alert(resData.message || 'Reservasi berhasil diajukan! Menunggu konfirmasi kasir.');
-                router.reload();
-                setPageView('history');
-                setCurrentStep(1);
+            if (resData.snap_token) {
+                const snapReady = await ensureSnapLoaded();
+                if (snapReady && (window as any).snap) {
+                    (window as any).snap.pay(resData.snap_token, {
+                        onSuccess: function (result: any) {
+                            alert(`Pembayaran DP Berhasil! Reservasi #${resData.reservation_code} resmi terkonfirmasi otomatis 24 jam & meja Anda telah terkunci.`);
+                            router.reload();
+                            setPageView('history');
+                            setCurrentStep(1);
+                        },
+                        onPending: function (result: any) {
+                            alert(`Reservasi #${resData.reservation_code} tersimpan! Silakan selesaikan pembayaran DP Anda via QRIS atau Virtual Account agar meja resmi terkunci.`);
+                            router.reload();
+                            setPageView('history');
+                            setCurrentStep(1);
+                        },
+                        onError: function (result: any) {
+                            alert('Pembayaran DP belum berhasil atau dibatalkan.');
+                            router.reload();
+                            setPageView('history');
+                            setCurrentStep(1);
+                        },
+                        onClose: function () {
+                            router.reload();
+                            setPageView('history');
+                            setCurrentStep(1);
+                        }
+                    });
+                    return;
+                }
             }
+
+            if (resData.midtrans_error) {
+                alert(`Reservasi #${resData.reservation_code} tersimpan, namun payment gateway Midtrans melaporkan: "${resData.midtrans_error}". Silakan pastikan konfigurasi Server Key pada server sudah sesuai.`);
+            } else {
+                alert(resData.message || `Reservasi #${resData.reservation_code} berhasil diajukan.`);
+            }
+            router.reload();
+            setPageView('history');
+            setCurrentStep(1);
         } catch (err: any) {
             alert(err.message || 'Terjadi kesalahan sistem saat mengajukan reservasi.');
         } finally {
@@ -1689,17 +1713,77 @@ export default function Reservation({
                                         </div>
                                     </div>
 
-                                    {/* Metode Pembayaran DP (QRIS & Transfer Bank) */}
+                                    {/* Edukasi & Kebijakan Anti-Ghost Booking (4 Pilar Utama) */}
+                                    <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-[#FAF6F0] via-white to-[#F5ECE0] border border-[#B99A65]/40 shadow-xs space-y-4">
+                                        <div className="flex items-center gap-2.5 pb-3 border-b border-[#E8DFD3]">
+                                            <div className="p-2 rounded-xl bg-[#32151F] text-[#D4B886]">
+                                                <ShieldCheck className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-heading font-bold text-sm text-[#32151F]">
+                                                    Kebijakan Uang Jaminan & Anti-Ghost Booking
+                                                </h4>
+                                                <span className="text-[11px] text-[#6E625A] block">
+                                                    Sistem Reservasi Terverifikasi Otomatis 24 Jam via Midtrans Gateway
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                            <div className="p-3.5 rounded-2xl bg-white border border-[#E8DFD3] space-y-1">
+                                                <div className="flex items-center gap-1.5 font-bold text-[#32151F]">
+                                                    <Lock className="w-4 h-4 text-[#B99A65] shrink-0" />
+                                                    <span>Mencegah Booking Fiktif (No-Show)</span>
+                                                </div>
+                                                <p className="text-[11px] text-[#6E625A] leading-relaxed">
+                                                    DP wajib non-tunai memastikan komitmen nyata. Meja resmi dikunci khusus untuk Anda dan tidak dialihkan ke tamu lain.
+                                                </p>
+                                            </div>
+
+                                            <div className="p-3.5 rounded-2xl bg-white border border-[#E8DFD3] space-y-1">
+                                                <div className="flex items-center gap-1.5 font-bold text-[#32151F]">
+                                                    <Sparkles className="w-4 h-4 text-[#B99A65] shrink-0" />
+                                                    <span>Konfirmasi Otomatis 24 Jam</span>
+                                                </div>
+                                                <p className="text-[11px] text-[#6E625A] leading-relaxed">
+                                                    Begitu scan QRIS atau transfer VA berhasil, status reservasi otomatis menjadi <strong>Confirmed</strong> detik itu juga tanpa perlu tunggu verifikasi kasir.
+                                                </p>
+                                            </div>
+
+                                            <div className="p-3.5 rounded-2xl bg-white border border-[#E8DFD3] space-y-1">
+                                                <div className="flex items-center gap-1.5 font-bold text-[#32151F]">
+                                                    <Banknote className="w-4 h-4 text-[#B99A65] shrink-0" />
+                                                    <span>Pelunasan Santap Tetap Bisa Cash</span>
+                                                </div>
+                                                <p className="text-[11px] text-[#6E625A] leading-relaxed">
+                                                    Saat bersantap di restoran, pesanan menu tambahan yang melebihi nilai DP dapat dilunasi di kasir dengan <strong>Tunai (Cash)</strong>, QRIS, atau Kartu.
+                                                </p>
+                                            </div>
+
+                                            <div className="p-3.5 rounded-2xl bg-white border border-[#E8DFD3] space-y-1">
+                                                <div className="flex items-center gap-1.5 font-bold text-[#32151F]">
+                                                    <CheckCircle2 className="w-4 h-4 text-[#B99A65] shrink-0" />
+                                                    <span>DP Mengurangi Tagihan Akhir</span>
+                                                </div>
+                                                <p className="text-[11px] text-[#6E625A] leading-relaxed">
+                                                    Nominal DP sebesar <strong>{formatRupiah(calculatedDpAmount)}</strong> 100% menjadi pengurang total bill pesanan makanan & minuman Anda di restoran.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Metode Pembayaran DP Non-Tunai Midtrans */}
                                     <div className="space-y-4">
                                         <label className="text-xs font-bold text-[#32151F] uppercase tracking-wider block">
-                                            Pilih Metode Pembayaran DP
+                                            Pilih Saluran Pembayaran DP (Midtrans)
                                         </label>
 
-                                        <div className="grid grid-cols-3 gap-3">
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                                             {[
-                                                { id: 'qris', label: 'QRIS Dinamis', sub: 'Semua e-Wallet & M-Banking' },
-                                                { id: 'bca', label: 'Bank BCA', sub: 'Virtual Account / Transfer' },
-                                                { id: 'mandiri', label: 'Bank Mandiri', sub: 'Virtual Account / Transfer' },
+                                                { id: 'qris', label: 'QRIS Instan', sub: 'GoPay, BCA QR, OVO, Shopee' },
+                                                { id: 'bca_va', label: 'BCA Virtual Account', sub: 'Otomatis Real-Time' },
+                                                { id: 'mandiri_va', label: 'Mandiri Livin', sub: 'Virtual Account' },
+                                                { id: 'other_va', label: 'Bank Lain / e-Wallet', sub: 'BNI, BRI, Permata' },
                                             ].map(method => (
                                                 <button
                                                     key={method.id}
@@ -1717,93 +1801,24 @@ export default function Reservation({
                                             ))}
                                         </div>
 
-                                        {/* Container Tampilan Metode Pembayaran Terpilih */}
-                                        <div className="p-6 rounded-3xl bg-[#FAF6F0] border border-[#E8DFD3]">
-                                            {data.dp_payment_method === 'qris' && (
-                                                <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-                                                    <div className="p-3 bg-white rounded-2xl border border-[#E8DFD3] shadow-xs shrink-0">
-                                                        {/* QR Code Illustration */}
-                                                        <div className="w-36 h-36 bg-[#FDFBF7] flex flex-col items-center justify-center border border-dashed border-[#B99A65]/50 rounded-xl relative overflow-hidden">
-                                                            <QrCode className="w-24 h-24 text-[#32151F]" />
-                                                            <span className="text-[9px] font-mono font-bold text-[#946E2D] mt-1">
-                                                                SCAN QRIS NUSARA
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-2 text-xs">
-                                                        <h4 className="font-bold text-sm text-[#32151F]">
-                                                            Pembayaran Instan via QRIS
-                                                        </h4>
-                                                        <p className="text-[#6E625A] leading-relaxed">
-                                                            Buka aplikasi BCA Mobile, Livin' Mandiri, GoPay, OVO, Dana, atau ShopeePay Anda. Pindai kode QR di atas dengan nominal tepat <strong>{formatRupiah(calculatedDpAmount)}</strong>.
-                                                        </p>
-                                                        <span className="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-semibold">
-                                                            Batas Waktu Validasi: 15 Menit
-                                                        </span>
-                                                    </div>
+                                        {/* Box Info Midtrans Gateway */}
+                                        <div className="p-5 rounded-3xl bg-[#FAF6F0] border border-[#E8DFD3] flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                                            <div className="p-3 bg-white rounded-2xl border border-[#E8DFD3] shadow-xs shrink-0">
+                                                <QrCode className="w-12 h-12 text-[#32151F]" />
+                                            </div>
+                                            <div className="space-y-1 text-xs">
+                                                <div className="flex items-center justify-center sm:justify-start gap-2">
+                                                    <span className="font-bold text-sm text-[#32151F]">
+                                                        Midtrans Automated Payment Gateway
+                                                    </span>
+                                                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                                                        24 Jam Real-Time
+                                                    </span>
                                                 </div>
-                                            )}
-
-                                            {data.dp_payment_method === 'bca' && (
-                                                <div className="space-y-3">
-                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white border border-[#E8DFD3]">
-                                                        <div>
-                                                            <span className="text-[10px] text-[#9E938B] uppercase font-bold block">
-                                                                Nomor Rekening BCA Resmi
-                                                            </span>
-                                                            <span className="font-mono text-lg font-bold text-[#32151F]">
-                                                                8801 2345 6789 000
-                                                            </span>
-                                                            <span className="text-xs text-[#6E625A] block">
-                                                                a.n. PT NUSARA INDONESIA KULINER
-                                                            </span>
-                                                        </div>
-
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => copyToClipboard('880123456789000', 'bca')}
-                                                            className="px-4 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#32151F] hover:text-[#D4B886] text-xs font-bold text-[#32151F] border border-[#E8DFD3] transition-all flex items-center justify-center gap-1.5"
-                                                        >
-                                                            <Copy className="w-3.5 h-3.5" />
-                                                            <span>{copiedAccount === 'bca' ? 'Tersalin!' : 'Salin Nomor'}</span>
-                                                        </button>
-                                                    </div>
-                                                    <p className="text-[11px] text-[#9E938B]">
-                                                        * Cantumkan nama Anda pada berita transfer untuk mempercepat validasi staf kasir.
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {data.dp_payment_method === 'mandiri' && (
-                                                <div className="space-y-3">
-                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white border border-[#E8DFD3]">
-                                                        <div>
-                                                            <span className="text-[10px] text-[#9E938B] uppercase font-bold block">
-                                                                Nomor Rekening Mandiri Resmi
-                                                            </span>
-                                                            <span className="font-mono text-lg font-bold text-[#32151F]">
-                                                                1370 0987 6543 210
-                                                            </span>
-                                                            <span className="text-xs text-[#6E625A] block">
-                                                                a.n. PT NUSARA INDONESIA KULINER
-                                                            </span>
-                                                        </div>
-
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => copyToClipboard('137009876543210', 'mandiri')}
-                                                            className="px-4 py-2 rounded-xl bg-[#FAF6F0] hover:bg-[#32151F] hover:text-[#D4B886] text-xs font-bold text-[#32151F] border border-[#E8DFD3] transition-all flex items-center justify-center gap-1.5"
-                                                        >
-                                                            <Copy className="w-3.5 h-3.5" />
-                                                            <span>{copiedAccount === 'mandiri' ? 'Tersalin!' : 'Salin Nomor'}</span>
-                                                        </button>
-                                                    </div>
-                                                    <p className="text-[11px] text-[#9E938B]">
-                                                        * Cantumkan nama Anda pada berita transfer untuk mempercepat validasi staf kasir.
-                                                    </p>
-                                                </div>
-                                            )}
+                                                <p className="text-[#6E625A] leading-relaxed text-[11px]">
+                                                    Jendela pop-up resmi Midtrans Snap akan terbuka otomatis setelah Anda menekan tombol di bawah. Anda dapat langsung memindai QRIS dinamis atau menyalin nomor Virtual Account bank pilihan Anda.
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1832,7 +1847,7 @@ export default function Reservation({
                                                 className="w-4 h-4 mt-0.5 rounded text-[#32151F] focus:ring-[#B99A65] border-[#E8DFD3]"
                                             />
                                             <span>
-                                                Saya telah melakukan pembayaran uang muka (DP) sebesar <strong>{formatRupiah(calculatedDpAmount)}</strong> dan memahami reservasi akan berstatus <strong>"Menunggu Validasi Kasir"</strong> hingga diverifikasi oleh kasir restoran. Sisa pembayaran akan saya selesaikan di kasir restoran saat kedatangan.
+                                                Saya menyetujui ketentuan reservasi NUSARA: Uang muka (DP) sebesar <strong>{formatRupiah(calculatedDpAmount)}</strong> dibayarkan via Midtrans untuk mengunci meja secara resmi (Anti-Ghost Booking). Saya memahami status akan terkonfirmasi otomatis 24 jam dan sisa pembayaran menu tambahan saat bersantap di restoran dapat saya selesaikan di kasir secara <strong>Tunai (Cash)</strong> maupun non-tunai.
                                             </span>
                                         </label>
                                     </div>
@@ -1856,11 +1871,11 @@ export default function Reservation({
                                             {processing || isSubmittingReservation ? (
                                                 <>
                                                     <RefreshCw className="w-4 h-4 animate-spin" />
-                                                    <span>Memproses Reservasi & Menyiapkan Pembayaran...</span>
+                                                    <span>Mempersiapkan Pembayaran Midtrans...</span>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <span>Kirim & Konfirmasi Reservasi</span>
+                                                    <span>Bayar DP via Midtrans & Kunci Meja</span>
                                                     <ShieldCheck className="w-4 h-4 text-[#D4B886] transition-transform group-hover:scale-110" />
                                                 </>
                                             )}
@@ -1939,7 +1954,9 @@ export default function Reservation({
                                                     ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
                                                     : 'bg-stone-100 text-stone-700'
                                             }`}>
-                                                {res.status === 'Pending' ? 'Menunggu Validasi Kasir' : res.status}
+                                                {res.status === 'Confirmed'
+                                                    ? 'Terkonfirmasi · Meja Terkunci (DP Midtrans)'
+                                                    : (res.status === 'Pending' ? 'Menunggu Pembayaran DP Midtrans' : res.status)}
                                             </span>
                                         </div>
 
@@ -1972,6 +1989,30 @@ export default function Reservation({
                                                 </strong>
                                             </div>
                                         </div>
+
+                                        {res.status === 'Confirmed' && (
+                                            <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 text-[11px] text-emerald-950 space-y-1">
+                                                <div className="flex items-center gap-1.5 font-bold text-emerald-900">
+                                                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                                                    <span>Meja Resmi Terkunci (Anti-Ghost Booking)</span>
+                                                </div>
+                                                <p className="text-emerald-800 leading-relaxed text-[11px]">
+                                                    DP non-tunai telah diverifikasi Midtrans. Sisa pembayaran hidangan saat santap di tempat dapat dilunasi di kasir dengan <strong>Tunai (Cash)</strong>, QRIS, atau Kartu.
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {res.status === 'Pending' && (
+                                            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-950 space-y-1">
+                                                <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                                                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                                                    <span>Menunggu Penyelesaian Pembayaran DP</span>
+                                                </div>
+                                                <p className="text-amber-800 leading-relaxed text-[11px]">
+                                                    Selesaikan pembayaran DP Midtrans agar meja resmi terkunci 24 jam dan jadwal kunjungan tidak dialihkan.
+                                                </p>
+                                            </div>
+                                        )}
 
                                         {res.special_request && (
                                             <div className="p-3 rounded-xl bg-[#FAF6F0] text-[11px] text-[#6E625A]">
