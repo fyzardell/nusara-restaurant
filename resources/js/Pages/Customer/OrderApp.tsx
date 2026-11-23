@@ -40,7 +40,8 @@ import {
     User as UserIcon,
     RefreshCw,
     PanelLeft,
-    CreditCard
+    CreditCard,
+    Flame
 } from 'lucide-react';
 
 function TypingGreeting({ name }: { name: string }) {
@@ -254,28 +255,41 @@ export default function OrderApp({
         }
     };
 
-    const getStatusBadgeText = (status: string | any) => {
+    const getStatusBadgeText = (status: string | any, paymentMethod?: string, isPaid?: boolean) => {
         const s = String(status || '');
-        if (s === 'Pending' || s === 'Awaiting Payment') return 'Menunggu ACC Kasir';
-        if (s === 'Preparing' || s === 'Paid' || s === 'Confirmed') return 'Proses Dapur';
+        if (s === 'Pending' || s === 'Awaiting Payment') {
+            if (paymentMethod === 'cash') return 'Menunggu ACC Kasir';
+            return 'Menunggu Pembayaran';
+        }
+        if (s === 'Preparing' || s === 'Paid' || s === 'Confirmed') return 'Sedang Dalam Antrean';
         if (s === 'Ready') return 'Siap Saji';
         if (s === 'Served' || s === 'Picked Up' || s === 'Completed') return 'Selesai Terhidang';
         if (s === 'Cancelled') return 'Dibatalkan';
         return s;
     };
 
-    const getStatusTrackerText = (status: string | any) => {
+    const getStatusTrackerText = (status: string | any, paymentMethod?: string) => {
         const s = String(status || '');
-        if (s === 'Pending' || s === 'Awaiting Payment') return '1/4 - Menunggu ACC Kasir';
-        if (s === 'Preparing' || s === 'Paid' || s === 'Confirmed') return '2/4 - Sedang Dimasak Dapur';
+        if (s === 'Pending' || s === 'Awaiting Payment') {
+            if (paymentMethod === 'cash') return '1/4 - Menunggu Bayar Tunai & ACC Kasir';
+            return '1/4 - Menunggu Pembayaran';
+        }
+        if (s === 'Preparing' || s === 'Paid' || s === 'Confirmed') return '2/4 - Sedang Dalam Antrean Dapur';
         if (s === 'Ready') return '3/4 - Siap Disajikan';
         return '4/4 - Selesai Terhidang';
     };
 
-    const getActiveOrderStatusText = (status: string | any) => {
-        const s = String(status || '');
-        if (s === 'Pending' || s === 'Awaiting Payment') return 'Menunggu Konfirmasi Kasir';
-        if (s === 'Preparing' || s === 'Paid' || s === 'Confirmed') return 'Sedang Dimasak Dapur';
+    const getActiveOrderStatusText = (order: Order) => {
+        const s = String(order?.order_status || '');
+        if (s === 'Pending' || s === 'Awaiting Payment') {
+            if (order.payment?.payment_method === 'cash') {
+                return 'Menunggu ACC Kasir (Bayar Tunai)';
+            }
+            return 'Menunggu Pembayaran Online';
+        }
+        if (s === 'Preparing' || s === 'Paid' || s === 'Confirmed') {
+            return (order.queue_number ? `Antrean ke-${order.queue_number}: ` : '') + 'Sedang Dalam Antrean Dapur';
+        }
         return 'Pesanan Siap Disajikan / Diambil';
     };
 
@@ -1070,17 +1084,24 @@ export default function OrderApp({
                                 <Clock className="w-5 h-5 animate-pulse" />
                             </div>
                             <div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-mono text-xs font-bold text-[#D4B886]">
                                         {activeOrder.order_code}
                                     </span>
+                                    {activeOrder.queue_number ? (
+                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-white font-extrabold flex items-center gap-1 shadow-xs animate-pulse">
+                                            <Flame className="w-3 h-3 fill-current" />
+                                            <span>Antrean ke-{activeOrder.queue_number}</span>
+                                            {activeOrder.total_queue && <span className="opacity-80 text-[9px]">/ {activeOrder.total_queue}</span>}
+                                        </span>
+                                    ) : null}
                                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/40 text-[#F4EFE6] font-semibold border border-[#B99A65]/30">
                                         {activeOrder.order_type === 'dine_in' ? (activeOrder.table_number || 'Dine-in') : 'Takeaway'}
                                     </span>
                                 </div>
                                 <p className="text-xs font-semibold text-[#F4EFE6] mt-0.5">
                                     Status: <span className="text-[#D4B886]">
-                                        {getActiveOrderStatusText(activeOrder.order_status)}
+                                        {getActiveOrderStatusText(activeOrder)}
                                     </span>
                                 </p>
                             </div>
@@ -1345,12 +1366,30 @@ export default function OrderApp({
                                         >
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-200 pb-3">
                                                 <div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2 flex-wrap">
                                                         <span className="font-mono text-sm font-bold text-[#32151F]">
                                                             {order.order_code}
                                                         </span>
+
+                                                        {/* Badge Nomor Antrean */}
+                                                        {order.queue_number ? (
+                                                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold tracking-wide bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-xs flex items-center gap-1 animate-pulse">
+                                                                <Flame className="w-3.5 h-3.5 text-white fill-current" />
+                                                                <span>Antrean #{order.queue_number}</span>
+                                                                {order.total_queue && <span className="opacity-80 text-[10px]">/ {order.total_queue}</span>}
+                                                            </span>
+                                                        ) : null}
+
                                                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#32151F]/10 text-[#32151F]">
-                                                            {order.order_type === 'dine_in' ? 'Dine-in (Meja)' : 'Takeaway (Pickup)'}
+                                                            {order.order_type === 'dine_in' ? (order.table_number || 'Dine-in') : 'Takeaway (Pickup)'}
+                                                        </span>
+
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                            order.payment?.payment_method === 'cash'
+                                                                ? 'bg-stone-100 text-stone-700 border border-stone-300'
+                                                                : 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                                                        }`}>
+                                                            {order.payment?.payment_method === 'cash' ? 'Tunai di Kasir' : (order.payment?.payment_method?.toUpperCase() || 'MIDTRANS')}
                                                         </span>
                                                     </div>
                                                     <p className="text-[11px] text-stone-500 mt-1">
@@ -1363,13 +1402,13 @@ export default function OrderApp({
                                                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                                                         isServedOrDone
                                                             ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                                            : getStatusStep(order.order_status) === 2
-                                                            ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
-                                                            : getStatusStep(order.order_status) === 1
-                                                            ? 'bg-yellow-100 text-yellow-800 border border-yellow-300 animate-pulse'
+                                                            : (order.order_status === 'Preparing' || order.order_status === 'Paid' || order.order_status === 'Confirmed')
+                                                            ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
+                                                            : (order.order_status === 'Pending' || order.order_status === 'Awaiting Payment')
+                                                            ? 'bg-yellow-100 text-yellow-900 border border-yellow-300'
                                                             : 'bg-sky-100 text-sky-800 border border-sky-300'
                                                     }`}>
-                                                        {getStatusBadgeText(order.order_status)}
+                                                        {getStatusBadgeText(order.order_status, order.payment?.payment_method, order.payment?.payment_status === 'Paid')}
                                                     </span>
                                                 </div>
                                             </div>
@@ -1382,7 +1421,7 @@ export default function OrderApp({
                                                         <span>Status Live Tracking:</span>
                                                     </span>
                                                     <span className="text-[11px] font-semibold text-[#B99A65]">
-                                                        {getStatusTrackerText(order.order_status)}
+                                                        {getStatusTrackerText(order.order_status, order.payment?.payment_method)}
                                                     </span>
                                                 </div>
 
@@ -1390,13 +1429,15 @@ export default function OrderApp({
                                                     <div className="space-y-1">
                                                         <div className={`w-7 h-7 mx-auto rounded-full flex items-center justify-center font-bold text-xs ${
                                                             getStatusStep(order.order_status) >= 1
-                                                                ? getStatusStep(order.order_status) === 1 ? 'bg-amber-500 text-white animate-pulse' : 'bg-emerald-600 text-white'
+                                                                ? (getStatusStep(order.order_status) === 1 && order.payment?.payment_method === 'cash') 
+                                                                    ? 'bg-amber-500 text-white animate-pulse' 
+                                                                    : 'bg-emerald-600 text-white'
                                                                 : 'bg-stone-200 text-stone-500'
                                                         }`}>
-                                                            {getStatusStep(order.order_status) > 1 ? <Check className="w-3.5 h-3.5" /> : '1'}
+                                                            {getStatusStep(order.order_status) > 1 || (order.payment?.payment_status === 'Paid') ? <Check className="w-3.5 h-3.5" /> : '1'}
                                                         </div>
-                                                        <p className={`font-semibold ${getStatusStep(order.order_status) === 1 ? 'text-amber-700 font-bold' : 'text-stone-600'}`}>
-                                                            ACC Kasir
+                                                        <p className={`font-semibold ${(getStatusStep(order.order_status) === 1 && order.payment?.payment_method === 'cash') ? 'text-amber-700 font-bold' : 'text-stone-600'}`}>
+                                                            {order.payment?.payment_method === 'cash' ? 'Bayar Kasir' : 'ACC Kasir'}
                                                         </p>
                                                     </div>
 
@@ -1409,7 +1450,7 @@ export default function OrderApp({
                                                             {getStatusStep(order.order_status) > 2 ? <Check className="w-3.5 h-3.5" /> : '2'}
                                                         </div>
                                                         <p className={`font-semibold ${getStatusStep(order.order_status) === 2 ? 'text-orange-700 font-bold' : 'text-stone-600'}`}>
-                                                            Proses Dapur
+                                                            Antrean Dapur
                                                         </p>
                                                     </div>
 

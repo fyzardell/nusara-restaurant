@@ -805,14 +805,23 @@ export default function CashierDashboard({
                                                     {/* Header Card */}
                                                     <div className="flex items-center justify-between pb-3 border-b border-[#241F1D]">
                                                         <div>
-                                                            <div className="flex items-center gap-2">
+                                                            <div className="flex items-center gap-2 flex-wrap">
                                                                 <span className="font-mono font-bold text-sm text-[#D4B886]">
                                                                     #{order.order_code}
                                                                 </span>
+                                                                {order.queue_number ? (
+                                                                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-gradient-to-r from-amber-500 to-amber-600 text-black flex items-center gap-1 shadow-xs">
+                                                                        <Flame className="w-3 h-3 fill-current" />
+                                                                        <span>Antrean #{order.queue_number}</span>
+                                                                    </span>
+                                                                ) : null}
                                                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                                                                     isDineIn ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40' : 'bg-[#1C1816] text-stone-300 border border-[#2C2421]'
                                                                 }`}>
                                                                     {isDineIn ? (order.table_number || 'Dine-in') : 'Takeaway'}
+                                                                </span>
+                                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/50 text-stone-300 font-semibold border border-stone-800">
+                                                                    {order.payment?.payment_method === 'cash' ? 'TUNAI' : (order.payment?.payment_method?.toUpperCase() || 'MIDTRANS')}
                                                                 </span>
                                                             </div>
                                                             <div className="text-[11px] text-[#9E938B] mt-1 flex items-center gap-2">
