@@ -416,7 +416,7 @@ class ReservationController extends Controller
             ]);
         }
 
-        session()->flash('success', "Reservasi {$code} ({$tableNames}) berhasil diajukan dengan pembayaran DP! Staf kasir NUSARA sedang memverifikasi pembayaran Anda.");
+        session()->flash('success', "Reservasi {$code} ({$tableNames}) berhasil diajukan! Meja Anda otomatis terkonfirmasi 24 jam setelah DP Midtrans diverifikasi.");
 
         return redirect()->route('reservation');
     }
