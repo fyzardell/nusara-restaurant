@@ -455,18 +455,7 @@ export default function LandingPage({
                             <span>Pilih Menu</span>
                         </button>
 
-                        {/* 2. Demo QR Meja (Simulasi Tamu Meja 01 Tanpa Login) */}
-                        <button
-                            onClick={() => handleSelectDineIn('01')}
-                            className="w-full sm:w-auto px-8 py-4 rounded-full bg-[#211D1B] border-2 border-[#D4B886] text-[#D4B886] font-bold text-xs uppercase tracking-widest hover:bg-[#D4B886] hover:text-[#211D1B] transition-all shadow-xl shadow-[#D4B886]/10 flex items-center justify-center gap-2 hover:scale-105 active:scale-95 group"
-                            title="Simulasi Masuk sebagai Tamu Meja 01 tanpa Login"
-                        >
-                            <QrCode className="w-4 h-4 text-[#D4B886] group-hover:text-[#211D1B] transition-colors" />
-                            <span>Demo QR Meja 01</span>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#D4B886]/20 group-hover:bg-[#211D1B]/20 text-[#F4EFE6] group-hover:text-[#211D1B] font-extrabold ml-1">Tamu</span>
-                        </button>
-
-                        {/* 3. Reservasi */}
+                        {/* 2. Reservasi */}
                         <button
                             onClick={() => handleGoToReservation(null)}
                             className="w-full sm:w-auto px-8 py-4 rounded-full bg-[#32151F]/90 border border-[#B99A65]/60 text-[#F4EFE6] font-semibold text-xs uppercase tracking-widest hover:bg-[#B99A65] hover:text-[#211D1B] hover:border-[#D4B886] transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-105 active:scale-95"
