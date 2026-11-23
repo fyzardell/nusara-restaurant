@@ -1523,7 +1523,7 @@ export default function Reservation({
                                             Informasi Pemesan & Catatan Khusus
                                         </h2>
                                         <p className="text-xs sm:text-sm text-[#6E625A] mt-1">
-                                            Tiket konfirmasi dan pembaruan validasi kasir akan dikirimkan langsung ke nomor WhatsApp dan alamat email Anda.
+                                            Tiket konfirmasi resmi otomatis 24 jam akan dikirimkan langsung ke nomor WhatsApp dan alamat email Anda setelah pembayaran DP non-tunai diverifikasi.
                                         </p>
                                     </div>
 
@@ -1639,8 +1639,9 @@ export default function Reservation({
                                             <span className="text-xs font-bold text-[#32151F] uppercase tracking-wider">
                                                 Rincian Reservasi Meja
                                             </span>
-                                            <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold uppercase">
-                                                Status: Menunggu Validasi Kasir
+                                            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold uppercase flex items-center gap-1.5 shadow-xs">
+                                                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                                                <span>Konfirmasi Otomatis 24 Jam (Midtrans DP)</span>
                                             </span>
                                         </div>
 
@@ -1899,7 +1900,7 @@ export default function Reservation({
                                     Riwayat & Status Reservasi
                                 </h2>
                                 <p className="text-xs sm:text-sm text-[#6E625A] mt-1">
-                                    Pantau status validasi kasir, detail meja, dan tiket kunjungan Anda.
+                                    Pantau status konfirmasi otomatis Midtrans, detail meja yang terkunci, dan tiket kunjungan Anda.
                                 </p>
                             </div>
 
