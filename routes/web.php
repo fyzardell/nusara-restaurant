@@ -25,6 +25,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // Google OAuth 2.0
 Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
+Route::post('/auth/google/verify-2fa', [AuthController::class, 'verifyGoogle2fa'])->name('auth.google.verify-2fa');
 
 // Quick simulated action routes from PRD
 Route::get('/menu', [LandingPageController::class, 'index'])->name('menu');

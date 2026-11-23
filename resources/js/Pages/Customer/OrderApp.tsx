@@ -3,6 +3,7 @@ import { Head, Link, usePage, router } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
 import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
 import CustomerSettings from './CustomerSettings';
+import LuxuryAlertModal, { LuxuryAlertState } from '../../Components/LuxuryAlertModal';
 import { 
     Category, 
     Menu, 
@@ -239,6 +240,17 @@ export default function OrderApp({
     const [generalNotes, setGeneralNotes] = useState('');
     const [paymentMethod, setPaymentMethod] = useState<'qris' | 'cash'>('cash');
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const [luxuryAlert, setLuxuryAlert] = useState<LuxuryAlertState | null>(null);
+
+    const showAlert = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info', title?: string, onClose?: () => void) => {
+        setLuxuryAlert({
+            isOpen: true,
+            message,
+            type,
+            title,
+            onClose,
+        });
+    };
 
     // Kupon Promo
     const [couponCode, setCouponCode] = useState('');
@@ -258,8 +270,9 @@ export default function OrderApp({
         if (code === 'NUSARA20' || code === 'PROMO20' || code === 'DISKON20') {
             setAppliedCoupon(code);
             setCouponDiscount(Math.round(cartSubtotal * 0.20));
+            showAlert('Selamat! Kupon diskon 20% berhasil diterapkan pada pesanan Anda.', 'success', 'Kupon Aktif');
         } else {
-            alert('Kode kupon tidak valid atau telah kedaluwarsa. Gunakan kode: NUSARA20 untuk diskon 20%.');
+            showAlert('Kode kupon tidak valid atau telah kedaluwarsa. Gunakan kode promo NUSARA20 untuk potongan istimewa 20%.', 'warning', 'Kupon Tidak Valid');
         }
     };
 
@@ -307,7 +320,7 @@ export default function OrderApp({
 
     const handleOpenRefundModal = (order: Order) => {
         if (order.order_status !== 'Pending') {
-            alert('Pengajuan refund hanya dapat dilakukan saat pesanan masih dalam antrean (sebelum dimasak dapur).');
+            showAlert('Pengajuan pengembalian dana hanya dapat dilakukan saat pesanan masih dalam antrean (sebelum proses memasak dimulai).', 'warning', 'Batasan Pengembalian Dana');
             return;
         }
         setSelectedOrderForRefund(order);
@@ -349,7 +362,7 @@ export default function OrderApp({
 
             const data = await res.json();
             if (res.ok && data.success) {
-                alert(data.message || 'Pengajuan pengembalian dana berhasil dikirimkan!');
+                showAlert(data.message || 'Pengajuan pengembalian dana berhasil dikirimkan!', 'success', 'Pengajuan Berhasil');
                 setIsRefundModalOpen(false);
                 router.reload();
             } else {
@@ -411,14 +424,14 @@ export default function OrderApp({
         return initialOrders.filter(o => ['Served', 'Picked Up', 'Completed', 'Cancelled', 'Refund Requested', 'Refunded'].includes(o.order_status));
     }, [initialOrders]);
 
-    // Background polling for customer order status (updates real-time when kitchen prepares/waiter serves)
+    // Background polling for customer order status (updates real-time when kitchen prepares/waiter serves/chat arrives)
     useEffect(() => {
         let isPolling = false;
         const interval = setInterval(() => {
             if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !isPolling) {
                 isPolling = true;
                 router.reload({
-                    only: ['orders', 'tables'],
+                    only: ['orders', 'tables', 'chatMessages'],
                     preserveScroll: true,
                     preserveState: true,
                     onFinish: () => {
@@ -426,10 +439,46 @@ export default function OrderApp({
                     },
                 });
             }
-        }, 4000);
+        }, 3500);
 
         return () => clearInterval(interval);
     }, []);
+
+    // Otomatis verifikasi pesanan online Midtrans di latar belakang (langsung ke 'Preparing' saat pembayaran berhasil di ponsel)
+    useEffect(() => {
+        const pendingOnlineOrder = initialOrders.find(
+            o => o.payment_status === 'Pending' && o.payment_method !== 'cash' && !['Cancelled', 'Refunded'].includes(o.order_status)
+        );
+        if (!pendingOnlineOrder) return;
+
+        let isChecking = false;
+        const interval = setInterval(async () => {
+            if (isChecking || typeof document === 'undefined' || document.visibilityState !== 'visible') return;
+            isChecking = true;
+            try {
+                const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+                const res = await fetch(`/order/${pendingOnlineOrder.id}/confirm-online-payment`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({ result_status: 'check_status' }),
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    router.reload({ only: ['orders'], preserveScroll: true, preserveState: true });
+                }
+            } catch (e) {
+                // Silently ignore temporary network retry
+            } finally {
+                isChecking = false;
+            }
+        }, 4000);
+
+        return () => clearInterval(interval);
+    }, [initialOrders]);
 
     useEffect(() => {
         if (initialMenuId) {
@@ -502,8 +551,9 @@ export default function OrderApp({
     // Toggle Favorite
     const handleToggleFavorite = (menuId: number) => {
         if (isGuest) {
-            alert('Fitur favorit hidangan memerlukan Akun Customer. Silakan masuk untuk menyimpan menu favorit Anda.');
-            router.visit('/login');
+            showAlert('Fitur favorit hidangan memerlukan Akun Terdaftar. Silakan masuk untuk menyimpan mahakarya kuliner favorit Anda.', 'info', 'Akses Anggota', () => {
+                router.visit('/login');
+            });
             return;
         }
         setFavorites(prev => 
@@ -623,7 +673,7 @@ export default function OrderApp({
     const handlePayWithSnap = async (snapToken: string, targetOrderId?: number) => {
         const snapReady = await ensureSnapLoaded(midtransClientKey);
         if (!snapReady || !(window as any).snap) {
-            alert('Modul pembayaran Midtrans gagal dimuat di browser. Pastikan koneksi internet aktif.');
+            showAlert('Modul pembayaran Midtrans gagal dimuat di peramban. Pastikan koneksi internet stabil.', 'error', 'Koneksi Gateway');
             return;
         }
 
@@ -651,26 +701,26 @@ export default function OrderApp({
                     console.error('Error auto-confirming online payment:', e);
                 }
 
-                alert('Pembayaran Berhasil! Pesanan Anda telah diverifikasi dan langsung dimasak di dapur NUSARA.');
+                showAlert('Pembayaran Berhasil! Pesanan Anda telah diverifikasi dan saat ini langsung dipersiapkan di dapur NUSARA.', 'success', 'Pembayaran Berhasil');
                 router.reload({ only: ['orders'] });
                 setActiveTab('active_order');
             },
             onPending: function () {
                 setCart([]);
                 try { localStorage.removeItem('nusara_customer_cart'); } catch {}
-                alert('Pesanan tersimpan. Silakan selesaikan pembayaran QRIS / Virtual Account Anda.');
+                showAlert('Pesanan tersimpan. Silakan selesaikan pembayaran QRIS / Virtual Account Anda agar segera diproses dapur.', 'info', 'Menunggu Pembayaran');
                 router.reload({ only: ['orders'] });
                 setActiveTab('active_order');
             },
             onError: function () {
-                alert('Pembayaran Midtrans tidak dapat diselesaikan.');
+                showAlert('Pembayaran Midtrans belum selesai atau dibatalkan.', 'error', 'Pembayaran Tertunda');
                 router.reload({ only: ['orders'] });
                 setActiveTab('active_order');
             },
             onClose: function () {
                 setCart([]);
                 try { localStorage.removeItem('nusara_customer_cart'); } catch {}
-                alert('Jendela pembayaran ditutup. Status pesanan Anda adalah Menunggu Pembayaran. Anda dapat membuka QRIS kembali kapan saja dari tab Pesanan Aktif atau membayar langsung ke kasir.');
+                showAlert('Jendela pembayaran ditutup. Status pesanan Anda saat ini Menunggu Pembayaran. Anda dapat membuka QRIS kembali kapan saja dari tab Pesanan Aktif atau membayar langsung ke kasir.', 'info', 'Jendela Ditutup');
                 router.reload({ only: ['orders'] });
                 setActiveTab('active_order');
             }
@@ -693,13 +743,13 @@ export default function OrderApp({
 
             const data = await res.json();
             if (res.ok && data.success) {
-                alert(data.message || 'Pembayaran berhasil diverifikasi! Pesanan Anda saat ini sedang dimasak di dapur.');
+                showAlert(data.message || 'Pembayaran berhasil diverifikasi! Pesanan Anda saat ini sedang dimasak di dapur.', 'success', 'Verifikasi Berhasil');
                 router.reload({ only: ['orders'] });
             } else {
-                alert(data.message || 'Pembayaran belum dapat dikonfirmasi oleh Midtrans. Pastikan transaksi QRIS / VA Anda telah selesai.');
+                showAlert(data.message || 'Pembayaran belum dapat dikonfirmasi oleh Midtrans. Pastikan transaksi QRIS atau Virtual Account Anda telah berhasil.', 'warning', 'Status Pembayaran');
             }
         } catch {
-            alert('Terjadi kendala jaringan saat memverifikasi status pembayaran ke Midtrans.');
+            showAlert('Terjadi kendala jaringan saat memverifikasi status pembayaran ke Midtrans.', 'error', 'Gangguan Jaringan');
         }
     };
 
@@ -708,17 +758,17 @@ export default function OrderApp({
         if (cart.length === 0) return;
 
         if (!customerName.trim()) {
-            alert('Mohon masukkan nama pemesan terlebih dahulu.');
+            showAlert('Mohon lengkapi nama pemesan terlebih dahulu sebelum melanjutkan pesanan.', 'warning', 'Nama Pemesan Diperlukan');
             return;
         }
 
         if (orderType === 'dine_in' && !selectedTable.trim()) {
-            alert('Mohon pilih nomor meja yang sedang Anda tempati.');
+            showAlert('Mohon tentukan nomor meja yang Anda tempati sebelum memesan santapan Dine-in.', 'warning', 'Pilih Nomor Meja');
             return;
         }
 
         if (paymentMethod === 'qris' && !midtransIsConfigured) {
-            alert('Layanan pembayaran online Midtrans belum aktif karena MIDTRANS_SERVER_KEY belum diisi di sistem (.env).\n\nSilakan pilih metode "Tunai di Kasir (Cash)" terlebih dahulu atau masukkan API key Midtrans Anda.');
+            showAlert('Layanan pembayaran online Midtrans belum aktif. Silakan pilih metode Tunai di Kasir (Cash) atau konfirmasi ke staf kami.', 'warning', 'Metode Pembayaran');
             return;
         }
 
@@ -764,12 +814,12 @@ export default function OrderApp({
                 try {
                     localStorage.removeItem('nusara_customer_cart');
                 } catch {}
-                alert(`Pesanan #${data.order_code} berhasil dibuat! Silakan lakukan pembayaran di kasir.`);
+                showAlert(`Pesanan #${data.order_code} berhasil dibuat! Silakan lakukan pembayaran di kasir.`, 'success', 'Pesanan Diterima');
                 router.reload({ only: ['orders'] });
                 setActiveTab('active_order');
             }
         } catch (error: any) {
-            alert(error.message || 'Terjadi gangguan saat memproses pesanan.');
+            showAlert(error.message || 'Terjadi gangguan saat memproses pesanan.', 'error', 'Kendala Pemesanan');
         } finally {
             setIsCheckingOut(false);
         }
@@ -1073,7 +1123,7 @@ export default function OrderApp({
                                         type="button"
                                         onClick={() => {
                                             if (!selectedTable.trim()) {
-                                                alert('Mohon masukkan nomor meja Anda.');
+                                                showAlert('Mohon masukkan atau pilih nomor meja yang Anda tempati.', 'warning', 'Nomor Meja Diperlukan');
                                                 return;
                                             }
                                             setOrderType('dine_in');
@@ -3317,6 +3367,9 @@ export default function OrderApp({
                     </div>
                 </div>
             )}
+
+            {/* Luxury Alert Modal */}
+            <LuxuryAlertModal alert={luxuryAlert} onClose={() => setLuxuryAlert(null)} />
         </div>
     );
 }

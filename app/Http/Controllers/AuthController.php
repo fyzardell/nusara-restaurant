@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -94,7 +96,16 @@ class AuthController extends Controller
 
         $loginId = trim($request->input('login_id'));
         $password = $request->input('password');
-        $remember = $request->boolean('remember');
+        $remember = $request->boolean('remember', true);
+
+        // Rate Limiter untuk mencegah brute-force login
+        $throttleKey = Str::transliterate(Str::lower($loginId) . '|' . $request->ip());
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            throw ValidationException::withMessages([
+                'login_id' => ["Terlalu banyak percobaan masuk yang salah demi keamanan akun Anda. Silakan coba lagi dalam {$seconds} detik."],
+            ]);
+        }
 
         // Check if login is email or phone number
         $isEmail = filter_var($loginId, FILTER_VALIDATE_EMAIL);
@@ -170,12 +181,14 @@ class AuthController extends Controller
         }
 
         if (!Hash::check($password, $user->password)) {
+            RateLimiter::hit($throttleKey, 60);
+            $remaining = RateLimiter::remaining($throttleKey, 5);
             throw ValidationException::withMessages([
-                'password' => ['Kata sandi yang Anda masukkan tidak sesuai.'],
+                'password' => ["Kata sandi yang Anda masukkan tidak sesuai. (Sisa percobaan login: {$remaining})"],
             ]);
         }
 
-        // Cek 2FA jika aktif
+        // Cek 2FA jika aktif (Wajib verifikasi kode Google Authenticator)
         if (!empty($user->two_factor_secret) && !empty($user->two_factor_confirmed_at)) {
             $twoFactorCode = trim($request->input('two_factor_code', ''));
             if (empty($twoFactorCode)) {
@@ -189,11 +202,15 @@ class AuthController extends Controller
             }
 
             if (!\App\Services\TwoFactorService::verifyCode($user->two_factor_secret, $twoFactorCode)) {
+                RateLimiter::hit($throttleKey, 60);
                 throw ValidationException::withMessages([
-                    'two_factor_code' => ['Kode 6-digit Google Authenticator tidak cocok atau kadaluarsa.'],
+                    'two_factor_code' => ['Kode 6-digit Google Authenticator tidak cocok atau telah kadaluarsa.'],
                 ]);
             }
         }
+
+        // Login sukses: bersihkan catatan rate limiter
+        RateLimiter::clear($throttleKey);
 
         Auth::loginUsingId($user->id, $remember);
 
@@ -446,6 +463,15 @@ class AuthController extends Controller
                 ]);
             }
 
+            // Jika akun pengguna telah mengaktifkan 2FA, wajibkan verifikasi kode Google Authenticator
+            if (!empty($user->two_factor_secret) && !empty($user->two_factor_confirmed_at)) {
+                session([
+                    'google_2fa_user_id' => $user->id,
+                    'google_2fa_remember' => true,
+                ]);
+                return redirect()->route('login', ['verify_google_2fa' => 1, 'email' => $user->email]);
+            }
+
             Auth::login($user, true);
             $request->session()->regenerate();
 
@@ -455,5 +481,32 @@ class AuthController extends Controller
             \Illuminate\Support\Facades\Log::error('Google OAuth Exception: ' . $e->getMessage());
             return redirect()->route('login')->with('error', 'Terjadi kesalahan otentikasi Google: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Konfirmasi 6 digit kode 2FA untuk akun yang masuk via Google OAuth.
+     */
+    public function verifyGoogle2fa(Request $request)
+    {
+        $request->validate(['code' => 'required|string|size:6']);
+        $userId = session('google_2fa_user_id');
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Sesi Google 2FA telah berakhir. Silakan login kembali.'], 422);
+        }
+
+        $user = \App\Models\User::find($userId);
+        if (!$user || !\App\Services\TwoFactorService::verifyCode($user->two_factor_secret, $request->code)) {
+            return response()->json(['success' => false, 'message' => 'Kode 6-digit Google Authenticator tidak cocok atau telah kadaluarsa.'], 422);
+        }
+
+        session()->forget('google_2fa_user_id');
+        Auth::login($user, session('google_2fa_remember', true));
+        $request->session()->regenerate();
+
+        return response()->json([
+            'success' => true,
+            'redirect' => route('order.app'),
+            'message' => "Autentikasi 2FA berhasil! Selamat datang kembali, {$user->name}."
+        ]);
     }
 }
