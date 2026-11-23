@@ -431,9 +431,106 @@ class ReservationController extends Controller
             ]);
         }
 
-        session()->flash('success', "Reservasi {$code} ({$tableNames}) berhasil diajukan! Meja Anda otomatis terkonfirmasi 24 jam setelah DP diverifikasi.");
+        session()->flash('success', "Reservasi {$code} ({$tableNames}) berhasil diajukan! Meja Anda otomatis terkonfirmasi setelah DP diverifikasi. Meja disiapkan 1 jam sebelum jadwal kunjungan.");
 
         return redirect()->route('reservation');
+    }
+
+    /**
+     * Generate Midtrans Snap token for an existing pending reservation DP
+     */
+    public function getPayToken(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan masuk ke akun terlebih dahulu.'
+            ], 401);
+        }
+
+        $customer = DB::table('customers')->where('user_id', $user->id)->first();
+        $customerId = $customer ? $customer->id : -1;
+
+        $reservation = DB::table('reservations')
+            ->where('id', $id)
+            ->where(function ($q) use ($user, $customerId) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('customer_id', $customerId);
+            })
+            ->first();
+
+        if (!$reservation) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reservasi tidak ditemukan atau tidak memiliki akses.'
+            ], 404);
+        }
+
+        if ($reservation->status !== 'Pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reservasi ini telah berstatus ' . $reservation->status . ' dan tidak memerlukan pembayaran DP lagi.'
+            ], 400);
+        }
+
+        // Ekstrak nominal DP dari special_request atau default 150000
+        $dpVal = 150000;
+        if (preg_match('/\[DP Jaminan Meja: Rp\s*([0-9\.]+)/i', $reservation->special_request ?? '', $matches)) {
+            $cleaned = str_replace('.', '', $matches[1]);
+            if (is_numeric($cleaned) && intval($cleaned) > 0) {
+                $dpVal = intval($cleaned);
+            }
+        }
+
+        // Ambil metode pembayaran jika ada
+        $paymentMethod = 'all';
+        if ($request->filled('dp_payment_method')) {
+            $paymentMethod = $request->dp_payment_method;
+        } elseif (preg_match('/via ([A-Z0-9_\-]+)\]/i', $reservation->special_request ?? '', $pMatches)) {
+            $paymentMethod = strtolower($pMatches[1]);
+        }
+
+        try {
+            $midtrans = app(\App\Services\MidtransService::class);
+            $customerName = $customer ? $customer->name : ($user->name ?? 'Tamu NUSARA');
+            $customerPhone = $customer ? $customer->phone_normalized : ($user->phone ?? null);
+
+            // Gunakan suffix timestamp unik agar Midtrans tidak menolak token ulang (duplicate order_id)
+            $orderCode = $reservation->reservation_code . '-' . time();
+
+            $snapToken = $midtrans->createSnapToken(
+                orderCode: $orderCode,
+                grossAmount: $dpVal,
+                items: [
+                    [
+                        'menu_id' => 'DP-' . $reservation->reservation_code,
+                        'unit_price_snapshot' => $dpVal,
+                        'quantity' => 1,
+                        'menu_name_snapshot' => "DP Reservasi {$reservation->reservation_code} ({$reservation->guest_count} Tamu)",
+                    ]
+                ],
+                taxAmount: 0,
+                customerName: $customerName,
+                customerEmail: $user->email,
+                customerPhone: $customerPhone,
+                paymentMethod: $paymentMethod
+            );
+
+            return response()->json([
+                'success' => true,
+                'snap_token' => $snapToken,
+                'reservation_code' => $reservation->reservation_code,
+                'dp_amount' => $dpVal,
+                'message' => 'Token pembayaran berhasil dibuat.',
+            ]);
+        } catch (\Exception $ex) {
+            \Illuminate\Support\Facades\Log::error("Midtrans Snap Retry Error: " . $ex->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghubungkan ke Midtrans: ' . $ex->getMessage(),
+            ], 500);
+        }
     }
 
     /**

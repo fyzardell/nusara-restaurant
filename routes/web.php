@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CashierController;
+use App\Http\Controllers\CustomerAccountController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReservationController;
@@ -21,28 +22,42 @@ Route::get('/register', [AuthController::class, 'showLogin'])->name('register');
 Route::post('/register', [AuthController::class, 'register'])->name('register.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// Google OAuth 2.0
+Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
+
 // Quick simulated action routes from PRD
 Route::get('/menu', [LandingPageController::class, 'index'])->name('menu');
 // Dedicated Luxury Reservation Page (Customer Flow)
 Route::get('/reservation', [ReservationController::class, 'index'])->name('reservation');
 Route::post('/reservation', [ReservationController::class, 'store'])->name('reservation.store');
+Route::post('/reservation/{id}/pay', [ReservationController::class, 'getPayToken'])->name('reservation.pay');
 Route::post('/reservation/{id}/refund', [ReservationController::class, 'requestRefund'])->name('reservation.refund');
 
 // Customer Ordering App (Akses Publik / Tamu Meja & Member)
 Route::get('/order', [OrderController::class, 'index'])->name('order.app');
 Route::post('/order/checkout', [OrderController::class, 'checkout'])->name('order.checkout');
+Route::post('/order/{id}/confirm-online-payment', [OrderController::class, 'confirmOnlinePayment'])->name('order.confirm-online-payment');
 Route::post('/order/{id}/refund', [OrderController::class, 'requestRefund'])->name('order.refund');
 
 // Midtrans Webhook Notification Handler (Public & CSRF Exempted)
 Route::post('/api/midtrans/webhook', [OrderController::class, 'handleWebhook'])->name('midtrans.webhook');
 Route::post('/midtrans/webhook', [OrderController::class, 'handleWebhook']);
 
-// Fitur Khusus Member Terdaftar
+// Fitur Khusus Member Terdaftar & Pengaturan Akun Pelanggan
 Route::middleware('auth')->group(function () {
     Route::post('/order/{id}/rating', [OrderController::class, 'submitRating'])->name('order.rating');
     Route::post('/chat/send', [OrderController::class, 'sendMessage'])->name('chat.send');
     Route::post('/chat/read', [OrderController::class, 'markAsRead'])->name('chat.read');
     Route::post('/favorites/toggle', [OrderController::class, 'toggleFavorite'])->name('favorites.toggle');
+
+    // Customer Account Settings & 2FA
+    Route::get('/customer/profile', [CustomerAccountController::class, 'getProfile'])->name('customer.profile');
+    Route::post('/customer/profile/update', [CustomerAccountController::class, 'updateProfile'])->name('customer.profile.update');
+    Route::post('/customer/password/update', [CustomerAccountController::class, 'updatePassword'])->name('customer.password.update');
+    Route::post('/customer/2fa/setup', [CustomerAccountController::class, 'setup2fa'])->name('customer.2fa.setup');
+    Route::post('/customer/2fa/confirm', [CustomerAccountController::class, 'confirm2fa'])->name('customer.2fa.confirm');
+    Route::post('/customer/2fa/disable', [CustomerAccountController::class, 'disable2fa'])->name('customer.2fa.disable');
 });
 
 // Admin Single Branch Management Dashboard

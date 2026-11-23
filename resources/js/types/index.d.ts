@@ -2,6 +2,10 @@ export interface User {
     id: number;
     name: string;
     email: string;
+    phone?: string;
+    avatar?: string;
+    google_id?: string;
+    two_factor_enabled?: boolean;
     role: 'admin' | 'cashier' | 'waiter' | 'customer';
 }
 

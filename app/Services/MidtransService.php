@@ -112,10 +112,12 @@ class MidtransService
         $paymentType = $payload['payment_type'] ?? 'unknown';
         $transactionId = $payload['transaction_id'] ?? null;
 
-        $order = DB::table('orders')->where('order_code', $orderId)->first();
+        $cleanOrderId = preg_replace('/-[0-9]+$/', '', $orderId);
+
+        $order = DB::table('orders')->where('order_code', $orderId)->orWhere('order_code', $cleanOrderId)->first();
         if (!$order) {
             // Cek apakah notifikasi untuk Reservasi Meja (RSV-XXXXXX)
-            $reservation = DB::table('reservations')->where('reservation_code', $orderId)->first();
+            $reservation = DB::table('reservations')->where('reservation_code', $orderId)->orWhere('reservation_code', $cleanOrderId)->first();
             if ($reservation) {
                 return $this->processReservationNotification($reservation, $payload);
             }

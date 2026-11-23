@@ -37,7 +37,8 @@ import {
     RotateCcw,
     Send,
     Wallet,
-    HelpCircle
+    HelpCircle,
+    Loader2
 } from 'lucide-react';
 import FlashToast from '../../Components/FlashToast';
 import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
@@ -176,6 +177,7 @@ export default function Reservation({
 
     // Payment category filter for Step 5: all, ewallet, va
     const [paymentCategoryFilter, setPaymentCategoryFilter] = useState<'all' | 'ewallet' | 'va'>('all');
+    const [payingReservationId, setPayingReservationId] = useState<number | null>(null);
 
     // Refund Modal State
     const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
@@ -646,7 +648,7 @@ export default function Reservation({
                 if (snapReady && (window as any).snap) {
                     (window as any).snap.pay(resData.snap_token, {
                         onSuccess: function (result: any) {
-                            alert(`Pembayaran DP Berhasil! Reservasi #${resData.reservation_code} resmi terkonfirmasi otomatis 24 jam & meja Anda telah terkunci.`);
+                            alert(`Pembayaran DP Berhasil! Reservasi #${resData.reservation_code} resmi terkonfirmasi & meja Anda telah terkunci khusus untuk Anda (disiapkan 1 jam sebelum jam kedatangan).`);
                             router.reload();
                             setPageView('history');
                             setCurrentStep(1);
@@ -685,6 +687,59 @@ export default function Reservation({
             alert(err.message || 'Terjadi kesalahan sistem saat mengajukan reservasi.');
         } finally {
             setIsSubmittingReservation(false);
+        }
+    };
+
+    // Bayar DP Reservasi Tertunda via Midtrans Snap Pop-up
+    const handlePayReservationDP = async (res: CustomerReservationHistory) => {
+        try {
+            setPayingReservationId(res.id);
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+            const response = await fetch(`/reservation/${res.id}/pay`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+            });
+
+            const resData = await response.json();
+            if (!response.ok || !resData.success) {
+                throw new Error(resData.message || 'Gagal menyiapkan pembayaran DP.');
+            }
+
+            if (resData.snap_token) {
+                const snapReady = await ensureSnapLoaded();
+                if (snapReady && (window as any).snap) {
+                    (window as any).snap.pay(resData.snap_token, {
+                        onSuccess: function (result: any) {
+                            alert(`Pembayaran DP Berhasil! Reservasi #${res.reservation_code} resmi terkonfirmasi & meja Anda telah terkunci khusus untuk Anda (disiapkan 1 jam sebelum jam kedatangan).`);
+                            router.reload();
+                        },
+                        onPending: function (result: any) {
+                            alert(`Reservasi #${res.reservation_code}: Instruksi pembayaran telah dibuat. Silakan selesaikan pembayaran via QRIS atau Virtual Account pilihan Anda.`);
+                            router.reload();
+                        },
+                        onError: function (result: any) {
+                            alert('Pembayaran DP belum berhasil atau dibatalkan.');
+                            router.reload();
+                        },
+                        onClose: function () {
+                            router.reload();
+                        }
+                    });
+                    return;
+                } else {
+                    alert('Sistem gateway Midtrans sedang memuat komponen transaksi. Mohon ulangi kembali.');
+                }
+            } else {
+                alert(resData.message || 'Token pembayaran tidak ditemukan.');
+            }
+        } catch (err: any) {
+            alert(err.message || 'Terjadi kendala saat memproses pembayaran DP.');
+        } finally {
+            setPayingReservationId(null);
         }
     };
 
@@ -1689,7 +1744,7 @@ export default function Reservation({
                                             Informasi Pemesan & Catatan Khusus
                                         </h2>
                                         <p className="text-xs sm:text-sm text-[#6E625A] mt-1">
-                                            Tiket konfirmasi resmi otomatis 24 jam akan dikirimkan langsung ke nomor WhatsApp dan alamat email Anda setelah pembayaran DP non-tunai diverifikasi.
+                                            Tiket konfirmasi resmi otomatis akan dikirimkan langsung ke nomor WhatsApp dan alamat email Anda setelah pembayaran DP non-tunai diverifikasi.
                                         </p>
                                     </div>
 
@@ -1887,7 +1942,7 @@ export default function Reservation({
                                                     Kebijakan Uang Jaminan & Anti-Ghost Booking
                                                 </h4>
                                                 <span className="text-[11px] text-[#6E625A] block">
-                                                    Sistem Reservasi Terverifikasi Otomatis 24 Jam (Real-Time)
+                                                    Sistem Reservasi Terverifikasi Otomatis (Real-Time)
                                                 </span>
                                             </div>
                                         </div>
@@ -1899,14 +1954,14 @@ export default function Reservation({
                                                     <span>Mencegah Booking Fiktif (No-Show)</span>
                                                 </div>
                                                 <p className="text-[11px] text-[#6E625A] leading-relaxed">
-                                                    DP wajib non-tunai memastikan komitmen nyata. Meja resmi dikunci khusus untuk Anda dan tidak dialihkan ke tamu lain.
+                                                    DP wajib non-tunai memastikan komitmen nyata. Meja resmi dikunci khusus untuk Anda (disiapkan 1 jam sebelum jam kedatangan) dan tidak dialihkan ke tamu lain.
                                                 </p>
                                             </div>
 
                                             <div className="p-3.5 rounded-2xl bg-white border border-[#E8DFD3] space-y-1">
                                                 <div className="flex items-center gap-1.5 font-bold text-[#32151F]">
                                                     <Sparkles className="w-4 h-4 text-[#B99A65] shrink-0" />
-                                                    <span>Konfirmasi Otomatis 24 Jam</span>
+                                                    <span>Konfirmasi Otomatis Real-Time</span>
                                                 </div>
                                                 <p className="text-[11px] text-[#6E625A] leading-relaxed">
                                                     Begitu scan QRIS atau transfer VA berhasil, status reservasi otomatis menjadi <strong>Confirmed</strong> detik itu juga tanpa perlu tunggu verifikasi kasir.
@@ -2003,7 +2058,7 @@ export default function Reservation({
                                                     instructions: [
                                                         'Buka aplikasi e-Wallet atau Mobile Banking Anda (GoPay, OVO, ShopeePay, Dana, BCA Mobile, Livin, dll).',
                                                         'Tekan tombol bayar di bawah untuk membuka kode QRIS dinamis resmi.',
-                                                        'Pindai (scan) kode QR dan selesaikan transaksi. Meja Anda langsung terkonfirmasi 24 jam otomatis.'
+                                                        'Pindai (scan) kode QR dan selesaikan transaksi. Meja Anda langsung resmi terkonfirmasi otomatis.'
                                                     ]
                                                 },
                                                 {
@@ -2218,7 +2273,7 @@ export default function Reservation({
                                                                         Panduan Pembayaran: {activeMethod.title}
                                                                     </h5>
                                                                     <span className="text-[11px] text-[#6E625A] block">
-                                                                        Nominal DP: <strong>{formatRupiah(calculatedDpAmount)}</strong> · Verifikasi Otomatis 24 Jam
+                                                                        Nominal DP: <strong>{formatRupiah(calculatedDpAmount)}</strong> · Verifikasi Otomatis Real-Time
                                                                     </span>
                                                                 </div>
                                                             </div>
@@ -2282,7 +2337,7 @@ export default function Reservation({
                                                 className="w-4 h-4 mt-0.5 rounded text-[#32151F] focus:ring-[#B99A65] border-[#E8DFD3]"
                                             />
                                             <span>
-                                                Saya menyetujui ketentuan reservasi NUSARA: Uang muka (DP) sebesar <strong>{formatRupiah(calculatedDpAmount)}</strong> dibayarkan secara non-tunai untuk mengunci meja secara resmi (Anti-Ghost Booking). Saya memahami status akan terkonfirmasi otomatis 24 jam dan sisa pembayaran menu tambahan saat bersantap di restoran dapat saya selesaikan di kasir secara <strong>Tunai (Cash)</strong> maupun non-tunai.
+                                                Saya menyetujui ketentuan reservasi NUSARA: Uang muka (DP) sebesar <strong>{formatRupiah(calculatedDpAmount)}</strong> dibayarkan secara non-tunai untuk mengunci meja secara resmi (Anti-Ghost Booking). Saya memahami status akan langsung terkonfirmasi otomatis dan meja disiapkan serta disterilkan 1 jam sebelum jadwal jamuan. Sisa pembayaran menu tambahan saat bersantap di restoran dapat saya selesaikan di kasir secara <strong>Tunai (Cash)</strong> maupun non-tunai.
                                             </span>
                                         </label>
                                     </div>
@@ -2442,19 +2497,34 @@ export default function Reservation({
                                                     <span>Meja Resmi Terkunci (Anti-Ghost Booking)</span>
                                                 </div>
                                                 <p className="text-emerald-800 leading-relaxed text-[11px]">
-                                                    Uang muka (DP) telah diverifikasi dan meja resmi terkunci. Sisa pembayaran hidangan saat santap di tempat dapat dilunasi di kasir dengan <strong>Tunai (Cash)</strong>, QRIS, atau Kartu.
+                                                    Uang muka (DP) telah diverifikasi dan meja resmi terkunci khusus untuk Anda. Meja akan disiapkan dan disterilkan 1 jam sebelum jadwal kedatangan Anda. Sisa pembayaran hidangan saat santap di tempat dapat dilunasi di kasir dengan <strong>Tunai (Cash)</strong>, QRIS, atau Kartu.
                                                 </p>
                                             </div>
                                         )}
 
                                         {res.status === 'Pending' && (
-                                            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-950 space-y-1">
-                                                <div className="flex items-center gap-1.5 font-bold text-amber-900">
-                                                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                                                    <span>Menunggu Penyelesaian Pembayaran DP</span>
+                                            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-950 space-y-2.5">
+                                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                    <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                                                        <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                                                        <span>Menunggu Penyelesaian Pembayaran DP</span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        disabled={payingReservationId === res.id}
+                                                        onClick={() => handlePayReservationDP(res)}
+                                                        className="px-3 py-1 rounded-lg bg-[#32151F] hover:bg-[#4A1525] text-[#D4B886] font-bold text-[11px] flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                                                    >
+                                                        {payingReservationId === res.id ? (
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D4B886]" />
+                                                        ) : (
+                                                            <CreditCard className="w-3.5 h-3.5 text-[#D4B886]" />
+                                                        )}
+                                                        <span>Bayar Sekarang</span>
+                                                    </button>
                                                 </div>
                                                 <p className="text-amber-800 leading-relaxed text-[11px]">
-                                                    Selesaikan pembayaran DP agar meja resmi terkunci 24 jam dan jadwal kunjungan tidak dialihkan.
+                                                    Selesaikan pembayaran DP agar meja resmi terkunci khusus untuk Anda dan jadwal kunjungan tidak dialihkan. Meja akan disiapkan dan disterilkan 1 jam sebelum jadwal kedatangan Anda.
                                                 </p>
                                             </div>
                                         )}
@@ -2489,8 +2559,23 @@ export default function Reservation({
                                             </div>
                                         )}
 
-                                        <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#FAF6F0]">
-                                            <div className="flex items-center gap-2">
+                                        <div className="pt-3 flex flex-wrap items-center justify-between gap-2.5 border-t border-[#FAF6F0]">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                {res.status === 'Pending' && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={payingReservationId === res.id}
+                                                        onClick={() => handlePayReservationDP(res)}
+                                                        className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#32151F] via-[#4A1525] to-[#32151F] hover:from-[#4A1525] hover:to-[#5B1A2E] text-[#FAF6F0] border border-[#B99A65]/40 text-xs font-bold tracking-wide transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+                                                    >
+                                                        {payingReservationId === res.id ? (
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D4B886]" />
+                                                        ) : (
+                                                            <CreditCard className="w-3.5 h-3.5 text-[#D4B886]" />
+                                                        )}
+                                                        <span>Bayar DP Sekarang</span>
+                                                    </button>
+                                                )}
                                                 {(res.status === 'Confirmed' || res.status === 'Pending') && (
                                                     <button
                                                         type="button"

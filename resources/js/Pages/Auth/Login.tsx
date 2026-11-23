@@ -95,6 +95,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
     // Assemble Loading Animation State (hanya saat login)
     const [isLoggingIn, setIsLoggingIn] = useState(false);
     const [loadingStatusText, setLoadingStatusText] = useState('Memverifikasi Sesi');
+    const [requires2FA, setRequires2FA] = useState(false);
 
     // 1. Form Login
     const { 
@@ -109,6 +110,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
     } = useForm({
         login_id: '',
         password: '',
+        two_factor_code: '',
         remember: false,
         redirect: redirectParam,
     });
@@ -155,6 +157,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                 body: JSON.stringify({
                     login_id: id,
                     password: pass,
+                    two_factor_code: loginData.two_factor_code,
                     remember: loginData.remember,
                     redirect: targetRedirect,
                 }),
@@ -170,16 +173,23 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                     if (errData.errors.password) {
                         setLoginError('password', errData.errors.password[0]);
                     }
+                    if (errData.errors.two_factor_code) {
+                        setLoginError('two_factor_code' as any, errData.errors.two_factor_code[0]);
+                    }
                 } else if (errData.message) {
                     setLoginError('password', errData.message);
                 } else {
                     setLoginError('password', 'Gagal memverifikasi akun. Silakan periksa kembali kredensial Anda.');
                 }
-                resetLogin('password');
                 return;
             }
 
             const data = await res.json();
+            if (data.requires_2fa) {
+                setIsLoggingIn(false);
+                setRequires2FA(true);
+                return;
+            }
             setLoadingStatusText(
                 targetRedirect && targetRedirect.includes('table=') 
                     ? 'Menghubungkan ke Meja 01...' 
@@ -346,6 +356,31 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                                     )}
                                 </div>
 
+                                {/* 2FA Input Verification Code if required */}
+                                {requires2FA && (
+                                    <div className="p-3.5 rounded-2xl bg-[#32151F] border border-[#B99A65]/50 space-y-2 animate-fadeIn">
+                                        <div className="flex items-center gap-2 text-xs text-[#D4B886] font-bold">
+                                            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                                            <span>Verifikasi 2FA (Google Authenticator)</span>
+                                        </div>
+                                        <p className="text-[11px] text-stone-300">
+                                            Buka aplikasi Google Authenticator di ponsel Anda dan masukkan 6-digit kode verifikasi:
+                                        </p>
+                                        <input
+                                            type="text"
+                                            maxLength={6}
+                                            autoFocus
+                                            value={loginData.two_factor_code}
+                                            onChange={(e) => setLoginData('two_factor_code', e.target.value.replace(/[^0-9]/g, ''))}
+                                            placeholder="Contoh: 123456"
+                                            className="w-full text-center tracking-[0.3em] font-mono text-base font-bold py-2.5 rounded-xl bg-black/40 border border-[#B99A65] text-[#D4B886] focus:outline-none focus:ring-2 focus:ring-[#D4B886]"
+                                        />
+                                        {(loginErrors as any).two_factor_code && (
+                                            <p className="text-[11px] text-rose-400">{(loginErrors as any).two_factor_code}</p>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Remember Me */}
                                 <div className="flex items-center justify-between pt-1">
                                     <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -365,7 +400,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                                     disabled={loginProcessing}
                                     className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:brightness-110 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-[#B99A65]/20 mt-2"
                                 >
-                                    <span>{loginProcessing ? 'Memverifikasi...' : 'Masuk Sekarang'}</span>
+                                    <span>{loginProcessing ? 'Memverifikasi...' : (requires2FA ? 'Verifikasi Kode 2FA' : 'Masuk Sekarang')}</span>
                                     <ArrowRight className="w-4 h-4" />
                                 </button>
                             </form>
@@ -373,18 +408,10 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                             {/* Divider & Social Login */}
                             <div className="mt-5 pt-4 border-t border-[#32151F]">
                                 <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setLoginData({
-                                                login_id: 'pelanggan@nusara.id',
-                                                password: 'password123',
-                                                remember: true,
-                                                redirect: redirectParam,
-                                            });
-                                            alert('Simulasi Google Auth: Akun pelanggan@nusara.id telah disiapkan.');
-                                        }}
-                                        className="py-2.5 px-3 rounded-xl border border-stone-700 bg-stone-900/60 hover:bg-stone-800 text-[#F4EFE6] text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                                    <a
+                                        href="/auth/google"
+                                        className="py-2.5 px-3 rounded-xl border border-[#B99A65]/40 bg-[#32151F]/70 hover:bg-[#32151F] text-[#F4EFE6] text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:scale-[1.02] shadow-sm"
+                                        title="Masuk langsung dengan akun Google Anda"
                                     >
                                         <svg className="w-4 h-4" viewBox="0 0 24 24">
                                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -392,8 +419,8 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                                             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                                         </svg>
-                                        <span>Google</span>
-                                    </button>
+                                        <span>Masuk Google</span>
+                                    </a>
 
                                     <button
                                         type="button"

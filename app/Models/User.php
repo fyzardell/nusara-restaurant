@@ -10,8 +10,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role_id', 'is_active'])]
-#[Hidden(['password', 'remember_token'])]
+#[Fillable(['name', 'email', 'password', 'role_id', 'is_active', 'google_id', 'avatar', 'two_factor_secret', 'two_factor_confirmed_at'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -27,7 +27,13 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return !empty($this->two_factor_secret) && !empty($this->two_factor_confirmed_at);
     }
 
     public function role()

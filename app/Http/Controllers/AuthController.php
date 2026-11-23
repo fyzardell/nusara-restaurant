@@ -169,17 +169,33 @@ class AuthController extends Controller
             ]);
         }
 
-        // Attempt authentication using standard Auth::attempt
-        $credentials = [
-            'email' => $user->email,
-            'password' => $password,
-        ];
-
-        if (!Auth::attempt($credentials, $remember)) {
+        if (!Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
                 'password' => ['Kata sandi yang Anda masukkan tidak sesuai.'],
             ]);
         }
+
+        // Cek 2FA jika aktif
+        if (!empty($user->two_factor_secret) && !empty($user->two_factor_confirmed_at)) {
+            $twoFactorCode = trim($request->input('two_factor_code', ''));
+            if (empty($twoFactorCode)) {
+                if ($request->wantsJson()) {
+                    return response()->json([
+                        'requires_2fa' => true,
+                        'message' => 'Akun Anda diproteksi oleh Google Authenticator (2FA). Silakan masukkan 6 digit kode.',
+                    ]);
+                }
+                return back()->with('requires_2fa', true)->with('email', $user->email);
+            }
+
+            if (!\App\Services\TwoFactorService::verifyCode($user->two_factor_secret, $twoFactorCode)) {
+                throw ValidationException::withMessages([
+                    'two_factor_code' => ['Kode 6-digit Google Authenticator tidak cocok atau kadaluarsa.'],
+                ]);
+            }
+        }
+
+        Auth::loginUsingId($user->id, $remember);
 
         $request->session()->regenerate();
 
@@ -307,5 +323,126 @@ class AuthController extends Controller
         }
 
         return redirect()->route('home');
+    }
+
+    /**
+     * Redirect pengguna ke halaman otentikasi Google OAuth 2.0.
+     */
+    public function redirectToGoogle(Request $request)
+    {
+        $clientId = config('services.google.client_id') ?: env('GOOGLE_CLIENT_ID');
+        $redirectUri = config('services.google.redirect') ?: env('GOOGLE_REDIRECT_URI', 'http://127.0.0.1:8000/auth/google/callback');
+
+        if (empty($clientId)) {
+            return redirect()->route('login')->with('error', 'Login Google belum dikonfigurasi. Silakan tambahkan GOOGLE_CLIENT_ID dan GOOGLE_CLIENT_SECRET di file .env Anda.');
+        }
+
+        $state = \Illuminate\Support\Str::random(40);
+        session(['google_oauth_state' => $state]);
+
+        $query = http_build_query([
+            'client_id' => $clientId,
+            'redirect_uri' => $redirectUri,
+            'response_type' => 'code',
+            'scope' => 'openid profile email',
+            'access_type' => 'offline',
+            'prompt' => 'select_account',
+            'state' => $state,
+        ]);
+
+        return redirect('https://accounts.google.com/o/oauth2/v2/auth?' . $query);
+    }
+
+    /**
+     * Handle callback dari Google OAuth 2.0.
+     */
+    public function handleGoogleCallback(Request $request)
+    {
+        if ($request->has('error')) {
+            return redirect()->route('login')->with('error', 'Otorisasi Google dibatalkan: ' . $request->input('error'));
+        }
+
+        $code = $request->input('code');
+        if (!$code) {
+            return redirect()->route('login')->with('error', 'Kode otorisasi Google tidak ditemukan.');
+        }
+
+        $clientId = config('services.google.client_id') ?: env('GOOGLE_CLIENT_ID');
+        $clientSecret = config('services.google.client_secret') ?: env('GOOGLE_CLIENT_SECRET');
+        $redirectUri = config('services.google.redirect') ?: env('GOOGLE_REDIRECT_URI', 'http://127.0.0.1:8000/auth/google/callback');
+
+        try {
+            $tokenResponse = \Illuminate\Support\Facades\Http::asForm()->post('https://oauth2.googleapis.com/token', [
+                'client_id' => $clientId,
+                'client_secret' => $clientSecret,
+                'code' => $code,
+                'grant_type' => 'authorization_code',
+                'redirect_uri' => $redirectUri,
+            ]);
+
+            if (!$tokenResponse->successful()) {
+                \Illuminate\Support\Facades\Log::error('Google Token Error: ' . $tokenResponse->body());
+                return redirect()->route('login')->with('error', 'Gagal menukarkan token dengan Google: ' . $tokenResponse->body());
+            }
+
+            $accessToken = $tokenResponse->json('access_token');
+
+            $userResponse = \Illuminate\Support\Facades\Http::withToken($accessToken)->get('https://www.googleapis.com/oauth2/v3/userinfo');
+            if (!$userResponse->successful()) {
+                return redirect()->route('login')->with('error', 'Gagal mengambil data profil pengguna dari Google.');
+            }
+
+            $googleData = $userResponse->json();
+            $googleId = $googleData['sub'] ?? null;
+            $email = strtolower($googleData['email'] ?? '');
+            $name = $googleData['name'] ?? 'Pelanggan Google';
+            $avatar = $googleData['picture'] ?? null;
+
+            if (!$email) {
+                return redirect()->route('login')->with('error', 'Akun Google Anda tidak menyediakan alamat email yang valid.');
+            }
+
+            // Cari atau buat user baru
+            $user = \App\Models\User::where('google_id', $googleId)
+                ->orWhere('email', $email)
+                ->first();
+
+            if ($user) {
+                $user->update([
+                    'google_id' => $googleId,
+                    'avatar' => $user->avatar ?: $avatar,
+                ]);
+            } else {
+                $customerRole = DB::table('roles')->where('name', 'customer')->first();
+                $customerRoleId = $customerRole ? $customerRole->id : 4;
+
+                $user = \App\Models\User::create([
+                    'name' => $name,
+                    'email' => $email,
+                    'google_id' => $googleId,
+                    'avatar' => $avatar,
+                    'role_id' => $customerRoleId,
+                    'is_active' => true,
+                ]);
+
+                DB::table('customers')->insert([
+                    'user_id' => $user->id,
+                    'name' => $name,
+                    'email' => $email,
+                    'phone_normalized' => '+62' . time(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            Auth::login($user, true);
+            $request->session()->regenerate();
+
+            session()->flash('success', "Selamat datang di NUSARA, {$user->name}!");
+            return redirect()->intended(route('order.app'));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Google OAuth Exception: ' . $e->getMessage());
+            return redirect()->route('login')->with('error', 'Terjadi kesalahan otentikasi Google: ' . $e->getMessage());
+        }
     }
 }
