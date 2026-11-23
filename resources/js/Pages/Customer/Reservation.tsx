@@ -1,6 +1,7 @@
 // resources/js/Pages/Customer/Reservation.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import LuxuryAlertModal, { LuxuryAlertState } from '../../Components/LuxuryAlertModal';
 import { 
     Calendar as CalendarIcon, 
     Clock, 
@@ -190,6 +191,37 @@ export default function Reservation({
     });
     const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
     const [refundAlert, setRefundAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [luxuryAlert, setLuxuryAlert] = useState<LuxuryAlertState | null>(null);
+
+    const showAlert = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info', title?: string, onClose?: () => void) => {
+        setLuxuryAlert({
+            isOpen: true,
+            message,
+            type,
+            title,
+            onClose,
+        });
+    };
+
+    // Real-Time Background Synchronization for Reservations History
+    useEffect(() => {
+        if (pageView !== 'history') return;
+        let isPolling = false;
+        const interval = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !isPolling) {
+                isPolling = true;
+                router.reload({
+                    only: ['reservationsHistory'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    onFinish: () => {
+                        isPolling = false;
+                    },
+                });
+            }
+        }, 3500);
+        return () => clearInterval(interval);
+    }, [pageView]);
 
     const handleOpenRefundModal = (res: CustomerReservationHistory) => {
         setSelectedReservationForRefund(res);
@@ -207,7 +239,7 @@ export default function Reservation({
         e.preventDefault();
         if (!selectedReservationForRefund) return;
         if (!refundForm.account_number.trim() || !refundForm.account_holder.trim()) {
-            alert('Mohon lengkapi nomor rekening / e-wallet dan nama pemilik akun.');
+            showAlert('Mohon lengkapi nomor rekening / e-wallet dan nama pemilik akun terlebih dahulu.', 'warning', 'Data Rekening Belum Lengkap');
             return;
         }
 
@@ -648,22 +680,25 @@ export default function Reservation({
                 if (snapReady && (window as any).snap) {
                     (window as any).snap.pay(resData.snap_token, {
                         onSuccess: function (result: any) {
-                            alert(`Pembayaran DP Berhasil! Reservasi #${resData.reservation_code} resmi terkonfirmasi & meja Anda telah terkunci khusus untuk Anda (disiapkan 1 jam sebelum jam kedatangan).`);
-                            router.reload();
-                            setPageView('history');
-                            setCurrentStep(1);
+                            showAlert(`Pembayaran DP Berhasil! Reservasi #${resData.reservation_code} resmi terkonfirmasi & meja Anda telah terkunci khusus untuk Anda (disiapkan 1 jam sebelum jam kedatangan).`, 'success', 'Reservasi Terkonfirmasi', () => {
+                                router.reload();
+                                setPageView('history');
+                                setCurrentStep(1);
+                            });
                         },
                         onPending: function (result: any) {
-                            alert(`Reservasi #${resData.reservation_code} tersimpan! Silakan selesaikan pembayaran DP Anda via QRIS atau Virtual Account agar meja resmi terkunci.`);
-                            router.reload();
-                            setPageView('history');
-                            setCurrentStep(1);
+                            showAlert(`Reservasi #${resData.reservation_code} tersimpan! Silakan selesaikan pembayaran DP Anda via QRIS atau Virtual Account agar meja resmi terkunci.`, 'info', 'Menunggu Pembayaran DP', () => {
+                                router.reload();
+                                setPageView('history');
+                                setCurrentStep(1);
+                            });
                         },
                         onError: function (result: any) {
-                            alert('Pembayaran DP belum berhasil atau dibatalkan.');
-                            router.reload();
-                            setPageView('history');
-                            setCurrentStep(1);
+                            showAlert('Pembayaran DP belum berhasil atau dibatalkan.', 'error', 'Pembayaran Tertunda', () => {
+                                router.reload();
+                                setPageView('history');
+                                setCurrentStep(1);
+                            });
                         },
                         onClose: function () {
                             router.reload();
@@ -676,15 +711,20 @@ export default function Reservation({
             }
 
             if (resData.midtrans_error) {
-                alert(`Reservasi #${resData.reservation_code} tersimpan, namun payment gateway Midtrans melaporkan: "${resData.midtrans_error}". Silakan pastikan konfigurasi Server Key pada server sudah sesuai.`);
+                showAlert(`Reservasi #${resData.reservation_code} tersimpan, namun payment gateway Midtrans melaporkan: "${resData.midtrans_error}". Silakan pastikan konfigurasi Server Key pada server sudah sesuai.`, 'warning', 'Gateway Midtrans', () => {
+                    router.reload();
+                    setPageView('history');
+                    setCurrentStep(1);
+                });
             } else {
-                alert(resData.message || `Reservasi #${resData.reservation_code} berhasil diajukan.`);
+                showAlert(resData.message || `Reservasi #${resData.reservation_code} berhasil diajukan.`, 'success', 'Pengajuan Berhasil', () => {
+                    router.reload();
+                    setPageView('history');
+                    setCurrentStep(1);
+                });
             }
-            router.reload();
-            setPageView('history');
-            setCurrentStep(1);
         } catch (err: any) {
-            alert(err.message || 'Terjadi kesalahan sistem saat mengajukan reservasi.');
+            showAlert(err.message || 'Terjadi kesalahan sistem saat mengajukan reservasi.', 'error', 'Kendala Reservasi');
         } finally {
             setIsSubmittingReservation(false);
         }
@@ -714,16 +754,19 @@ export default function Reservation({
                 if (snapReady && (window as any).snap) {
                     (window as any).snap.pay(resData.snap_token, {
                         onSuccess: function (result: any) {
-                            alert(`Pembayaran DP Berhasil! Reservasi #${res.reservation_code} resmi terkonfirmasi & meja Anda telah terkunci khusus untuk Anda (disiapkan 1 jam sebelum jam kedatangan).`);
-                            router.reload();
+                            showAlert(`Pembayaran DP Berhasil! Reservasi #${res.reservation_code} resmi terkonfirmasi & meja Anda telah terkunci khusus untuk Anda (disiapkan 1 jam sebelum jam kedatangan).`, 'success', 'Pembayaran Terkonfirmasi', () => {
+                                router.reload();
+                            });
                         },
                         onPending: function (result: any) {
-                            alert(`Reservasi #${res.reservation_code}: Instruksi pembayaran telah dibuat. Silakan selesaikan pembayaran via QRIS atau Virtual Account pilihan Anda.`);
-                            router.reload();
+                            showAlert(`Reservasi #${res.reservation_code}: Instruksi pembayaran telah dibuat. Silakan selesaikan pembayaran via QRIS atau Virtual Account pilihan Anda.`, 'info', 'Instruksi Pembayaran', () => {
+                                router.reload();
+                            });
                         },
                         onError: function (result: any) {
-                            alert('Pembayaran DP belum berhasil atau dibatalkan.');
-                            router.reload();
+                            showAlert('Pembayaran DP belum berhasil atau dibatalkan.', 'error', 'Pembayaran Tertunda', () => {
+                                router.reload();
+                            });
                         },
                         onClose: function () {
                             router.reload();
@@ -731,13 +774,13 @@ export default function Reservation({
                     });
                     return;
                 } else {
-                    alert('Sistem gateway Midtrans sedang memuat komponen transaksi. Mohon ulangi kembali.');
+                    showAlert('Sistem gateway Midtrans sedang memuat komponen transaksi. Mohon ulangi kembali.', 'warning', 'Memuat Gateway');
                 }
             } else {
-                alert(resData.message || 'Token pembayaran tidak ditemukan.');
+                showAlert(resData.message || 'Token pembayaran tidak ditemukan.', 'error', 'Token Tidak Ditemukan');
             }
         } catch (err: any) {
-            alert(err.message || 'Terjadi kendala saat memproses pembayaran DP.');
+            showAlert(err.message || 'Terjadi kendala saat memproses pembayaran DP.', 'error', 'Kendala Pembayaran');
         } finally {
             setPayingReservationId(null);
         }
@@ -2817,6 +2860,9 @@ export default function Reservation({
                 userName={auth?.user?.name}
                 userRole={auth?.user?.role}
             />
+
+            {/* Luxury Alert Modal */}
+            <LuxuryAlertModal alert={luxuryAlert} onClose={() => setLuxuryAlert(null)} />
         </div>
     );
 }

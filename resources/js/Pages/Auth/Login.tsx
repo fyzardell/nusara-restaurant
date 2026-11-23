@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
 import NusaraAssembleLoading from '../../Components/NusaraAssembleLoading';
+import LuxuryAlertModal, { LuxuryAlertState } from '../../Components/LuxuryAlertModal';
 import { DemoAccount } from '../../types';
 import { 
     Lock, 
@@ -80,22 +81,44 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
         return () => clearInterval(timer);
     }, []);
 
-    // Sync mode with URL search params if user navigated with ?tab=
+    // Assemble Loading Animation State (hanya saat login)
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const [loadingStatusText, setLoadingStatusText] = useState('Memverifikasi Sesi');
+    const [requires2FA, setRequires2FA] = useState(false);
+    const [isGoogle2FA, setIsGoogle2FA] = useState(false);
+    const [luxuryAlert, setLuxuryAlert] = useState<LuxuryAlertState | null>(null);
+
+    const showAlert = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info', title?: string, onClose?: () => void) => {
+        setLuxuryAlert({
+            isOpen: true,
+            message,
+            type,
+            title,
+            onClose,
+        });
+    };
+
+    // Sync mode and Google 2FA with URL search params
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const tabParam = new URLSearchParams(window.location.search).get('tab');
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabParam = urlParams.get('tab');
             if (tabParam === 'register') {
                 setMode('register');
             } else if (tabParam === 'login') {
                 setMode('login');
             }
+            if (urlParams.get('verify_google_2fa') === '1') {
+                setRequires2FA(true);
+                setIsGoogle2FA(true);
+                const emailParam = urlParams.get('email');
+                if (emailParam) {
+                    setLoginData('login_id', emailParam);
+                }
+                showAlert('Akun Google Anda diproteksi dengan 2FA. Silakan masukkan 6 digit kode dari aplikasi Google Authenticator.', 'info', 'Verifikasi Dua Langkah');
+            }
         }
     }, []);
-
-    // Assemble Loading Animation State (hanya saat login)
-    const [isLoggingIn, setIsLoggingIn] = useState(false);
-    const [loadingStatusText, setLoadingStatusText] = useState('Memverifikasi Sesi');
-    const [requires2FA, setRequires2FA] = useState(false);
 
     // 1. Form Login
     const { 
@@ -111,7 +134,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
         login_id: '',
         password: '',
         two_factor_code: '',
-        remember: false,
+        remember: true,
         redirect: redirectParam,
     });
 
@@ -213,9 +236,46 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
         }
     };
 
+    const handleGoogle2faSubmit = async () => {
+        if (!loginData.two_factor_code || loginData.two_factor_code.length !== 6) {
+            setLoginError('two_factor_code' as any, 'Mohon masukkan 6 digit kode Google Authenticator.');
+            return;
+        }
+        setIsLoggingIn(true);
+        setLoadingStatusText('Memverifikasi Kode 2FA Google...');
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const res = await fetch('/auth/google/verify-2fa', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({ code: loginData.two_factor_code }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                setIsLoggingIn(false);
+                setLoginError('two_factor_code' as any, data.message || 'Kode 2FA tidak valid atau telah kadaluarsa.');
+                showAlert(data.message || 'Kode 2FA tidak valid atau telah kadaluarsa.', 'error', 'Verifikasi Gagal');
+                return;
+            }
+            window.location.href = data.redirect || '/order';
+        } catch {
+            setIsLoggingIn(false);
+            setLoginError('two_factor_code' as any, 'Terjadi kendala jaringan saat memverifikasi 2FA.');
+        }
+    };
+
     const handleLoginSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        executeLogin();
+        if (isGoogle2FA) {
+            handleGoogle2faSubmit();
+        } else {
+            executeLogin();
+        }
     };
 
     const handleRegisterSubmit = (e: React.FormEvent) => {
@@ -321,7 +381,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                                         </label>
                                         <button
                                             type="button"
-                                            onClick={() => alert('Petunjuk pemulihan kata sandi dapat dikonfirmasi melalui Concierge WhatsApp NUSARA: +62 21 5567 8900')}
+                                            onClick={() => showAlert('Petunjuk pemulihan kata sandi dapat dikonfirmasi melalui Concierge WhatsApp NUSARA: +62 21 5567 8900', 'info', 'Pemulihan Sandi')}
                                             className="text-[11px] text-[#D4B886] hover:underline transition-colors"
                                         >
                                             Lupa Sandi?
@@ -425,7 +485,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            alert('Simulasi WhatsApp Fast Login: Kode OTP instan akan dikirimkan ke nomor WhatsApp Anda.');
+                                            showAlert('Simulasi WhatsApp Fast Login: Kode OTP instan akan dikirimkan ke nomor WhatsApp Anda.', 'info', 'WhatsApp OTP');
                                         }}
                                         className="py-2.5 px-3 rounded-xl border border-emerald-900/60 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
                                     >
@@ -823,6 +883,9 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
             <footer className="relative z-20 py-4 px-6 text-center text-[11px] text-[#F4EFE6]/40">
                 <p>© {new Date().getFullYear()} NUSARA Indonesian Dining Experience · Harmoni Rasa Nusantara Berbalut Kemewahan</p>
             </footer>
+
+            {/* Luxury Alert Modal */}
+            <LuxuryAlertModal alert={luxuryAlert} onClose={() => setLuxuryAlert(null)} />
         </div>
     );
 }
