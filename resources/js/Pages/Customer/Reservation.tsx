@@ -2747,7 +2747,7 @@ export default function Reservation({
                                                         <span>Bayar DP Sekarang</span>
                                                     </button>
                                                 )}
-                                                {(res.status === 'Confirmed' || res.status === 'Pending') && (
+                                                {res.status === 'Confirmed' && (
                                                     <button
                                                         type="button"
                                                         onClick={() => handleOpenRefundModal(res)}

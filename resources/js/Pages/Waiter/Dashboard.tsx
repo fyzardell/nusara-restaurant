@@ -128,6 +128,24 @@ export default function WaiterDashboard({
         });
     };
 
+    // Action: Waiter Konfirmasi Makanan Siap Saji dari Dapur (Preparing / Confirmed -> Ready)
+    const handleMarkReady = (orderId: number) => {
+        setServingOrderId(orderId);
+        router.post(`/waiter/order/${orderId}/ready`, {}, {
+            preserveScroll: true,
+            onFinish: () => setServingOrderId(null),
+        });
+    };
+
+    // Action: Waiter Konfirmasi Pesanan Selesai Santap (Served / Ready -> Completed)
+    const handleMarkCompleted = (orderId: number) => {
+        setServingOrderId(orderId);
+        router.post(`/waiter/order/${orderId}/complete`, {}, {
+            preserveScroll: true,
+            onFinish: () => setServingOrderId(null),
+        });
+    };
+
     // Action: Waiter Validasi Meja Ditempati (Pending Validation -> Occupied / Sesi Open)
     const handleValidateTable = (tableId: number) => {
         router.post(`/waiter/table/${tableId}/validate`, {}, {
@@ -1074,6 +1092,15 @@ export default function WaiterDashboard({
                                                     <Flame className="w-3.5 h-3.5 animate-pulse" /> Sedang Dimasak
                                                 </span>
                                             </div>
+                                            <button
+                                                type="button"
+                                                disabled={servingOrderId === ord.id}
+                                                onClick={() => handleMarkReady(ord.id)}
+                                                className="w-full mt-2 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-[#D4B886] hover:brightness-110 text-stone-950 font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow active:scale-98 disabled:opacity-50 cursor-pointer"
+                                            >
+                                                <Check className="w-4 h-4" />
+                                                <span>{servingOrderId === ord.id ? 'Memproses...' : 'Tandai Siap Saji (Ready)'}</span>
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
@@ -1121,11 +1148,23 @@ export default function WaiterDashboard({
                                                     </p>
                                                 </div>
 
-                                                <div className="text-right text-[#9E938B] text-[11px]">
+                                                <div className="flex flex-col sm:items-end gap-1 text-[#9E938B] text-[11px]">
                                                     <span className="font-mono font-bold text-[#F4EFE6] block">
                                                         {formatRupiah(ord.total)}
                                                     </span>
                                                     <span>{ord.customer_name || ord.customer?.name || 'Pelanggan'}</span>
+                                                    {ord.order_status !== 'Completed' && (
+                                                        <button
+                                                            type="button"
+                                                            disabled={servingOrderId === ord.id}
+                                                            onClick={() => handleMarkCompleted(ord.id)}
+                                                            className="mt-1 px-3 py-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-600/50 text-emerald-300 font-bold text-[11px] flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-xs"
+                                                            title="Konfirmasi bahwa pesanan hidangan di meja ini telah selesai"
+                                                        >
+                                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                                            <span>{servingOrderId === ord.id ? 'Memproses...' : 'Tandai Selesai'}</span>
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}

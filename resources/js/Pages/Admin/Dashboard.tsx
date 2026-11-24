@@ -62,7 +62,7 @@ import CircularFloorPlan from '../../Components/CircularFloorPlan';
    - adminUser, onSelect, metrics bersifat opsional agar kompatibel
      dengan semua pemanggil lama (Dashboard lama & halaman Chat).
 ============================================================ */
-export type DashboardTab = 'overview' | 'orders' | 'menus' | 'tables' | 'reservations' | 'refunds' | 'audit';
+export type DashboardTab = 'overview' | 'orders' | 'menus' | 'tables' | 'reservations' | 'refunds' | 'ratings' | 'audit';
 export type AdminTab = DashboardTab | 'chats';
 
 const adminTabs: { key: AdminTab; label: string; icon: React.ElementType }[] = [
@@ -72,6 +72,7 @@ const adminTabs: { key: AdminTab; label: string; icon: React.ElementType }[] = [
     { key: 'tables', label: 'Meja & QR', icon: QrCode },
     { key: 'reservations', label: 'Reservasi', icon: Calendar },
     { key: 'refunds', label: 'Refund', icon: RotateCcw },
+    { key: 'ratings', label: 'Ulasan & Rating', icon: Star },
     { key: 'audit', label: 'Audit Log', icon: History },
     { key: 'chats', label: 'Konsierge / Chat', icon: MessageSquare },
 ];
@@ -194,14 +195,42 @@ export interface RefundRequestItem {
     created_at: string;
 }
 
+export interface RatingOrderItem {
+    id: number;
+    order_id: number;
+    menu_name_snapshot: string;
+    unit_price_snapshot: number;
+    quantity: number;
+    subtotal: number;
+    item_notes?: string | null;
+}
+
+export interface RatingItem {
+    id: number;
+    order_id: number;
+    rating: number;
+    review?: string | null;
+    created_at: string;
+    created_at_formatted: string;
+    order_code: string;
+    table_number?: string | null;
+    total: number;
+    order_status: string;
+    customer_name: string;
+    customer_email: string;
+    customer_phone: string;
+    items: RatingOrderItem[];
+}
+
 interface Props {
     initialTab?: DashboardTab;
-    metrics: AdminMetrics & { pendingRefunds?: number };
+    metrics: AdminMetrics & { pendingRefunds?: number; avgRating?: number; totalRatings?: number };
     orders: Order[];
     menus: Menu[];
     tables: RestaurantTable[];
     reservations: Reservation[];
     refundRequests?: RefundRequestItem[];
+    ratings?: RatingItem[];
     auditLogs: AuditLog[];
     settings: RestaurantSettings;
     adminUser: User;
@@ -225,6 +254,7 @@ export default function AdminDashboard({
     tables: initialTables,
     reservations: initialReservations,
     refundRequests = [],
+    ratings = [],
     auditLogs,
     settings,
     adminUser,
@@ -239,7 +269,7 @@ export default function AdminDashboard({
     const [activeTab, setActiveTab] = useState<DashboardTab>(() => {
         if (typeof window === 'undefined') return initialTab || 'overview';
         const t = new URLSearchParams(window.location.search).get('tab');
-        const valid: DashboardTab[] = ['orders', 'menus', 'tables', 'reservations', 'refunds', 'audit'];
+        const valid: DashboardTab[] = ['orders', 'menus', 'tables', 'reservations', 'refunds', 'ratings', 'audit'];
         if (t && valid.includes(t as DashboardTab)) return t as DashboardTab;
         if (initialTab && valid.includes(initialTab)) return initialTab;
         return 'overview';
@@ -247,12 +277,16 @@ export default function AdminDashboard({
 
     useEffect(() => {
         if (initialTab) {
-            const valid: DashboardTab[] = ['orders', 'menus', 'tables', 'reservations', 'refunds', 'audit'];
+            const valid: DashboardTab[] = ['orders', 'menus', 'tables', 'reservations', 'refunds', 'ratings', 'audit'];
             if (valid.includes(initialTab)) {
                 setActiveTab(initialTab);
             }
         }
     }, [initialTab]);
+
+    // Rating Filter States
+    const [ratingStarFilter, setRatingStarFilter] = useState<string>('all');
+    const [ratingSearch, setRatingSearch] = useState<string>('');
     const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(true);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
@@ -1041,6 +1075,7 @@ export default function AdminDashboard({
                                 {activeTab === 'tables' && 'Meja Restoran & Sesi QR'}
                                 {activeTab === 'reservations' && 'Jadwal Reservasi Tamu'}
                                 {activeTab === 'refunds' && 'Pengajuan Pengembalian Dana (Refund)'}
+                                {activeTab === 'ratings' && 'Ulasan & Rating Kepuasan Pelanggan'}
                                 {activeTab === 'audit' && 'Audit Log & Keamanan'}
                             </span>
                         </div>
@@ -1048,9 +1083,9 @@ export default function AdminDashboard({
 
                     {/* Top Right Controls */}
                     <div className="flex items-center gap-2">
-                        {(activeTab === 'orders' || activeTab === 'refunds') && (
+                        {(activeTab === 'orders' || activeTab === 'refunds' || activeTab === 'ratings') && (
                             <button
-                                onClick={() => router.reload({ only: activeTab === 'orders' ? ['orders', 'metrics'] : ['refundRequests', 'metrics'] })}
+                                onClick={() => router.reload({ only: activeTab === 'orders' ? ['orders', 'metrics'] : activeTab === 'ratings' ? ['ratings', 'metrics'] : ['refundRequests', 'metrics'] })}
                                 className="px-3 py-1.5 rounded-lg bg-[#241F1D] border border-[#342D2A] text-xs font-semibold text-[#F4EFE6] hover:bg-[#2D2622] flex items-center gap-1.5 transition-colors"
                             >
                                 <RefreshCw className="w-3.5 h-3.5 text-[#B99A65]" />
@@ -2399,6 +2434,291 @@ export default function AdminDashboard({
                                         </h4>
                                         <p className="text-xs text-[#9E938B] max-w-md mx-auto">
                                             Saat tamu mengajukan pembatalan pesanan santap meja (sebelum masuk dapur) atau refund DP reservasi, permohonan akan otomatis tampil di halaman ini.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ====================================================
+                        TAB: ULASAN & RATING KEPUASAN PELANGGAN
+                    ==================================================== */}
+                    {activeTab === 'ratings' && (
+                        <div className="space-y-6 animate-fade-in">
+                            {/* Header Section */}
+                            <div className="pb-3 border-b border-[#241F1D] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <Star className="w-5 h-5 text-[#B99A65] fill-[#B99A65]" />
+                                        <h3 className="font-heading text-lg font-bold text-white">
+                                            Ulasan & Rating Kepuasan Pelanggan
+                                        </h3>
+                                    </div>
+                                    <p className="text-xs text-[#9E938B] mt-0.5">
+                                        Daftar penilaian bintang dan testimoni dari tamu terdaftar, tersinkronisasi langsung dengan rincian hidangan yang dipesan.
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => router.reload({ only: ['ratings', 'metrics'] })}
+                                        className="px-3.5 py-1.5 rounded-xl bg-[#241F1D] hover:bg-[#32151F] text-[#D4B886] border border-[#B99A65]/40 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
+                                    >
+                                        <RefreshCw className="w-3.5 h-3.5 text-[#B99A65]" />
+                                        <span>Segarkan Ulasan</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Summary Metrics Cards */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div className="p-4 rounded-2xl bg-[#161312] border border-[#241F1D] flex items-center justify-between shadow-xs">
+                                    <div>
+                                        <span className="text-[11px] uppercase tracking-wider text-[#9E938B] font-bold block">
+                                            Rata-Rata Kepuasan
+                                        </span>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="font-heading text-2xl font-black text-white">
+                                                {metrics.avgRating || 5.0}
+                                            </span>
+                                            <div className="flex items-center text-amber-400">
+                                                {[1, 2, 3, 4, 5].map(s => (
+                                                    <Star
+                                                        key={s}
+                                                        className={`w-3.5 h-3.5 ${
+                                                            s <= Math.round(metrics.avgRating || 5)
+                                                                ? 'fill-amber-400 text-amber-400'
+                                                                : 'text-stone-700'
+                                                        }`}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+                                        <Star className="w-5 h-5 fill-current" />
+                                    </div>
+                                </div>
+
+                                <div className="p-4 rounded-2xl bg-[#161312] border border-[#241F1D] flex items-center justify-between shadow-xs">
+                                    <div>
+                                        <span className="text-[11px] uppercase tracking-wider text-[#9E938B] font-bold block">
+                                            Total Ulasan Masuk
+                                        </span>
+                                        <span className="font-heading text-2xl font-black text-white block mt-1">
+                                            {ratings.length}
+                                        </span>
+                                    </div>
+                                    <div className="w-10 h-10 rounded-xl bg-[#32151F] border border-[#B99A65]/30 text-[#D4B886] flex items-center justify-center">
+                                        <MessageSquare className="w-5 h-5" />
+                                    </div>
+                                </div>
+
+                                <div className="p-4 rounded-2xl bg-[#161312] border border-[#241F1D] flex items-center justify-between shadow-xs">
+                                    <div>
+                                        <span className="text-[11px] uppercase tracking-wider text-[#9E938B] font-bold block">
+                                            Bintang 5 (Sempurna)
+                                        </span>
+                                        <div className="flex items-baseline gap-2 mt-1">
+                                            <span className="font-heading text-2xl font-black text-emerald-400">
+                                                {ratings.filter(r => r.rating === 5).length}
+                                            </span>
+                                            <span className="text-xs text-[#9E938B]">
+                                                ({ratings.length > 0 ? Math.round((ratings.filter(r => r.rating === 5).length / ratings.length) * 100) : 100}%)
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                                        <CheckCircle2 className="w-5 h-5" />
+                                    </div>
+                                </div>
+
+                                <div className="p-4 rounded-2xl bg-[#161312] border border-[#241F1D] flex items-center justify-between shadow-xs">
+                                    <div>
+                                        <span className="text-[11px] uppercase tracking-wider text-[#9E938B] font-bold block">
+                                            Perhatian (≤ 3 Bintang)
+                                        </span>
+                                        <span className="font-heading text-2xl font-black text-rose-400 block mt-1">
+                                            {ratings.filter(r => r.rating <= 3).length}
+                                        </span>
+                                    </div>
+                                    <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
+                                        <AlertCircle className="w-5 h-5" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Filters & Search */}
+                            <div className="p-4 rounded-2xl bg-[#161312] border border-[#241F1D] space-y-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    {/* Star Rating Tabs */}
+                                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
+                                        {[
+                                            { id: 'all', label: `Semua Bintang (${ratings.length})` },
+                                            { id: '5', label: `5 Bintang (${ratings.filter(r => r.rating === 5).length})` },
+                                            { id: '4', label: `4 Bintang (${ratings.filter(r => r.rating === 4).length})` },
+                                            { id: '3', label: `3 Bintang (${ratings.filter(r => r.rating === 3).length})` },
+                                            { id: '2', label: `2 Bintang (${ratings.filter(r => r.rating === 2).length})` },
+                                            { id: '1', label: `1 Bintang (${ratings.filter(r => r.rating === 1).length})` },
+                                        ].map(f => (
+                                            <button
+                                                key={f.id}
+                                                type="button"
+                                                onClick={() => setRatingStarFilter(f.id)}
+                                                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all font-semibold ${
+                                                    ratingStarFilter === f.id
+                                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-xs'
+                                                        : 'text-[#9E938B] hover:text-[#F4EFE6]'
+                                                }`}
+                                            >
+                                                {f.label}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Search Input */}
+                                    <div className="relative min-w-[260px]">
+                                        <Search className="w-4 h-4 text-[#9E938B] absolute left-3 top-1/2 -translate-y-1/2" />
+                                        <input
+                                            type="text"
+                                            value={ratingSearch}
+                                            onChange={(e) => setRatingSearch(e.target.value)}
+                                            placeholder="Cari tamu, order (#ORD-), menu..."
+                                            className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#141110] border border-[#241F1D] text-xs text-white placeholder-[#6E625A] focus:outline-none focus:border-[#B99A65]"
+                                        />
+                                        {ratingSearch && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setRatingSearch('')}
+                                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9E938B] hover:text-white"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Ratings List with Ordered Items */}
+                            <div className="space-y-4">
+                                {ratings
+                                    .filter(item => {
+                                        if (ratingStarFilter !== 'all' && String(item.rating) !== ratingStarFilter) return false;
+                                        if (ratingSearch.trim()) {
+                                            const q = ratingSearch.toLowerCase();
+                                            const mName = (item.customer_name || '').toLowerCase().includes(q);
+                                            const mEmail = (item.customer_email || '').toLowerCase().includes(q);
+                                            const mCode = (item.order_code || '').toLowerCase().includes(q);
+                                            const mTable = (item.table_number || '').toLowerCase().includes(q);
+                                            const mReview = (item.review || '').toLowerCase().includes(q);
+                                            const mItems = item.items && item.items.some(it => it.menu_name_snapshot.toLowerCase().includes(q));
+                                            if (!mName && !mEmail && !mCode && !mTable && !mReview && !mItems) return false;
+                                        }
+                                        return true;
+                                    })
+                                    .map(item => (
+                                        <div
+                                            key={item.id}
+                                            className="p-5 rounded-2xl bg-[#161312] border border-[#241F1D] hover:border-[#B99A65]/40 transition-all space-y-4 shadow-sm"
+                                        >
+                                            {/* Top Meta Bar */}
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#241F1D]">
+                                                <div className="flex items-center gap-3">
+                                                    {/* Star badge */}
+                                                    <div className="flex items-center gap-1 px-3 py-1 rounded-xl bg-[#32151F] border border-[#B99A65]/40">
+                                                        <div className="flex items-center gap-0.5 text-amber-400">
+                                                            {[1, 2, 3, 4, 5].map((s) => (
+                                                                <Star
+                                                                    key={s}
+                                                                    className={`w-3.5 h-3.5 ${
+                                                                        s <= item.rating
+                                                                            ? 'fill-amber-400 text-amber-400'
+                                                                            : 'text-stone-700'
+                                                                    }`}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                        <span className="font-heading font-black text-xs text-[#D4B886] ml-1">
+                                                            {item.rating}.0
+                                                        </span>
+                                                    </div>
+
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <strong className="text-white text-xs">{item.customer_name}</strong>
+                                                            <span className="text-[10px] text-[#9E938B] font-mono">{item.customer_email}</span>
+                                                        </div>
+                                                        <span className="text-[10px] text-[#9E938B] block mt-0.5">
+                                                            {item.created_at_formatted}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    <span className="px-2.5 py-1 rounded-lg bg-[#141110] border border-[#241F1D] text-xs font-mono font-bold text-[#D4B886]">
+                                                        #{item.order_code}
+                                                    </span>
+                                                    <span className="px-2.5 py-1 rounded-lg bg-[#141110] border border-[#241F1D] text-xs font-semibold text-stone-300">
+                                                        {item.table_number || 'Dine-In'}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Customer Review Comment */}
+                                            <div className="p-3.5 rounded-xl bg-[#141110] border border-[#241F1D]/80">
+                                                <p className="text-xs text-[#F4EFE6] leading-relaxed italic">
+                                                    {item.review ? `"${item.review}"` : <span className="text-[#9E938B] not-italic">Pelanggan tidak menyertakan catatan tertulis.</span>}
+                                                </p>
+                                            </div>
+
+                                            {/* Ordered Items Connection (Apa yang dibeli customer) */}
+                                            <div className="pt-2 border-t border-[#241F1D]">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-[#9E938B] block mb-2">
+                                                    Hidangan yang Dipesan pada Order Ini:
+                                                </span>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {item.items && item.items.length > 0 ? (
+                                                        item.items.map((it) => (
+                                                            <div
+                                                                key={it.id}
+                                                                className="px-3 py-1.5 rounded-xl bg-[#1E1A18] border border-[#2A2421] text-xs flex items-center gap-2"
+                                                            >
+                                                                <span className="font-bold text-[#D4B886] font-mono">
+                                                                    {it.quantity}x
+                                                                </span>
+                                                                <span className="text-white font-medium">
+                                                                    {it.menu_name_snapshot}
+                                                                </span>
+                                                                <span className="text-[#9E938B] text-[10px] font-mono">
+                                                                    ({formatRupiah(it.subtotal)})
+                                                                </span>
+                                                                {it.item_notes && (
+                                                                    <span className="px-1.5 py-0.5 rounded bg-amber-950/60 border border-amber-600/30 text-[10px] text-amber-300 italic font-normal">
+                                                                        Catatan: {it.item_notes}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-[#9E938B] italic">Rincian hidangan tidak ditemukan.</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                {ratings.length === 0 && (
+                                    <div className="text-center py-16 px-4 rounded-2xl bg-[#161312] border border-[#241F1D] space-y-3">
+                                        <div className="w-12 h-12 rounded-full bg-[#241F1D] text-[#D4B886] flex items-center justify-center mx-auto">
+                                            <Star className="w-6 h-6" />
+                                        </div>
+                                        <h4 className="font-heading text-base font-bold text-white">
+                                            Belum Ada Ulasan & Rating Pelanggan
+                                        </h4>
+                                        <p className="text-xs text-[#9E938B] max-w-md mx-auto">
+                                            Saat pelanggan yang login memberikan penilaian bintang dan ulasan setelah santap hidangan, data ulasan dan riwayat menu yang dipesan akan otomatis tercatat di sini.
                                         </p>
                                     </div>
                                 )}

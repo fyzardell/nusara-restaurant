@@ -97,6 +97,8 @@ Route::middleware('auth')->prefix('waiter')->group(function () {
     Route::get('/', [WaiterController::class, 'index'])->name('waiter.dashboard');
     Route::post('/table/{id}/validate', [WaiterController::class, 'validateTable'])->name('waiter.table.validate');
     Route::post('/order/{id}/serve', [WaiterController::class, 'markServed'])->name('waiter.order.serve');
+    Route::post('/order/{id}/ready', [WaiterController::class, 'markReady'])->name('waiter.order.ready');
+    Route::post('/order/{id}/complete', [WaiterController::class, 'markCompleted'])->name('waiter.order.complete');
     Route::post('/table/{id}/cleaning', [WaiterController::class, 'startCleaning'])->name('waiter.table.cleaning');
     Route::post('/table/{id}/available', [WaiterController::class, 'finishCleaning'])->name('waiter.table.available');
     Route::post('/table/{id}/status', [WaiterController::class, 'updateTableStatus'])->name('waiter.table.status');

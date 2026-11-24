@@ -17,11 +17,12 @@ import {
     ChevronRight, 
     X,
     Menu as MenuIcon,
-    RotateCcw
+    RotateCcw,
+    Star
 } from 'lucide-react';
 import { User } from '../types';
 
-export type AdminActiveNav = 'overview' | 'orders' | 'menus' | 'tables' | 'reservations' | 'refunds' | 'chats' | 'audit';
+export type AdminActiveNav = 'overview' | 'orders' | 'menus' | 'tables' | 'reservations' | 'refunds' | 'ratings' | 'chats' | 'audit';
 
 interface Props {
     adminUser: User;
@@ -36,6 +37,8 @@ interface Props {
         pendingReservations?: number;
         totalReservations?: number;
         pendingRefunds?: number;
+        avgRating?: number;
+        totalRatings?: number;
     };
     onTabSelect?: (tab: string) => void;
 }
@@ -242,6 +245,20 @@ export default function AdminSidebar({
                                             0
                                         </span>
                                     )}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => handleNavClick('ratings', '/admin?tab=ratings')}
+                                    className={navCls('ratings')}
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <Star className="w-4 h-4 text-[#B99A65]" />
+                                        <span>Ulasan & Rating</span>
+                                    </div>
+                                    <span className="text-[10px] text-amber-400 font-mono font-bold">
+                                        {metrics.avgRating ? `${metrics.avgRating} ★` : (metrics.totalRatings ?? '')}
+                                    </span>
                                 </button>
 
                                 <Link

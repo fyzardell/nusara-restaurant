@@ -1964,9 +1964,9 @@ export default function OrderApp({
                                                             </span>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => handleQuickAddToCart(menu)}
+                                                                onClick={() => handleOpenCustomizer(menu)}
                                                                 className="w-7 h-7 rounded-full bg-[#211D1B] text-[#D4B886] hover:bg-[#B99A65] hover:text-[#211D1B] transition-all flex items-center justify-center shadow-md active:scale-90"
-                                                                title="Tambah Cepat"
+                                                                title="Pesan Menu Ini"
                                                             >
                                                                 <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                                                             </button>
@@ -2081,7 +2081,7 @@ export default function OrderApp({
                                                         type="button"
                                                         onClick={() => {
                                                             if (popularPicks.length > 0) {
-                                                                handleQuickAddToCart(popularPicks[0]);
+                                                                handleOpenCustomizer(popularPicks[0]);
                                                             }
                                                         }}
                                                         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] text-[11px] font-extrabold uppercase tracking-wider hover:shadow-lg transition-transform active:scale-95"
@@ -2801,58 +2801,60 @@ export default function OrderApp({
                                                         </div>
                                                     )}
 
-                                                    {/* Rating & Kepuasan Pelanggan (Demo Flow) */}
-                                                    <div className="pt-3 border-t border-[#32151F]">
-                                                        {order.rating ? (
-                                                            <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-500/30 flex items-center justify-between gap-3 text-xs flex-wrap">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="flex items-center gap-0.5 text-amber-400">
-                                                                        {[1, 2, 3, 4, 5].map((star) => (
-                                                                            <Star
-                                                                                key={star}
-                                                                                className={`w-3.5 h-3.5 ${
-                                                                                    star <= (order.rating.rating || 5)
-                                                                                        ? 'fill-amber-400 text-amber-400'
-                                                                                        : 'text-stone-600'
-                                                                                }`}
-                                                                            />
-                                                                        ))}
+                                                    {/* Rating & Kepuasan Pelanggan (Hanya untuk Tamu / Pelanggan Terdaftar yang Log In) */}
+                                                    {Boolean(auth?.user) && (
+                                                        <div className="pt-3 border-t border-[#32151F]">
+                                                            {order.rating ? (
+                                                                <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-500/30 flex items-center justify-between gap-3 text-xs flex-wrap">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="flex items-center gap-0.5 text-amber-400">
+                                                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                                                <Star
+                                                                                    key={star}
+                                                                                    className={`w-3.5 h-3.5 ${
+                                                                                        star <= (order.rating.rating || 5)
+                                                                                            ? 'fill-amber-400 text-amber-400'
+                                                                                            : 'text-stone-600'
+                                                                                    }`}
+                                                                                />
+                                                                            ))}
+                                                                        </div>
+                                                                        <span className="font-bold text-amber-200">
+                                                                            Rating Terkirim ({order.rating.rating || 5} Bintang)
+                                                                        </span>
                                                                     </div>
-                                                                    <span className="font-bold text-amber-200">
-                                                                        Rating Terkirim ({order.rating.rating || 5} Bintang)
-                                                                    </span>
+                                                                    {order.rating.review && (
+                                                                        <span className="text-[11px] text-[#D4B886]/90 italic max-w-xs truncate">
+                                                                            "{order.rating.review}"
+                                                                        </span>
+                                                                    )}
                                                                 </div>
-                                                                {order.rating.review && (
-                                                                    <span className="text-[11px] text-[#D4B886]/90 italic max-w-xs truncate">
-                                                                        "{order.rating.review}"
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="p-3.5 rounded-2xl bg-[#32151F]/60 border border-[#B99A65]/30 flex items-center justify-between gap-3 flex-wrap">
-                                                                <div>
-                                                                    <span className="font-heading font-bold text-xs text-[#F4EFE6] block">
-                                                                        Kepuasan Santap
-                                                                    </span>
-                                                                    <span className="text-[11px] text-[#D4B886]/80">
-                                                                        Bagikan penilaian bintang Anda untuk hidangan ini.
-                                                                    </span>
+                                                            ) : (
+                                                                <div className="p-3.5 rounded-2xl bg-[#32151F]/60 border border-[#B99A65]/30 flex items-center justify-between gap-3 flex-wrap">
+                                                                    <div>
+                                                                        <span className="font-heading font-bold text-xs text-[#F4EFE6] block">
+                                                                            Kepuasan Santap
+                                                                        </span>
+                                                                        <span className="text-[11px] text-[#D4B886]/80">
+                                                                            Bagikan penilaian bintang Anda untuk hidangan ini.
+                                                                        </span>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setRatingOrder(order);
+                                                                            setSelectedStars(5);
+                                                                            setReviewComment('');
+                                                                        }}
+                                                                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:from-[#a88954] hover:to-[#c3a775] text-[#211D1B] font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
+                                                                    >
+                                                                        <Star className="w-3.5 h-3.5 fill-current" />
+                                                                        <span>Beri Bintang</span>
+                                                                    </button>
                                                                 </div>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setRatingOrder(order);
-                                                                        setSelectedStars(5);
-                                                                        setReviewComment('');
-                                                                    }}
-                                                                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:from-[#a88954] hover:to-[#c3a775] text-[#211D1B] font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
-                                                                >
-                                                                    <Star className="w-3.5 h-3.5 fill-current" />
-                                                                    <span>Beri Bintang</span>
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                            )}
+                                                        </div>
+                                                    )}
 
                                                     {/* Refund Action & Badges */}
                                                     {(order.order_status === 'Pending' || order.order_status === 'Refund Requested' || order.order_status === 'Refunded') && (
@@ -3059,9 +3061,16 @@ export default function OrderApp({
                                                     <h5 className="font-bold text-xs text-[#211D1B] truncate">
                                                         {item.menu.name}
                                                     </h5>
-                                                    <span className="font-mono text-[11px] text-[#946E2D]">
+                                                    <span className="font-mono text-[11px] text-[#946E2D] block">
                                                         {formatRupiah(item.menu.price)}
                                                     </span>
+                                                    <input
+                                                        type="text"
+                                                        value={item.item_notes}
+                                                        onChange={(e) => handleUpdateItemNotes(index, e.target.value)}
+                                                        placeholder="+ Catatan (misal: pedas sedang, kuah pisah)..."
+                                                        className="mt-1 w-full px-2 py-0.5 rounded-lg bg-stone-100 border border-stone-200 text-[10px] text-stone-800 placeholder-stone-400 focus:outline-none focus:border-[#B99A65]"
+                                                    />
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
                                                     <button
@@ -3370,18 +3379,43 @@ export default function OrderApp({
                             </div>
                         </div>
 
-                        {/* Special Notes / Request Khusus */}
+                        {/* Special Notes / Request Khusus (Gojek / Grab Style) */}
                         <div className="mb-6">
-                            <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#B99A65] mb-1.5">
-                                Catatan Khusus Menu Ini:
-                            </label>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <label className="text-[11px] font-semibold uppercase tracking-wider text-[#B99A65]">
+                                    Catatan Menu (Opsional):
+                                </label>
+                                <span className="text-[10px] text-stone-400">Instruksi Dapur</span>
+                            </div>
                             <textarea
                                 rows={2}
                                 value={customizeNotes}
                                 onChange={(e) => setCustomizeNotes(e.target.value)}
-                                placeholder="Contoh: Pedas sedang, kuah dipisah, tanpa seledri, dll."
+                                placeholder="Tulis catatan opsional: pedas sedang, kuah dipisah, ekstra sambal..."
                                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#32151F]/70 border border-[#B99A65]/30 text-xs text-[#F4EFE6] placeholder-[#F4EFE6]/30 focus:outline-none focus:border-[#D4B886]"
                             />
+                            {/* Gojek-style Quick Suggestion Chips */}
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                {[
+                                    'Pedas Sedang',
+                                    'Tidak Pedas',
+                                    'Kuah Dipisah',
+                                    'Ekstra Sambal',
+                                    'Kurangi Minyak',
+                                    'Bungkus Sebagian'
+                                ].map((chip) => (
+                                    <button
+                                        key={chip}
+                                        type="button"
+                                        onClick={() => {
+                                            setCustomizeNotes(prev => prev ? `${prev}, ${chip}` : chip);
+                                        }}
+                                        className="px-2.5 py-1 rounded-full bg-[#161312] hover:bg-[#32151F] border border-[#B99A65]/40 text-[10px] font-medium text-[#D4B886] transition-all cursor-pointer active:scale-95"
+                                    >
+                                        + {chip}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         <button

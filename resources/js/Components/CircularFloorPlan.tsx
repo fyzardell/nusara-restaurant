@@ -181,6 +181,7 @@ export default function CircularFloorPlan({
         // Looking at Today (live status)
         const rawStatus = tbl.status.toLowerCase();
 
+        // Priority 1: Pending Validation
         if (rawStatus === 'pending_validation' || rawStatus === 'pending validation') {
             return {
                 status: 'Pending Validation',
@@ -193,8 +194,34 @@ export default function CircularFloorPlan({
             };
         }
 
-        // Check Occupied: either rawStatus is occupied OR table has active orders
-        const hasActiveOrders = (tbl.active_orders_count && tbl.active_orders_count > 0) || rawStatus === 'occupied';
+        // Priority 2: Sedang Dibersihkan (Cleaning) - Wajib diprioritaskan agar meja yang dibersihkan berwarna biru & tidak salah tampil merah
+        if (rawStatus === 'cleaning') {
+            return {
+                status: 'Cleaning',
+                label: 'Pembersihan',
+                customer: 'Pramusaji',
+                time: 'Sedang Dibersihkan',
+                bgClass: 'bg-blue-950/60 border-blue-500/60 text-blue-200 shadow-blue-950/40 animate-pulse',
+                dotClass: 'bg-blue-400 animate-ping',
+                badgeClass: 'bg-blue-950 text-blue-300 border border-blue-600'
+            };
+        }
+
+        // Priority 3: Perawatan / Nonaktif
+        if (rawStatus === 'maintenance' || rawStatus === 'inactive') {
+            return {
+                status: 'Maintenance',
+                label: rawStatus === 'inactive' ? 'Nonaktif' : 'Perawatan',
+                customer: null,
+                time: null,
+                bgClass: 'bg-stone-900 border-stone-700 text-stone-400',
+                dotClass: 'bg-stone-500',
+                badgeClass: 'bg-stone-800 text-stone-400 border border-stone-700'
+            };
+        }
+
+        // Priority 4: Terisi (Occupied) - Bila status explicitly 'occupied', atau ada pesanan aktif (kecuali meja baru di-set available/cleaning)
+        const hasActiveOrders = rawStatus === 'occupied' || (rawStatus !== 'available' && tbl.active_orders_count && tbl.active_orders_count > 0);
 
         if (hasActiveOrders) {
             const customerName = tbl.active_order?.customer_name || (tbl.active_session?.session_code ? `Sesi ${tbl.active_session.session_code}` : 'Tamu Santap');
@@ -211,18 +238,7 @@ export default function CircularFloorPlan({
             };
         }
 
-        if (rawStatus === 'cleaning') {
-            return {
-                status: 'Cleaning',
-                label: 'Pembersihan',
-                customer: 'Pramusaji',
-                time: 'Sedang Dibersihkan',
-                bgClass: 'bg-blue-950/60 border-blue-500/60 text-blue-200 shadow-blue-950/40 animate-pulse',
-                dotClass: 'bg-blue-400 animate-ping',
-                badgeClass: 'bg-blue-950 text-blue-300 border border-blue-600'
-            };
-        }
-
+        // Priority 5: Reservasi (Reserved / Booking Aktif)
         if (rawStatus === 'reserved' || tbl.active_reservation || dateResList.length > 0) {
             const res = tbl.active_reservation || dateResList[0];
             const customerName = res?.customer_name || 'Tamu Reservasi';
@@ -238,7 +254,7 @@ export default function CircularFloorPlan({
             };
         }
 
-        // Available
+        // Priority 6: Kosong (Available) - Meja bersih & siap digunakan
         return {
             status: 'Available',
             label: 'Kosong',

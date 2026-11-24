@@ -424,6 +424,44 @@ class AdminController extends Controller
 
         $pendingRefundsCount = collect($refundRequests)->where('status', 'Pending')->count();
 
+        // Ratings & Ulasan Kepuasan Pelanggan beserta Item yang Dipesan
+        $rawRatings = DB::table('order_ratings')
+            ->join('orders', 'order_ratings.order_id', '=', 'orders.id')
+            ->leftJoin('users', 'order_ratings.user_id', '=', 'users.id')
+            ->leftJoin('customers', 'orders.customer_id', '=', 'customers.id')
+            ->select(
+                'order_ratings.id',
+                'order_ratings.order_id',
+                'order_ratings.rating',
+                'order_ratings.review',
+                'order_ratings.created_at',
+                'orders.order_code',
+                'orders.table_number',
+                'orders.total',
+                'orders.order_status',
+                DB::raw('COALESCE(users.name, customers.name, "Pelanggan Terdaftar") as customer_name'),
+                DB::raw('COALESCE(users.email, customers.email, "-") as customer_email'),
+                DB::raw('COALESCE(customers.phone_normalized, "-") as customer_phone')
+            )
+            ->orderBy('order_ratings.created_at', 'desc')
+            ->get();
+
+        $ratingOrderIds = $rawRatings->pluck('order_id')->unique()->filter()->values();
+        $orderItemsByOrderId = DB::table('order_items')
+            ->whereIn('order_id', $ratingOrderIds)
+            ->select('id', 'order_id', 'menu_name_snapshot', 'unit_price_snapshot', 'quantity', 'subtotal', 'item_notes')
+            ->get()
+            ->groupBy('order_id');
+
+        $ratings = $rawRatings->map(function ($r) use ($orderItemsByOrderId) {
+            $r->items = $orderItemsByOrderId->get($r->order_id, collect())->values();
+            $r->created_at_formatted = Carbon::parse($r->created_at)->format('d M Y, H:i') . ' WIB';
+            return $r;
+        });
+
+        $avgRating = $rawRatings->count() > 0 ? round($rawRatings->avg('rating'), 1) : 5.0;
+        $totalRatings = $rawRatings->count();
+
         return Inertia::render('Admin/Dashboard', [
             'initialTab' => $request->query('tab', 'overview'),
             'metrics' => [
@@ -436,12 +474,15 @@ class AdminController extends Controller
                 'pendingReservations' => $pendingReservationsCount,
                 'unreadChatCount' => $unreadChatCount,
                 'pendingRefunds' => $pendingRefundsCount,
+                'avgRating' => (float) $avgRating,
+                'totalRatings' => $totalRatings,
             ],
             'orders' => $orders,
             'menus' => $menus,
             'tables' => $tables,
             'reservations' => $reservations,
             'refundRequests' => $refundRequests,
+            'ratings' => $ratings,
             'auditLogs' => $auditLogs,
             'settings' => $settings,
             'adminUser' => $user,

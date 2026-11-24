@@ -403,6 +403,64 @@ class WaiterController extends Controller
     }
 
     /**
+     * Waiter marks order as Ready to serve (Preparing / Confirmed -> Ready)
+     */
+    public function markReady(Request $request, $orderId)
+    {
+        $order = DB::table('orders')->where('id', $orderId)->first();
+        if (!$order) {
+            return back()->with('error', 'Pesanan tidak ditemukan.');
+        }
+
+        DB::table('orders')->where('id', $orderId)->update([
+            'order_status' => 'Ready',
+            'updated_at' => now(),
+        ]);
+
+        DB::table('order_status_histories')->insert([
+            'order_id' => $orderId,
+            'changed_by' => Auth::id(),
+            'previous_status' => $order->order_status,
+            'new_status' => 'Ready',
+            'notes' => 'Pramusaji mengonfirmasi hidangan selesai diracik dapur & siap saji (' . (Auth::user()->name ?? 'Waiter') . ')',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $tableLabel = $order->table_number ? "{$order->table_number}" : 'meja tamu';
+        return back()->with('success', "Pesanan {$order->order_code} ({$tableLabel}) ditandai Siap Saji (Ready)!");
+    }
+
+    /**
+     * Waiter confirms order as Completed (Served / Ready -> Completed)
+     */
+    public function markCompleted(Request $request, $orderId)
+    {
+        $order = DB::table('orders')->where('id', $orderId)->first();
+        if (!$order) {
+            return back()->with('error', 'Pesanan tidak ditemukan.');
+        }
+
+        DB::table('orders')->where('id', $orderId)->update([
+            'order_status' => 'Completed',
+            'updated_at' => now(),
+        ]);
+
+        DB::table('order_status_histories')->insert([
+            'order_id' => $orderId,
+            'changed_by' => Auth::id(),
+            'previous_status' => $order->order_status,
+            'new_status' => 'Completed',
+            'notes' => 'Pramusaji mengonfirmasi pesanan hidangan selesai dinikmati tamu (' . (Auth::user()->name ?? 'Waiter') . ')',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $tableLabel = $order->table_number ? "{$order->table_number}" : 'meja tamu';
+        return back()->with('success', "Pesanan {$order->order_code} ({$tableLabel}) dikonfirmasi selesai (Completed)!");
+    }
+
+    /**
      * Waiter starts cleaning table after customer departs (Occupied -> Cleaning)
      * PRD Section 6.1 & 6.2
      */
@@ -417,6 +475,30 @@ class WaiterController extends Controller
             'status' => 'Cleaning',
             'updated_at' => now(),
         ]);
+
+        // Tutup sesi aktif meja karena tamu telah beranjak
+        DB::table('table_sessions')
+            ->where('table_id', $tableId)
+            ->whereIn('status', ['Pending Validation', 'Open'])
+            ->update([
+                'status' => 'Closed',
+                'closed_by' => Auth::id(),
+                'ended_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        // Selesaikan pesanan santap terdahulu di meja ini agar antrean aktif bersih
+        DB::table('orders')
+            ->where(function ($q) use ($table) {
+                $q->where('table_number', $table->table_number)
+                  ->orWhere('table_number', 'Meja ' . str_pad($table->id, 2, '0', STR_PAD_LEFT))
+                  ->orWhere('table_number', (string) $table->id);
+            })
+            ->whereIn('order_status', ['Pending', 'Awaiting Payment', 'Paid', 'Confirmed', 'Preparing', 'Ready', 'Served', 'Delivered'])
+            ->update([
+                'order_status' => 'Completed',
+                'updated_at' => now(),
+            ]);
 
         return back()->with('success', "{$table->table_number} ditandai sedang dibersihkan (Cleaning).");
     }
