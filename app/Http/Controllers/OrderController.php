@@ -386,12 +386,19 @@ class OrderController extends Controller
 
         // Proteksi Takeaway: Wajib Login
         if ($request->order_type === 'takeaway' && !$user) {
-            return redirect()->route('login')->with('error', 'Pesanan Bawa Pulang (Takeaway) mewajibkan Anda masuk ke Akun Customer agar staf kami dapat menghubungi Anda saat pesanan siap diambil.');
+            return response()->json([
+                'success' => false,
+                'message' => 'Pesanan Bawa Pulang (Takeaway) mewajibkan Anda masuk ke Akun Customer agar staf kami dapat menghubungi Anda saat pesanan siap diambil.',
+                'requires_login' => true,
+            ], 401);
         }
 
         // Proteksi Dine In: Wajib pilih / input nomor meja
         if ($request->order_type === 'dine_in' && !$request->table_number) {
-            return redirect()->back()->with('error', 'Silakan pilih atau ketik nomor meja yang sedang Anda tempati.');
+            return response()->json([
+                'success' => false,
+                'message' => 'Silakan pilih atau tentukan nomor meja yang sedang Anda tempati.',
+            ], 422);
         }
 
         $customerName = trim($request->customer_name);
@@ -423,21 +430,31 @@ class OrderController extends Controller
             $checkTableNum = trim($request->table_number);
             $checkTable = DB::table('restaurant_tables')->where('table_number', $checkTableNum)->first();
             if (!$checkTable || !$checkTable->is_active || in_array($checkTable->status, ['Inactive', 'Maintenance'])) {
-                return back()->with('error', "Meja {$checkTableNum} tidak valid atau sedang tidak beroperasi.");
+                return response()->json([
+                    'success' => false,
+                    'message' => "Meja {$checkTableNum} tidak valid atau sedang tidak beroperasi untuk perjamuan.",
+                ], 422);
             }
             if ($checkTable->status === 'Cleaning') {
-                return back()->with('error', "Meja {$checkTableNum} sedang dibersihkan dan disanitasi oleh pramusaji. Silakan pilih meja lain yang tersedia.");
+                return response()->json([
+                    'success' => false,
+                    'message' => "Meja {$checkTableNum} sedang dibersihkan dan disanitasi oleh pramusaji. Silakan pilih meja santap lain yang tersedia.",
+                ], 422);
             }
             if ($checkTable->status === 'Reserved') {
-                return back()->with('error', "Meja {$checkTableNum} telah direservasi untuk tamu lain. Silakan pilih meja lain yang tersedia.");
+                return response()->json([
+                    'success' => false,
+                    'message' => "Meja {$checkTableNum} telah direservasi untuk tamu lain. Silakan pilih meja santap lain yang tersedia.",
+                ], 422);
             }
             if ($checkTable->status === 'Occupied') {
                 $todayDate = now('Asia/Jakarta')->toDateString();
                 $isMyTable = false;
-                if ($user && $customer) {
+                $customerObj = $user ? DB::table('customers')->where('user_id', $user->id)->first() : null;
+                if ($user && $customerObj) {
                     $isMyTable = DB::table('orders')
                         ->where('table_number', $checkTableNum)
-                        ->where('customer_id', $customer->id)
+                        ->where('customer_id', $customerObj->id)
                         ->whereDate('created_at', $todayDate)
                         ->whereNotIn('order_status', ['Completed', 'Cancelled'])
                         ->exists();
@@ -451,8 +468,19 @@ class OrderController extends Controller
                         ->whereNotIn('order_status', ['Completed', 'Cancelled'])
                         ->exists();
                 }
-                if (!$isMyTable) {
-                    return back()->with('error', "Meja {$checkTableNum} sedang digunakan oleh tamu lain. Silakan pilih meja santap lain yang tersedia.");
+
+                // Cek apakah ada pesanan aktif milik orang lain di meja ini hari ini
+                $hasActiveOrders = DB::table('orders')
+                    ->where('table_number', $checkTableNum)
+                    ->whereDate('created_at', $todayDate)
+                    ->whereNotIn('order_status', ['Completed', 'Cancelled'])
+                    ->exists();
+
+                if (!$isMyTable && $hasActiveOrders) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Meja {$checkTableNum} sedang digunakan oleh tamu lain. Silakan pilih meja santap lain yang tersedia.",
+                    ], 422);
                 }
             }
         }

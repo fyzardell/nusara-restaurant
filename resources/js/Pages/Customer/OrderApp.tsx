@@ -974,6 +974,7 @@ export default function OrderApp({
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-TOKEN': csrfToken,
                 },
                 body: JSON.stringify({
@@ -990,9 +991,21 @@ export default function OrderApp({
                 }),
             });
 
-            const data = await response.json();
+            let data: any = {};
+            const textResponse = await response.text();
+            try {
+                data = JSON.parse(textResponse);
+            } catch {
+                throw new Error('Terjadi kendala pada server saat memproses pesanan. Silakan muat ulang halaman atau pilih meja lain.');
+            }
 
             if (!response.ok || !data.success) {
+                if (data.requires_login) {
+                    showAlert(data.message || 'Silakan masuk ke akun terlebih dahulu.', 'warning', 'Perlu Masuk Akun', () => {
+                        window.location.href = '/login?tab=login';
+                    });
+                    return;
+                }
                 throw new Error(data.message || 'Gagal memproses pesanan.');
             }
 
