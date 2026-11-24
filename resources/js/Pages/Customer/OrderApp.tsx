@@ -4,38 +4,50 @@ import FlashToast from '../../Components/FlashToast';
 import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
 import CustomerSettings from './CustomerSettings';
 import LuxuryAlertModal, { LuxuryAlertState } from '../../Components/LuxuryAlertModal';
-import {
-    Category,
-    Menu,
-    Order,
-    ChatMessage,
-    RestaurantTable,
-    RestaurantSettings,
-    User
+import { 
+    QrisLogo, 
+    GopayLogo, 
+    ShopeePayLogo, 
+    DanaLogo, 
+    OvoLogo, 
+    BcaLogo, 
+    MandiriLogo, 
+    BniLogo, 
+    BriLogo, 
+    PermataLogo 
+} from '../../Components/PaymentLogos';
+import { 
+    Category, 
+    Menu, 
+    Order, 
+    ChatMessage, 
+    RestaurantTable, 
+    RestaurantSettings, 
+    User 
 } from '../../types';
-import {
-    ShoppingBag,
-    Heart,
-    Clock,
-    MessageSquare,
-    Search,
-    Sparkles,
-    QrCode,
-    ChevronRight,
-    ArrowLeft,
-    Star,
-    Send,
-    X,
-    Users,
-    Plus,
-    Minus,
-    CheckCircle2,
-    AlertCircle,
-    MapPin,
-    Utensils,
+import { 
+    ShoppingBag, 
+    Heart, 
+    Clock, 
+    MessageSquare, 
+    Search, 
+    Sparkles, 
+    QrCode, 
+    ChevronRight, 
+    ArrowLeft, 
+    Star, 
+    Send, 
+    X, 
+    Users, 
+    Plus, 
+    Minus, 
+    CheckCircle2, 
+    AlertCircle, 
+    MapPin, 
+    Utensils, 
     UtensilsCrossed,
-    Check,
-    Info,
+    Check, 
+    Info, 
     ShieldCheck,
     LogOut,
     Coffee,
@@ -64,9 +76,7 @@ import {
     KeyRound,
     Shield,
     Soup,
-    Cake,
-    Ban,
-    Calendar
+    Cake
 } from 'lucide-react';
 
 function TypingGreeting({ name }: { name: string }) {
@@ -110,14 +120,6 @@ function TypingGreeting({ name }: { name: string }) {
     );
 }
 
-export interface TableAvailabilityError {
-    table_number: string;
-    status: 'occupied' | 'reserved' | 'cleaning' | 'inactive' | 'not_found';
-    title: string;
-    message: string;
-    can_choose_other: boolean;
-}
-
 interface Props {
     categories: Category[];
     menus: Menu[];
@@ -126,9 +128,7 @@ interface Props {
     chatMessages: ChatMessage[];
     tables: RestaurantTable[];
     settings: RestaurantSettings;
-    customer?: any;
     initialTable?: string | null;
-    tableAvailabilityError?: TableAvailabilityError | null;
     initialType?: 'dine_in' | 'takeaway';
     initialMenuId?: number | null;
     isGuest?: boolean;
@@ -142,17 +142,191 @@ interface CartItem {
     item_notes: string;
 }
 
-export default function OrderApp({
-    categories = [],
-    menus = [],
-    favorites: initialFavorites = [],
-    orders: initialOrders = [],
-    chatMessages: initialChats = [],
-    tables = [],
+const ORDER_PAYMENT_METHODS = [
+    // 1. Tunai di Kasir
+    {
+        id: 'cash' as const,
+        category: 'cash' as const,
+        title: 'Tunai di Kasir (Cash)',
+        subtitle: 'Selesaikan transaksi di meja kasir restoran',
+        badge: 'Pembayaran Langsung',
+        badgeColor: 'bg-amber-50 text-amber-900 border-amber-300',
+        logo: (
+            <div className="h-7 px-2 rounded-lg bg-[#32151F] text-[#D4B886] flex items-center justify-center font-bold text-[11px] gap-1.5 border border-[#B99A65]/40 shadow-xs">
+                <Banknote className="w-4 h-4 text-[#D4B886]" />
+                <span className="font-heading tracking-wide">KASIR CASH</span>
+            </div>
+        ),
+        apps: ['Uang Tunai (IDR)', 'Kasir Restoran NUSARA'],
+        instructions: [
+            'Pramusaji atau kasir kami akan menerima pembayaran tunai Anda di meja kasir restoran.',
+            'Pesanan langsung masuk ke sistem dan koki dapur segera memasak hidangan istimewa Anda.',
+            'Struk transaksi resmi restoran NUSARA akan dicetak langsung setelah kasir menerima pembayaran.'
+        ]
+    },
+    // 2. QRIS & e-Wallet
+    {
+        id: 'qris' as const,
+        category: 'ewallet' as const,
+        title: 'QRIS Instan',
+        subtitle: 'Semua e-Wallet & M-Banking',
+        badge: 'Scan Bebas Biaya',
+        badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+        logo: <QrisLogo className="h-6 w-auto" />,
+        apps: ['GoPay', 'OVO', 'ShopeePay', 'Dana', 'BCA QR', 'Livin', 'LinkAja'],
+        instructions: [
+            'Buka aplikasi e-Wallet atau Mobile Banking Anda (GoPay, OVO, ShopeePay, Dana, BCA Mobile, Livin, dll).',
+            'Tekan tombol checkout untuk membuka kode QRIS dinamis resmi.',
+            'Pindai (scan) kode QR dan selesaikan transaksi. Pesanan Anda langsung otomatis terverifikasi dan masuk antrean dapur.'
+        ]
+    },
+    {
+        id: 'gopay' as const,
+        category: 'ewallet' as const,
+        title: 'GoPay',
+        subtitle: 'GoPay App & Gojek',
+        badge: 'Direct Deeplink / QR',
+        badgeColor: 'bg-sky-50 text-sky-800 border-sky-200',
+        logo: <GopayLogo className="h-6 w-auto" />,
+        apps: ['GoPay App', 'Gojek Superapp', 'QRIS GoPay'],
+        instructions: [
+            'Tekan tombol checkout untuk membuka jendela pembayaran resmi GoPay.',
+            'Pada smartphone, aplikasi GoPay / Gojek akan terbuka otomatis untuk menyelesaikan pembayaran.',
+            'Pada laptop/desktop, pindai kode QR GoPay yang tampil di layar melalui aplikasi ponsel Anda.'
+        ]
+    },
+    {
+        id: 'shopeepay' as const,
+        category: 'ewallet' as const,
+        title: 'ShopeePay',
+        subtitle: 'Shopee & ShopeePay App',
+        badge: 'Direct Deeplink / QR',
+        badgeColor: 'bg-orange-50 text-orange-800 border-orange-200',
+        logo: <ShopeePayLogo className="h-6 w-auto" />,
+        apps: ['Shopee App', 'ShopeePay App'],
+        instructions: [
+            'Tekan tombol checkout untuk menghubungkan langsung ke dompet ShopeePay.',
+            'Konfirmasi transaksi di aplikasi Shopee Anda dengan memasukkan PIN ShopeePay atau biometrik.',
+            'Setelah pembayaran terverifikasi, pesanan Anda langsung diproses oleh koki dapur NUSARA.'
+        ]
+    },
+    {
+        id: 'dana' as const,
+        category: 'ewallet' as const,
+        title: 'DANA',
+        subtitle: 'Dompet Digital Indonesia',
+        badge: 'Scan QRIS Dinamis',
+        badgeColor: 'bg-blue-50 text-blue-800 border-blue-200',
+        logo: <DanaLogo className="h-6 w-auto" />,
+        apps: ['DANA App', 'QRIS DANA'],
+        instructions: [
+            'Tekan tombol checkout untuk memunculkan kode QRIS resmi.',
+            'Buka aplikasi DANA di ponsel Anda lalu pilih menu "Scan / Pindai".',
+            'Arahkan kamera ke kode QR dan masukkan PIN DANA Anda untuk menyelesaikan pembayaran pesanan.'
+        ]
+    },
+    {
+        id: 'ovo' as const,
+        category: 'ewallet' as const,
+        title: 'OVO Cash',
+        subtitle: 'OVO Points & Cash',
+        badge: 'Scan QRIS Dinamis',
+        badgeColor: 'bg-purple-50 text-purple-800 border-purple-200',
+        logo: <OvoLogo className="h-6 w-auto" />,
+        apps: ['OVO App', 'QRIS OVO'],
+        instructions: [
+            'Tekan tombol checkout untuk membuka kode QRIS dinamis resmi.',
+            'Buka aplikasi OVO di smartphone Anda lalu tekan tombol "QRIS" di halaman utama.',
+            'Pindai kode QR dan konfirmasi nominal pembayaran pesanan dengan Security Code OVO.'
+        ]
+    },
+    // 3. Virtual Account Bank
+    {
+        id: 'bca_va' as const,
+        category: 'va' as const,
+        title: 'BCA Virtual Account',
+        subtitle: 'BCA Mobile, myBCA, KlikBCA',
+        badge: 'Verifikasi Otomatis',
+        badgeColor: 'bg-blue-50 text-blue-800 border-blue-200',
+        logo: <BcaLogo className="h-6 w-auto" />,
+        apps: ['BCA Mobile', 'myBCA', 'KlikBCA', 'ATM BCA'],
+        instructions: [
+            'Tekan tombol checkout untuk memperoleh nomor Virtual Account BCA resmi.',
+            'Buka aplikasi BCA Mobile / myBCA / KlikBCA pilih m-Transfer lalu BCA Virtual Account.',
+            'Masukkan nomor VA yang tertera dan selesaikan pembayaran sesuai nominal tepat.'
+        ]
+    },
+    {
+        id: 'mandiri_va' as const,
+        category: 'va' as const,
+        title: 'Mandiri Virtual Account',
+        subtitle: "Livin' by Mandiri & ATM",
+        badge: 'Verifikasi Otomatis',
+        badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+        logo: <MandiriLogo className="h-6 w-auto" />,
+        apps: ["Livin' by Mandiri", 'Mandiri ATM', 'Internet Banking'],
+        instructions: [
+            'Tekan tombol checkout untuk memperoleh kode perusahaan dan nomor Virtual Account.',
+            "Buka aplikasi Livin' by Mandiri pilih menu Bayar lalu Cari Penyedia Jasa atau masukkan kode.",
+            'Konfirmasi detail pembayaran dan masukkan PIN Livin Anda.'
+        ]
+    },
+    {
+        id: 'bni_va' as const,
+        category: 'va' as const,
+        title: 'BNI Virtual Account',
+        subtitle: 'BNI Mobile Banking & ATM',
+        badge: 'Verifikasi Otomatis',
+        badgeColor: 'bg-teal-50 text-teal-800 border-teal-200',
+        logo: <BniLogo className="h-6 w-auto" />,
+        apps: ['BNI Mobile', 'BNI Direct', 'ATM BNI'],
+        instructions: [
+            'Tekan tombol checkout untuk memperoleh nomor Virtual Account BNI.',
+            'Buka aplikasi BNI Mobile Banking pilih Pembayaran lalu Virtual Account Billing.',
+            'Masukkan nomor VA dan selesaikan pembayaran dengan password transaksi Anda.'
+        ]
+    },
+    {
+        id: 'bri_va' as const,
+        category: 'va' as const,
+        title: 'BRI Virtual Account',
+        subtitle: 'BRIVA via BRImo & ATM',
+        badge: 'Verifikasi Otomatis',
+        badgeColor: 'bg-sky-50 text-sky-800 border-sky-200',
+        logo: <BriLogo className="h-6 w-auto" />,
+        apps: ['BRImo', 'Internet Banking BRI', 'ATM BRI'],
+        instructions: [
+            'Tekan tombol checkout untuk memperoleh nomor BRIVA (BRI Virtual Account).',
+            'Buka aplikasi BRImo pilih menu Tagihan / BRIVA lalu Pembayaran Baru.',
+            'Masukkan nomor BRIVA dan konfirmasi pembayaran dengan PIN BRImo Anda.'
+        ]
+    },
+    {
+        id: 'permata_va' as const,
+        category: 'va' as const,
+        title: 'Permata & Bank Lainnya',
+        subtitle: 'PermataMobile X, ATM Bersama',
+        badge: 'Verifikasi Otomatis',
+        badgeColor: 'bg-purple-50 text-purple-800 border-purple-200',
+        logo: <PermataLogo className="h-6 w-auto" />,
+        apps: ['PermataMobile X', 'ATM Bersama', 'Prima', 'ALTO'],
+        instructions: [
+            'Tekan tombol checkout untuk memperoleh nomor Virtual Account Permata.',
+            'Dapat dibayar dari bank apa pun melalui menu Transfer Antar Bank (pilih Bank Permata / kode 013).',
+            'Masukkan nomor VA sebagai nomor rekening tujuan transfer.'
+        ]
+    },
+];
+
+export default function OrderApp({ 
+    categories = [], 
+    menus = [], 
+    favorites: initialFavorites = [], 
+    orders: initialOrders = [], 
+    chatMessages: initialChats = [], 
+    tables = [], 
     settings,
-    customer,
     initialTable,
-    tableAvailabilityError,
     initialType,
     initialMenuId,
     isGuest: initialIsGuest = false,
@@ -162,23 +336,8 @@ export default function OrderApp({
     const { auth, flash } = usePage<{ auth: { user: User | null }; flash: { success?: string; error?: string } }>().props;
     const isGuest = !auth?.user;
 
-    const [tableAlertModal, setTableAlertModal] = useState<TableAvailabilityError | null>(() => tableAvailabilityError || null);
-
-    // Jika meja yang dipindai tidak tersedia, hapus cache meja dan bersihkan param table di URL
-    useEffect(() => {
-        if (tableAvailabilityError) {
-            localStorage.removeItem('nusara_selected_table');
-            if (typeof window !== 'undefined') {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('table');
-                window.history.replaceState({}, '', url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : ''));
-            }
-        }
-    }, [tableAvailabilityError]);
-
     // Service Mode: 'unselected' (3 cards) | 'selecting_table' | 'confirmed' (catalog)
     const [serviceMode, setServiceMode] = useState<'unselected' | 'selecting_table' | 'confirmed'>(() => {
-        if (tableAvailabilityError) return 'selecting_table';
         if (typeof window === 'undefined') return 'unselected';
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('table') || urlParams.get('type') || initialTable) return 'confirmed';
@@ -198,11 +357,10 @@ export default function OrderApp({
     });
 
     const [selectedTable, setSelectedTable] = useState<string>(() => {
-        if (tableAvailabilityError) return '';
         if (typeof window === 'undefined') return initialTable || 'Meja 01';
         const urlParams = new URLSearchParams(window.location.search);
         const urlTable = urlParams.get('table');
-        if (urlTable && !tableAvailabilityError) return urlTable;
+        if (urlTable) return urlTable;
         const saved = localStorage.getItem('nusara_selected_table');
         return saved || initialTable || 'Meja 01';
     });
@@ -222,17 +380,23 @@ export default function OrderApp({
             localStorage.setItem('nusara_order_type', orderType);
             localStorage.setItem('nusara_selected_table', selectedTable);
             localStorage.setItem('nusara_customer_name', customerName);
-        } catch { }
+        } catch {}
     }, [serviceMode, orderType, selectedTable, customerName]);
 
-    // Navigation Tab state
-    const [activeTab, setActiveTab] = useState<'menu' | 'cart' | 'active_order' | 'history' | 'favorites' | 'chat' | 'settings'>('menu');
+    // Navigation Tab state (Demo: Pesanan Aktif only, No Riwayat Selesai or Favorit)
+    const [activeTab, setActiveTab] = useState<'menu' | 'cart' | 'active_order' | 'chat' | 'settings'>('menu');
+
+    // Orders local state (reactive for ratings & updates)
+    const [orders, setOrders] = useState<Order[]>(initialOrders);
+    useEffect(() => {
+        setOrders(initialOrders);
+    }, [initialOrders]);
 
     // Search and Category
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
 
-    // Favorites local state
+    // Favorites local state (kept for prop compatibility, favoriting disabled in demo)
     const [favorites, setFavorites] = useState<number[]>(initialFavorites);
 
     // Sidebar & Modal states
@@ -249,7 +413,7 @@ export default function OrderApp({
     useEffect(() => {
         try {
             localStorage.setItem('nusara_sidebar_expanded', String(isDesktopSidebarExpanded));
-        } catch { }
+        } catch {}
     }, [isDesktopSidebarExpanded]);
 
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -268,7 +432,10 @@ export default function OrderApp({
     });
 
     const [generalNotes, setGeneralNotes] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState<'qris' | 'cash'>('cash');
+    const [paymentMethod, setPaymentMethod] = useState<
+        'cash' | 'qris' | 'gopay' | 'shopeepay' | 'dana' | 'ovo' | 'bca_va' | 'mandiri_va' | 'bni_va' | 'bri_va' | 'permata_va'
+    >('cash');
+    const [paymentCategoryFilter, setPaymentCategoryFilter] = useState<'all' | 'ewallet' | 'va' | 'cash'>('all');
     const [isCheckingOut, setIsCheckingOut] = useState(false);
     const [luxuryAlert, setLuxuryAlert] = useState<LuxuryAlertState | null>(null);
 
@@ -425,19 +592,15 @@ export default function OrderApp({
     }, [menus]);
 
 
-    // Filtered Menus
+    // Filtered Menus (Katalog Hidangan)
     const displayedMenus = useMemo(() => {
-        let list = menus;
-        if (activeTab === 'favorites') {
-            list = list.filter(m => favorites.includes(m.id));
-        }
-        return list.filter(menu => {
+        return menus.filter(menu => {
             const matchesCategory = selectedCategory === 'all' || menu.category_slug === selectedCategory;
-            const matchesSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                menu.description.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesSearch = menu.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                  menu.description.toLowerCase().includes(searchQuery.toLowerCase());
             return matchesCategory && matchesSearch;
         });
-    }, [menus, favorites, activeTab, selectedCategory, searchQuery]);
+    }, [menus, selectedCategory, searchQuery]);
 
     // Popular Picks Menus (featured or best seller)
     const popularPicks = useMemo(() => {
@@ -445,14 +608,10 @@ export default function OrderApp({
         return feat.length >= 3 ? feat.slice(0, 6) : menus.slice(0, 6);
     }, [menus]);
 
-    // Strict separation: Active orders vs Completed history
+    // Pesanan Aktif: Memuat seluruh pesanan sesi santap ini (Pending s/d Served & Completed untuk rating bintang)
     const activeOrders = useMemo(() => {
-        return initialOrders.filter(o => ['Pending', 'Awaiting Payment', 'Paid', 'Confirmed', 'Preparing', 'Ready'].includes(o.order_status));
-    }, [initialOrders]);
-
-    const completedOrders = useMemo(() => {
-        return initialOrders.filter(o => ['Served', 'Picked Up', 'Completed', 'Cancelled', 'Refund Requested', 'Refunded'].includes(o.order_status));
-    }, [initialOrders]);
+        return orders.filter(o => !['Cancelled', 'Refunded'].includes(o.order_status));
+    }, [orders]);
 
     // Background polling for customer order status (updates real-time when kitchen prepares/waiter serves/chat arrives)
     useEffect(() => {
@@ -463,6 +622,8 @@ export default function OrderApp({
                 isPolling = true;
                 router.reload({
                     only: ['orders', 'tables', 'chatMessages'],
+                    preserveScroll: true,
+                    preserveState: true,
                     data: selectedTable ? { table: selectedTable } : {},
                     onFinish: () => {
                         isPolling = false;
@@ -476,16 +637,14 @@ export default function OrderApp({
 
     // Otomatis verifikasi pesanan online Midtrans di latar belakang (langsung ke 'Preparing' saat pembayaran berhasil di ponsel)
     useEffect(() => {
-        const pendingOnlineOrder = initialOrders.find(
-            o => ((o.payment?.payment_status === 'Pending' || (o as any).payment_status === 'Pending') &&
-                (o.payment?.payment_method !== 'cash' && (o as any).payment_method !== 'cash') &&
-                !['Cancelled', 'Refunded'].includes(o.order_status))
+        const pendingOnlineOrder = orders.find(
+            o => o.payment_status === 'Pending' && o.payment_method !== 'cash' && !['Cancelled', 'Refunded'].includes(o.order_status)
         );
         if (!pendingOnlineOrder) return;
 
         let isChecking = false;
         const interval = setInterval(async () => {
-            if (isChecking || typeof document === 'undefined' || document.visibilityState !== 'visible') return;
+            if (isChecking || typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
             isChecking = true;
             try {
                 const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
@@ -500,7 +659,7 @@ export default function OrderApp({
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    router.reload({ only: ['orders'] });
+                    router.reload({ only: ['orders'], preserveScroll: true, preserveState: true });
                 }
             } catch (e) {
                 // Silently ignore temporary network retry
@@ -510,7 +669,7 @@ export default function OrderApp({
         }, 4000);
 
         return () => clearInterval(interval);
-    }, [initialOrders]);
+    }, [orders]);
 
     useEffect(() => {
         if (initialMenuId) {
@@ -525,7 +684,7 @@ export default function OrderApp({
 
     const getStatusStep = (status: string) => {
         switch (status) {
-            case 'Pending':
+            case 'Pending': 
             case 'Awaiting Payment': return 1;
             case 'Confirmed':
             case 'Paid':
@@ -588,7 +747,7 @@ export default function OrderApp({
             });
             return;
         }
-        setFavorites(prev =>
+        setFavorites(prev => 
             prev.includes(menuId) ? prev.filter(id => id !== menuId) : [...prev, menuId]
         );
         router.post('/favorites/toggle', { menu_id: menuId }, { preserveScroll: true });
@@ -712,8 +871,8 @@ export default function OrderApp({
         (window as any).snap.pay(snapToken, {
             onSuccess: async function (result: any) {
                 setCart([]);
-                try { localStorage.removeItem('nusara_customer_cart'); } catch { }
-
+                try { localStorage.removeItem('nusara_customer_cart'); } catch {}
+                
                 // Konfirmasi otomatis pembayaran online ke server backend agar status langsung 'Preparing'
                 try {
                     const orderIdToConfirm = targetOrderId || result?.order_id;
@@ -739,7 +898,7 @@ export default function OrderApp({
             },
             onPending: function () {
                 setCart([]);
-                try { localStorage.removeItem('nusara_customer_cart'); } catch { }
+                try { localStorage.removeItem('nusara_customer_cart'); } catch {}
                 showAlert('Pesanan tersimpan. Silakan selesaikan pembayaran QRIS / Virtual Account Anda agar segera diproses dapur.', 'info', 'Menunggu Pembayaran');
                 router.reload({ only: ['orders'] });
                 setActiveTab('active_order');
@@ -751,7 +910,7 @@ export default function OrderApp({
             },
             onClose: function () {
                 setCart([]);
-                try { localStorage.removeItem('nusara_customer_cart'); } catch { }
+                try { localStorage.removeItem('nusara_customer_cart'); } catch {}
                 showAlert('Jendela pembayaran ditutup. Status pesanan Anda saat ini Menunggu Pembayaran. Anda dapat membuka QRIS kembali kapan saja dari tab Pesanan Aktif atau membayar langsung ke kasir.', 'info', 'Jendela Ditutup');
                 router.reload({ only: ['orders'] });
                 setActiveTab('active_order');
@@ -799,7 +958,7 @@ export default function OrderApp({
             return;
         }
 
-        if (paymentMethod === 'qris' && !midtransIsConfigured) {
+        if (paymentMethod !== 'cash' && !midtransIsConfigured) {
             showAlert('Layanan pembayaran online Midtrans belum aktif. Silakan pilih metode Tunai di Kasir (Cash) atau konfirmasi ke staf kami.', 'warning', 'Metode Pembayaran');
             return;
         }
@@ -835,8 +994,8 @@ export default function OrderApp({
                 throw new Error(data.message || 'Gagal memproses pesanan.');
             }
 
-            // Jika Midtrans QRIS
-            if (paymentMethod === 'qris') {
+            // Jika Pembayaran Online Midtrans (QRIS, e-Wallet, VA Bank)
+            if (paymentMethod !== 'cash') {
                 if (!data.snap_token) {
                     throw new Error(data.message || 'Token pembayaran Midtrans tidak ditemukan.');
                 }
@@ -845,7 +1004,7 @@ export default function OrderApp({
                 setCart([]);
                 try {
                     localStorage.removeItem('nusara_customer_cart');
-                } catch { }
+                } catch {}
                 showAlert(`Pesanan #${data.order_code} berhasil dibuat! Silakan lakukan pembayaran di kasir.`, 'success', 'Pesanan Diterima');
                 router.reload({ only: ['orders'] });
                 setActiveTab('active_order');
@@ -857,25 +1016,58 @@ export default function OrderApp({
         }
     };
 
-    // Submit Rating
-    const handleSubmitRating = (e: React.FormEvent) => {
+    // Submit Rating (Instant Notification & Reactive State Update)
+    const handleSubmitRating = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!ratingOrder) return;
 
         setIsSubmittingRating(true);
-        router.post(`/order/${ratingOrder.id}/rating`, {
-            rating: selectedStars,
-            review: reviewComment,
-        }, {
-            onSuccess: () => {
-                setIsSubmittingRating(false);
-                setRatingOrder(null);
-                setReviewComment('');
-            },
-            onError: () => {
-                setIsSubmittingRating(false);
+        try {
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+            const res = await fetch(`/order/${ratingOrder.id}/rating`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({
+                    rating: selectedStars,
+                    review: reviewComment,
+                }),
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Gagal mengirim ulasan.');
             }
-        });
+
+            // Update local order rating immediately so card switches to "Rating Terkirim"
+            setOrders(prevOrders => prevOrders.map(o => {
+                if (o.id === ratingOrder.id) {
+                    return {
+                        ...o,
+                        rating: {
+                            rating: selectedStars,
+                            review: reviewComment,
+                        }
+                    };
+                }
+                return o;
+            }));
+
+            showAlert(
+                `Rating ${selectedStars} Bintang berhasil dikirim! Terima kasih banyak atas apresiasi dan ulasan Anda untuk jamuan NUSARA.`,
+                'success',
+                'Rating Terkirim'
+            );
+            setRatingOrder(null);
+            setReviewComment('');
+        } catch (err: any) {
+            showAlert(err.message || 'Gagal mengirim rating.', 'error', 'Kendala Pengiriman Rating');
+        } finally {
+            setIsSubmittingRating(false);
+        }
     };
 
     // Send Chat Message
@@ -914,7 +1106,7 @@ export default function OrderApp({
                 <div className="max-w-7xl mx-auto px-4 py-3 sm:py-3.5 flex items-center justify-between gap-3">
                     {/* Left: Brand Logo on mobile only (Desktop logo is in the sidebar dock) */}
                     <div className="flex items-center gap-3">
-                        <button
+                        <button 
                             type="button"
                             onClick={() => {
                                 if (cartCount > 0) {
@@ -926,10 +1118,10 @@ export default function OrderApp({
                             title="Kembali ke Beranda Publik"
                             className="group flex md:hidden items-center gap-2 text-left"
                         >
-                            <img
-                                src="/images/nusara-logo.png"
-                                alt="NUSARA"
-                                className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
+                            <img 
+                                src="/images/nusara-logo.png" 
+                                alt="NUSARA" 
+                                className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105" 
                             />
                         </button>
                     </div>
@@ -1024,7 +1216,7 @@ export default function OrderApp({
                             {/* 3 Large Service Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-3xl mx-auto text-left">
                                 {/* 1. Makan di Tempat (Dine In) */}
-                                <div
+                                <div 
                                     onClick={() => setServiceMode('selecting_table')}
                                     className="group relative p-6 rounded-3xl bg-white border-2 border-[#B99A65]/30 hover:border-[#32151F] hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between"
                                 >
@@ -1048,7 +1240,7 @@ export default function OrderApp({
                                 </div>
 
                                 {/* 2. Bawa Pulang (Takeaway) */}
-                                <div
+                                <div 
                                     onClick={() => {
                                         setOrderType('takeaway');
                                         setServiceMode('confirmed');
@@ -1075,7 +1267,7 @@ export default function OrderApp({
                                 </div>
 
                                 {/* 3. Reservasi Meja (Dedicated Page - NO POPUP) */}
-                                <div
+                                <div 
                                     onClick={() => router.visit('/reservation')}
                                     className="group relative p-6 rounded-3xl bg-[#211D1B] border-2 border-[#B99A65]/40 text-[#F4EFE6] hover:border-[#D4B886] hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between"
                                 >
@@ -1175,12 +1367,9 @@ export default function OrderApp({
                                 </label>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                     {tables.map(table => {
-                                        const curStatus = ((table as any).current_status || table.status || '').toLowerCase();
-                                        const isOccupied = curStatus === 'occupied';
-                                        const isReserved = curStatus === 'reserved';
-                                        const isCleaning = curStatus === 'cleaning';
-                                        const isInactive = curStatus === 'inactive' || curStatus === 'maintenance' || !table.is_active;
-                                        const isAvailable = (curStatus === 'available' || (table as any).is_selectable) && !isOccupied && !isReserved && !isCleaning && !isInactive;
+                                        const isOccupied = table.status === 'Occupied';
+                                        const isReserved = table.status === 'Reserved';
+                                        const isAvailable = !isOccupied && !isReserved;
 
                                         return (
                                             <button
@@ -1192,32 +1381,22 @@ export default function OrderApp({
                                                     setOrderType('dine_in');
                                                     setServiceMode('confirmed');
                                                 }}
-                                                className={`p-4 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${isAvailable
+                                                className={`p-4 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${
+                                                    isAvailable
                                                         ? 'bg-white border-[#B99A65]/40 hover:border-[#32151F] hover:shadow-md cursor-pointer'
                                                         : isOccupied
-                                                            ? 'bg-rose-50/70 border-rose-200 cursor-not-allowed opacity-75'
-                                                            : isReserved
-                                                                ? 'bg-amber-50/70 border-amber-200 cursor-not-allowed opacity-75'
-                                                                : isCleaning
-                                                                    ? 'bg-sky-50/70 border-sky-200 cursor-not-allowed opacity-75'
-                                                                    : 'bg-stone-100/70 border-stone-300 cursor-not-allowed opacity-60'
-                                                    }`}
+                                                        ? 'bg-rose-50/70 border-rose-200 cursor-not-allowed opacity-70'
+                                                        : 'bg-amber-50/70 border-amber-200 cursor-not-allowed opacity-75'
+                                                }`}
                                             >
                                                 <div>
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-heading font-extrabold text-sm sm:text-base text-[#32151F]">
                                                             {table.table_number}
                                                         </span>
-                                                        <span className={`w-2.5 h-2.5 rounded-full ${isAvailable
-                                                                ? 'bg-emerald-500 ring-2 ring-emerald-200'
-                                                                : isOccupied
-                                                                    ? 'bg-rose-500 ring-2 ring-rose-200'
-                                                                    : isReserved
-                                                                        ? 'bg-amber-500 ring-2 ring-amber-200'
-                                                                        : isCleaning
-                                                                            ? 'bg-sky-500 ring-2 ring-sky-200 animate-pulse'
-                                                                            : 'bg-stone-400'
-                                                            }`} />
+                                                        <span className={`w-2 h-2 rounded-full ${
+                                                            isAvailable ? 'bg-emerald-500' : isOccupied ? 'bg-rose-500' : 'bg-amber-500'
+                                                        }`} />
                                                     </div>
                                                     <span className="text-[11px] text-stone-500 block mt-0.5">
                                                         {table.capacity || 5} Kursi · {table.location || 'Main Hall'}
@@ -1229,18 +1408,12 @@ export default function OrderApp({
                                                         <span className="text-emerald-700">Tersedia · Klik untuk Pilih</span>
                                                     )}
                                                     {isOccupied && (
-                                                        <span className="text-rose-700">Sedang Digunakan (Terisi)</span>
+                                                        <span className="text-rose-700">Sedang Makan (Terisi)</span>
                                                     )}
                                                     {isReserved && (
                                                         <span className="text-amber-700">
                                                             Direservasi {table.reserved_until ? `s/d ${table.reserved_until}` : ''}
                                                         </span>
-                                                    )}
-                                                    {isCleaning && (
-                                                        <span className="text-sky-700">Sedang Dibersihkan</span>
-                                                    )}
-                                                    {isInactive && (
-                                                        <span className="text-stone-500">Tidak Beroperasi</span>
                                                     )}
                                                 </div>
                                             </button>
@@ -1263,9 +1436,11 @@ export default function OrderApp({
                         DESKTOP LEFT SIDEBAR: RESPONSIVE TOGGLEABLE DOCK ALA IMAGE 3
                         (Hanya tampil di Desktop: hidden md:flex)
                     ======================================================== */}
-                    <aside className={`hidden md:flex flex-col ${isDesktopSidebarExpanded ? 'w-64' : 'w-16 lg:w-20'
-                        } bg-[#211D1B] border-r border-[#32151F] text-[#F4EFE6] py-4 ${isDesktopSidebarExpanded ? 'px-3' : 'px-2'
-                        } justify-between flex-shrink-0 sticky top-[57px] h-[calc(100vh-57px)] z-30 transition-all duration-300 ease-in-out`}>
+                    <aside className={`hidden md:flex flex-col ${
+                        isDesktopSidebarExpanded ? 'w-64' : 'w-16 lg:w-20'
+                    } bg-[#211D1B] border-r border-[#32151F] text-[#F4EFE6] py-4 ${
+                        isDesktopSidebarExpanded ? 'px-3' : 'px-2'
+                    } justify-between flex-shrink-0 sticky top-[57px] h-[calc(100vh-57px)] z-30 transition-all duration-300 ease-in-out`}>
                         {/* Top: Nusara Real Logo + Toggle Button */}
                         <div className="flex flex-col items-center w-full gap-2 pb-3 border-b border-[#32151F]">
                             {isDesktopSidebarExpanded ? (
@@ -1330,13 +1505,15 @@ export default function OrderApp({
                                 type="button"
                                 onClick={() => setActiveTab('menu')}
                                 className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'menu'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
+                                        activeTab === 'menu'
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
                                     }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'menu'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
+                                        activeTab === 'menu'
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
                                     }`
                                 }
                                 title="Katalog Menu"
@@ -1361,13 +1538,15 @@ export default function OrderApp({
                                 type="button"
                                 onClick={() => setActiveTab('cart')}
                                 className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'cart'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
+                                        activeTab === 'cart'
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
                                     }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'cart'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
+                                        activeTab === 'cart'
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
                                     }`
                                 }
                                 title="Keranjang Pesanan"
@@ -1399,13 +1578,15 @@ export default function OrderApp({
                                 type="button"
                                 onClick={() => setActiveTab('active_order')}
                                 className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'active_order'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
+                                        activeTab === 'active_order'
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
                                     }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'active_order'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
+                                        activeTab === 'active_order'
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
                                     }`
                                 }
                                 title="Pesanan Aktif"
@@ -1430,38 +1611,7 @@ export default function OrderApp({
                                 )}
                             </button>
 
-                            {/* 4. Riwayat Pesanan Selesai */}
-                            <button
-                                type="button"
-                                onClick={() => setActiveTab('history')}
-                                className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'history'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
-                                    }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'history'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
-                                    }`
-                                }
-                                title="Riwayat Pesanan Selesai"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <CheckCircle className="w-5 h-5 stroke-[2] flex-shrink-0" />
-                                    {isDesktopSidebarExpanded && <span>Riwayat Selesai</span>}
-                                </div>
-                                {isDesktopSidebarExpanded ? (
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/40 text-stone-400">
-                                        {completedOrders.length}
-                                    </span>
-                                ) : (
-                                    <span className="absolute left-14 px-2.5 py-1 rounded-lg bg-[#211D1B] text-[#D4B886] text-xs font-bold shadow-lg border border-[#B99A65]/40 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                                        Riwayat Selesai ({completedOrders.length})
-                                    </span>
-                                )}
-                            </button>
-
-                            {/* 5. Reservasi Meja VIP */}
+                            {/* 4. Reservasi Meja VIP */}
                             <button
                                 type="button"
                                 onClick={() => router.visit('/reservation')}
@@ -1486,49 +1636,20 @@ export default function OrderApp({
                                 )}
                             </button>
 
-                            {/* 6. Favorit */}
-                            <button
-                                type="button"
-                                onClick={() => setActiveTab('favorites')}
-                                className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'favorites'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
-                                    }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'favorites'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
-                                    }`
-                                }
-                                title="Menu Favorit"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Heart className="w-5 h-5 stroke-[2] flex-shrink-0" />
-                                    {isDesktopSidebarExpanded && <span>Menu Favorit</span>}
-                                </div>
-                                {isDesktopSidebarExpanded ? (
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/40 text-stone-400">
-                                        {favorites.length}
-                                    </span>
-                                ) : (
-                                    <span className="absolute left-14 px-2.5 py-1 rounded-lg bg-[#211D1B] text-[#D4B886] text-xs font-bold shadow-lg border border-[#B99A65]/40 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                                        Favorit ({favorites.length})
-                                    </span>
-                                )}
-                            </button>
-
                             {/* 7. Konsierge Chat */}
                             <button
                                 type="button"
                                 onClick={() => setActiveTab('chat')}
                                 className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'chat'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
+                                        activeTab === 'chat'
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
                                     }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'chat'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
+                                        activeTab === 'chat'
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
                                     }`
                                 }
                                 title="Konsierge / Chat Kasir"
@@ -1551,13 +1672,15 @@ export default function OrderApp({
                                 type="button"
                                 onClick={() => setActiveTab('settings')}
                                 className={isDesktopSidebarExpanded
-                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${activeTab === 'settings'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
+                                    ? `w-full px-3.5 py-2.5 rounded-2xl flex items-center justify-between text-xs font-bold transition-all ${
+                                        activeTab === 'settings'
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                            : 'text-[#F4EFE6]/70 hover:text-white hover:bg-white/5'
                                     }`
-                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${activeTab === 'settings'
-                                        ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
-                                        : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
+                                    : `w-10 h-10 rounded-2xl flex items-center justify-center transition-all relative group ${
+                                        activeTab === 'settings'
+                                            ? 'bg-[#32151F] text-[#D4B886] border border-[#B99A65]/50 shadow-md'
+                                            : 'text-[#F4EFE6]/60 hover:text-white hover:bg-white/5'
                                     }`
                                 }
                                 title="Pengaturan Akun & 2FA"
@@ -1663,9 +1786,9 @@ export default function OrderApp({
                     ======================================================== */}
                     <main className="flex-1 min-w-0 px-3 sm:px-6 lg:px-8 py-5 max-w-5xl mx-auto w-full pb-28 md:pb-12">
                         {/* ----------------------------------------------------
-                            TAB: MENU & FAVORITES CATALOG
+                            TAB: MENU CATALOG
                         ---------------------------------------------------- */}
-                        {(activeTab === 'menu' || activeTab === 'favorites') && (
+                        {activeTab === 'menu' && (
                             <div className="space-y-6">
                                 {/* Search Bar & Filter trigger */}
                                 <div className="flex items-center gap-2.5">
@@ -1744,14 +1867,16 @@ export default function OrderApp({
                                             onClick={() => setSelectedCategory('all')}
                                             className="flex flex-col items-center gap-1.5 flex-shrink-0 group focus:outline-none"
                                         >
-                                            <div className={`w-13 h-13 sm:w-15 sm:h-15 rounded-full flex items-center justify-center transition-all duration-200 ${selectedCategory === 'all'
+                                            <div className={`w-13 h-13 sm:w-15 sm:h-15 rounded-full flex items-center justify-center transition-all duration-200 ${
+                                                selectedCategory === 'all'
                                                     ? 'bg-[#32151F] text-[#D4B886] shadow-lg ring-2 ring-[#B99A65]'
                                                     : 'bg-white text-stone-700 border border-stone-200 group-hover:border-[#B99A65]/50 group-hover:shadow-sm'
-                                                }`}>
+                                            }`}>
                                                 <UtensilsCrossed className="w-5 h-5 sm:w-6 sm:h-6" />
                                             </div>
-                                            <span className={`text-[11px] sm:text-xs tracking-tight text-center whitespace-nowrap ${selectedCategory === 'all' ? 'font-bold text-[#32151F]' : 'text-stone-600'
-                                                }`}>
+                                            <span className={`text-[11px] sm:text-xs tracking-tight text-center whitespace-nowrap ${
+                                                selectedCategory === 'all' ? 'font-bold text-[#32151F]' : 'text-stone-600'
+                                            }`}>
                                                 Semua Menu
                                             </span>
                                         </button>
@@ -1768,14 +1893,16 @@ export default function OrderApp({
                                                     onClick={() => setSelectedCategory(cat.slug)}
                                                     className="flex flex-col items-center gap-1.5 flex-shrink-0 group focus:outline-none"
                                                 >
-                                                    <div className={`w-13 h-13 sm:w-15 sm:h-15 rounded-full flex items-center justify-center transition-all duration-200 ${isSelected
+                                                    <div className={`w-13 h-13 sm:w-15 sm:h-15 rounded-full flex items-center justify-center transition-all duration-200 ${
+                                                        isSelected
                                                             ? 'bg-[#32151F] text-[#D4B886] shadow-lg ring-2 ring-[#B99A65]'
                                                             : 'bg-white text-stone-700 border border-stone-200 group-hover:border-[#B99A65]/50 group-hover:shadow-sm'
-                                                        }`}>
+                                                    }`}>
                                                         <CatIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                                                     </div>
-                                                    <span className={`text-[11px] sm:text-xs tracking-tight text-center whitespace-nowrap ${isSelected ? 'font-bold text-[#32151F]' : 'text-stone-600'
-                                                        }`}>
+                                                    <span className={`text-[11px] sm:text-xs tracking-tight text-center whitespace-nowrap ${
+                                                        isSelected ? 'font-bold text-[#32151F]' : 'text-stone-600'
+                                                    }`}>
                                                         {cat.name}
                                                     </span>
                                                 </button>
@@ -1820,16 +1947,6 @@ export default function OrderApp({
                                                             className="w-full h-full object-cover"
                                                             loading="lazy"
                                                         />
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleToggleFavorite(menu.id);
-                                                            }}
-                                                            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 text-white hover:text-rose-400 backdrop-blur-xs transition-colors"
-                                                        >
-                                                            <Heart className={`w-3.5 h-3.5 ${favorites.includes(menu.id) ? 'fill-rose-500 text-rose-500' : ''}`} />
-                                                        </button>
                                                     </div>
 
                                                     <div className="space-y-1">
@@ -1865,7 +1982,7 @@ export default function OrderApp({
                                 <div id="katalog-menu" className="space-y-3 pt-2 scroll-mt-20">
                                     <div className="flex items-center justify-between">
                                         <h3 className="font-heading font-extrabold text-lg sm:text-xl text-[#32151F]">
-                                            {activeTab === 'favorites' ? 'Menu Favorit Anda' : 'Katalog Hidangan'}
+                                            Katalog Hidangan
                                         </h3>
                                         <span className="text-xs text-stone-500 font-semibold">
                                             {displayedMenus.length} Menu
@@ -1876,25 +1993,23 @@ export default function OrderApp({
                                         <div className="text-center py-16 bg-white rounded-3xl border border-stone-200 p-6">
                                             <Utensils className="w-12 h-12 text-[#B99A65] mx-auto mb-3 opacity-50" />
                                             <h4 className="font-heading text-lg font-bold text-[#32151F]">
-                                                {activeTab === 'favorites' ? 'Belum Ada Menu Favorit' : 'Menu Tidak Ditemukan'}
+                                                Menu Tidak Ditemukan
                                             </h4>
                                             <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
-                                                {activeTab === 'favorites'
-                                                    ? 'Tekan ikon hati pada hidangan untuk menyimpannya ke menu favorit Anda.'
-                                                    : 'Coba ubah kata kunci pencarian atau pilih kategori lainnya.'}
+                                                Coba ubah kata kunci pencarian atau pilih kategori lainnya.
                                             </p>
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
                                             {displayedMenus.map(menu => {
                                                 const isOutOfStock = !menu.is_available || menu.stock_quantity <= 0;
-                                                const isFav = favorites.includes(menu.id);
 
                                                 return (
                                                     <div
                                                         key={menu.id}
-                                                        className={`rounded-3xl bg-white border border-[#B99A65]/30 p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-all flex flex-col justify-between ${isOutOfStock ? 'opacity-60 bg-stone-100' : ''
-                                                            }`}
+                                                        className={`rounded-3xl bg-white border border-[#B99A65]/30 p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-all flex flex-col justify-between ${
+                                                            isOutOfStock ? 'opacity-60 bg-stone-100' : ''
+                                                        }`}
                                                     >
                                                         {/* Image */}
                                                         <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-stone-100 mb-2">
@@ -1907,16 +2022,6 @@ export default function OrderApp({
                                                                 className="w-full h-full object-cover"
                                                                 loading="lazy"
                                                             />
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleToggleFavorite(menu.id);
-                                                                }}
-                                                                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 text-white hover:text-rose-400 backdrop-blur-xs transition-colors"
-                                                            >
-                                                                <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
-                                                            </button>
                                                         </div>
 
                                                         {/* Text Body */}
@@ -2154,10 +2259,11 @@ export default function OrderApp({
                                                     value={customerName}
                                                     onChange={(e) => setCustomerName(e.target.value)}
                                                     placeholder="Ketik nama Anda (contoh: Anindya Laksmi)"
-                                                    className={`w-full px-3.5 py-2.5 rounded-xl bg-white border text-xs text-[#211D1B] focus:outline-none transition-all ${!customerName.trim()
+                                                    className={`w-full px-3.5 py-2.5 rounded-xl bg-white border text-xs text-[#211D1B] focus:outline-none transition-all ${
+                                                        !customerName.trim()
                                                             ? 'border-amber-500 ring-2 ring-amber-500/20'
                                                             : 'border-stone-300 focus:border-[#B99A65]'
-                                                        }`}
+                                                    }`}
                                                 />
                                                 <p className="text-[10px] text-stone-500 leading-tight">
                                                     Nama ini akan digunakan oleh staf pramusaji untuk mengonfirmasi dan menyajikan hidangan ke meja Anda.
@@ -2238,44 +2344,209 @@ export default function OrderApp({
                                             </div>
                                         </div>
 
-                                        {/* Payment Method Selector */}
-                                        <div className="p-5 rounded-3xl bg-white border border-[#B99A65]/30 shadow-md space-y-3">
-                                            <span className="text-[11px] font-bold uppercase tracking-wider text-[#946E2D] block">
-                                                Pilih Metode Pembayaran
-                                            </span>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setPaymentMethod('cash')}
-                                                    className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center gap-1.5 text-center ${paymentMethod === 'cash'
-                                                            ? 'bg-[#32151F] text-[#D4B886] border-[#32151F] shadow-sm'
-                                                            : 'bg-[#FAF7F2] text-stone-700 border-stone-200 hover:border-stone-300'
-                                                        }`}
-                                                >
-                                                    <Banknote className="w-5 h-5" />
-                                                    <span>Tunai di Kasir (Cash)</span>
-                                                    <span className="text-[10px] opacity-75 font-normal">Bayar langsung di kasir</span>
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setPaymentMethod('qris')}
-                                                    className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center gap-1.5 text-center relative ${paymentMethod === 'qris'
-                                                            ? 'bg-[#32151F] text-[#D4B886] border-[#32151F] shadow-sm'
-                                                            : 'bg-[#FAF7F2] text-stone-700 border-stone-200 hover:border-stone-300'
-                                                        }`}
-                                                >
-                                                    <QrCode className="w-5 h-5" />
-                                                    <span>Payment Gateway Midtrans</span>
-                                                    <span className="text-[10px] opacity-75 font-normal">
-                                                        {midtransIsConfigured ? 'QRIS, GoPay, VA, Card' : 'Perlu Server Key .env'}
+                                        {/* Payment Method Selector (Reservation Parity for Logged-In Customers) */}
+                                        <div className="p-5 rounded-3xl bg-white border border-[#B99A65]/30 shadow-md space-y-4">
+                                            {auth?.user ? (
+                                                <>
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-stone-200">
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#946E2D]">
+                                                                    Metode Pembayaran
+                                                                </span>
+                                                                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+                                                                    11 Saluran Member Aktif
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-xs text-stone-600 mt-0.5">
+                                                                Pilih saluran pembayaran instan terverifikasi otomatis atau bayar langsung ke kasir.
+                                                            </p>
+                                                        </div>
+
+                                                        {/* Filter Kategori ala Halaman Reservasi */}
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setPaymentCategoryFilter('all')}
+                                                                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                                                                    paymentCategoryFilter === 'all'
+                                                                        ? 'bg-[#32151F] text-[#D4B886] shadow-sm'
+                                                                        : 'bg-[#FAF7F2] text-stone-600 border border-stone-200 hover:border-stone-300'
+                                                                }`}
+                                                            >
+                                                                Semua (11)
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setPaymentCategoryFilter('ewallet')}
+                                                                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                                                                    paymentCategoryFilter === 'ewallet'
+                                                                        ? 'bg-[#32151F] text-[#D4B886] shadow-sm'
+                                                                        : 'bg-[#FAF7F2] text-stone-600 border border-stone-200 hover:border-stone-300'
+                                                                }`}
+                                                            >
+                                                                e-Wallet & QRIS (5)
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setPaymentCategoryFilter('va')}
+                                                                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                                                                    paymentCategoryFilter === 'va'
+                                                                        ? 'bg-[#32151F] text-[#D4B886] shadow-sm'
+                                                                        : 'bg-[#FAF7F2] text-stone-600 border border-stone-200 hover:border-stone-300'
+                                                                }`}
+                                                            >
+                                                                VA Bank (5)
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setPaymentCategoryFilter('cash')}
+                                                                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                                                                    paymentCategoryFilter === 'cash'
+                                                                        ? 'bg-[#32151F] text-[#D4B886] shadow-sm'
+                                                                        : 'bg-[#FAF7F2] text-stone-600 border border-stone-200 hover:border-stone-300'
+                                                                }`}
+                                                            >
+                                                                Tunai (1)
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Grid Saluran Pembayaran */}
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                        {(paymentCategoryFilter === 'all' 
+                                                            ? ORDER_PAYMENT_METHODS 
+                                                            : ORDER_PAYMENT_METHODS.filter(m => m.category === paymentCategoryFilter)
+                                                        ).map((m) => {
+                                                            const isSelected = paymentMethod === m.id;
+                                                            return (
+                                                                <button
+                                                                    key={m.id}
+                                                                    type="button"
+                                                                    onClick={() => setPaymentMethod(m.id)}
+                                                                    className={`p-3.5 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between gap-3 relative cursor-pointer ${
+                                                                        isSelected
+                                                                            ? 'bg-[#32151F] text-[#F4EFE6] border-[#B99A65] ring-2 ring-[#D4B886]/40 shadow-lg scale-[1.01]'
+                                                                            : 'bg-[#FAF7F2] text-[#211D1B] border-stone-200 hover:border-[#B99A65]/50 hover:bg-white shadow-2xs'
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex items-center justify-between gap-2 w-full">
+                                                                        <div className="h-7 flex items-center">
+                                                                            {m.logo}
+                                                                        </div>
+                                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                                                            isSelected ? 'bg-white/10 text-[#D4B886] border-[#D4B886]/30' : m.badgeColor
+                                                                        }`}>
+                                                                            {m.badge}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className={`font-heading font-bold text-sm ${isSelected ? 'text-[#F4EFE6]' : 'text-[#32151F]'}`}>
+                                                                            {m.title}
+                                                                        </h4>
+                                                                        <p className={`text-[11px] mt-0.5 ${isSelected ? 'text-stone-300' : 'text-stone-500'}`}>
+                                                                            {m.subtitle}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className={`pt-2 border-t text-[10px] truncate ${
+                                                                        isSelected ? 'border-white/10 text-[#D4B886]/90' : 'border-stone-200 text-stone-500'
+                                                                    }`}>
+                                                                        {m.apps.join(' · ')}
+                                                                    </div>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+
+                                                    {/* Petunjuk & Langkah Pembayaran untuk Metode yang Dipilih */}
+                                                    {(() => {
+                                                        const activeM = ORDER_PAYMENT_METHODS.find(m => m.id === paymentMethod) || ORDER_PAYMENT_METHODS[0];
+                                                        return (
+                                                            <div className="p-4 rounded-2xl bg-[#FAF6F0] border border-[#B99A65]/30 space-y-2 text-xs">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="font-bold text-[#32151F] flex items-center gap-1.5">
+                                                                        <Info className="w-4 h-4 text-[#946E2D]" />
+                                                                        Panduan: {activeM.title}
+                                                                    </span>
+                                                                    <span className="text-[10px] text-stone-500 font-semibold">
+                                                                        Verifikasi Otomatis
+                                                                    </span>
+                                                                </div>
+                                                                <ol className="list-decimal list-inside space-y-1 text-stone-700 text-[11px] leading-relaxed">
+                                                                    {activeM.instructions.map((ins, i) => (
+                                                                        <li key={i}>{ins}</li>
+                                                                    ))}
+                                                                </ol>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#946E2D] block">
+                                                        Pilih Metode Pembayaran
                                                     </span>
-                                                    {!midtransIsConfigured && (
-                                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-700 font-bold border border-amber-500/30">
-                                                            Belum Aktif
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setPaymentMethod('cash')}
+                                                            className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center gap-1.5 text-center cursor-pointer ${
+                                                                paymentMethod === 'cash'
+                                                                    ? 'bg-[#32151F] text-[#D4B886] border-[#32151F] shadow-sm'
+                                                                    : 'bg-[#FAF7F2] text-stone-700 border-stone-200 hover:border-stone-300'
+                                                            }`}
+                                                        >
+                                                            <Banknote className="w-5 h-5 text-[#D4B886]" />
+                                                            <span>Tunai di Kasir (Cash)</span>
+                                                            <span className="text-[10px] opacity-75 font-normal">Bayar langsung di kasir restoran</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setPaymentMethod('qris')}
+                                                            className={`p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col items-center gap-1.5 text-center relative cursor-pointer ${
+                                                                paymentMethod === 'qris'
+                                                                    ? 'bg-[#32151F] text-[#D4B886] border-[#32151F] shadow-sm'
+                                                                    : 'bg-[#FAF7F2] text-stone-700 border-stone-200 hover:border-stone-300'
+                                                            }`}
+                                                        >
+                                                            <QrCode className="w-5 h-5 text-[#D4B886]" />
+                                                            <span>QRIS Instan Midtrans</span>
+                                                            <span className="text-[10px] opacity-75 font-normal">
+                                                                {midtransIsConfigured ? 'Scan QRIS Bebas Biaya' : 'Perlu Server Key .env'}
+                                                            </span>
+                                                            {!midtransIsConfigured && (
+                                                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-700 font-bold border border-amber-500/30">
+                                                                    Belum Aktif
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Banner Member Login untuk Buka Semua Metode */}
+                                                    <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#FAF7F2] to-[#FAF6F0] border border-[#B99A65]/40 flex items-center justify-between gap-3 flex-wrap">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-9 h-9 rounded-xl bg-[#32151F] text-[#D4B886] flex items-center justify-center flex-shrink-0 shadow-2xs">
+                                                                <Wallet className="w-4 h-4 text-[#D4B886]" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs font-bold text-[#32151F]">
+                                                                    Ingin Bayar via GoPay, ShopeePay, DANA, OVO, atau VA Bank?
+                                                                </p>
+                                                                <p className="text-[11px] text-[#6E625A]">
+                                                                    Masuk ke akun Anda untuk membuka seluruh 11 saluran pembayaran resmi sama seperti di reservasi.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <Link
+                                                            href="/login"
+                                                            className="px-3.5 py-1.5 rounded-xl bg-[#32151F] hover:bg-[#4A1525] text-[#D4B886] text-xs font-bold transition-all shadow-sm flex items-center gap-1 active:scale-95"
+                                                        >
+                                                            <span>Masuk Akun</span>
+                                                            <ChevronRight className="w-3.5 h-3.5" />
+                                                        </Link>
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
 
                                         {/* Price Breakdown matching Image 1 */}
@@ -2372,23 +2643,16 @@ export default function OrderApp({
                                                 Tidak Ada Pesanan yang Sedang Aktif
                                             </h3>
                                             <p className="text-xs text-[#211D1B]/70 mt-1 max-w-sm mx-auto">
-                                                Pesanan Anda yang telah selesai dapat dilihat di tab Riwayat Pesanan.
+                                                Silakan pilih menu jamuan istimewa NUSARA dan lakukan pemesanan untuk memulai santapan Anda.
                                             </p>
                                         </div>
-                                        <div className="pt-2 flex items-center justify-center gap-3">
+                                        <div className="pt-2 flex items-center justify-center">
                                             <button
                                                 type="button"
                                                 onClick={() => setActiveTab('menu')}
-                                                className="px-5 py-2.5 rounded-xl bg-[#32151F] text-[#D4B886] font-bold text-xs hover:bg-[#B99A65] hover:text-[#211D1B] transition-all"
+                                                className="px-6 py-2.5 rounded-xl bg-[#32151F] text-[#D4B886] font-bold text-xs hover:bg-[#B99A65] hover:text-[#211D1B] transition-all shadow-md active:scale-95"
                                             >
                                                 Pesan Menu Sekarang
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setActiveTab('history')}
-                                                className="px-5 py-2.5 rounded-xl border border-stone-300 text-stone-700 font-bold text-xs hover:bg-stone-50 transition-all"
-                                            >
-                                                Lihat Riwayat Selesai
                                             </button>
                                         </div>
                                     </div>
@@ -2419,7 +2683,7 @@ export default function OrderApp({
                                                     <div className="py-2">
                                                         <div className="flex items-center justify-between relative max-w-md mx-auto">
                                                             <div className="absolute top-1/2 left-0 right-0 h-1 bg-[#32151F] -translate-y-1/2 z-0" />
-                                                            <div
+                                                            <div 
                                                                 className="absolute top-1/2 left-0 h-1 bg-gradient-to-r from-[#B99A65] to-[#D4B886] -translate-y-1/2 z-0 transition-all duration-500"
                                                                 style={{ width: `${Math.min(100, (step - 1) * 33.3)}%` }}
                                                             />
@@ -2431,14 +2695,16 @@ export default function OrderApp({
                                                                 { s: 4, label: 'Selesai' },
                                                             ].map(item => (
                                                                 <div key={item.s} className="relative z-10 flex flex-col items-center">
-                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${step >= item.s
+                                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
+                                                                        step >= item.s
                                                                             ? 'bg-gradient-to-tr from-[#B99A65] to-[#D4B886] text-[#211D1B] ring-4 ring-[#211D1B] shadow-md'
                                                                             : 'bg-[#32151F] text-stone-500 border border-stone-700'
-                                                                        }`}>
+                                                                    }`}>
                                                                         {step > item.s ? <Check className="w-4 h-4 stroke-[2.5]" /> : item.s}
                                                                     </div>
-                                                                    <span className={`text-[10px] mt-1.5 font-bold uppercase tracking-wider ${step >= item.s ? 'text-[#D4B886]' : 'text-stone-500'
-                                                                        }`}>
+                                                                    <span className={`text-[10px] mt-1.5 font-bold uppercase tracking-wider ${
+                                                                        step >= item.s ? 'text-[#D4B886]' : 'text-stone-500'
+                                                                    }`}>
                                                                         {item.label}
                                                                     </span>
                                                                 </div>
@@ -2500,11 +2766,7 @@ export default function OrderApp({
                                                                 {order.transaction?.payment_url && (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => {
-                                                                            if (order.transaction?.payment_url) {
-                                                                                handlePayWithSnap(order.transaction.payment_url, order.id);
-                                                                            }
-                                                                        }}
+                                                                        onClick={() => handlePayWithSnap(order.transaction.payment_url, order.id)}
                                                                         className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:from-[#a88954] hover:to-[#c3a775] text-[#211D1B] font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
                                                                     >
                                                                         <QrCode className="w-4 h-4" />
@@ -2536,6 +2798,87 @@ export default function OrderApp({
                                                         <div className="p-3 rounded-2xl bg-emerald-950/50 border border-emerald-500/30 flex items-center gap-2.5 text-xs text-emerald-200">
                                                             <Flame className="w-4 h-4 text-emerald-400 animate-pulse flex-shrink-0" />
                                                             <span>Pembayaran terverifikasi! Koki dapur NUSARA saat ini sedang memasak hidangan istimewa Anda.</span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Rating & Kepuasan Pelanggan (Demo Flow) */}
+                                                    <div className="pt-3 border-t border-[#32151F]">
+                                                        {order.rating ? (
+                                                            <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-500/30 flex items-center justify-between gap-3 text-xs flex-wrap">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="flex items-center gap-0.5 text-amber-400">
+                                                                        {[1, 2, 3, 4, 5].map((star) => (
+                                                                            <Star
+                                                                                key={star}
+                                                                                className={`w-3.5 h-3.5 ${
+                                                                                    star <= (order.rating.rating || 5)
+                                                                                        ? 'fill-amber-400 text-amber-400'
+                                                                                        : 'text-stone-600'
+                                                                                }`}
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                    <span className="font-bold text-amber-200">
+                                                                        Rating Terkirim ({order.rating.rating || 5} Bintang)
+                                                                    </span>
+                                                                </div>
+                                                                {order.rating.review && (
+                                                                    <span className="text-[11px] text-[#D4B886]/90 italic max-w-xs truncate">
+                                                                        "{order.rating.review}"
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="p-3.5 rounded-2xl bg-[#32151F]/60 border border-[#B99A65]/30 flex items-center justify-between gap-3 flex-wrap">
+                                                                <div>
+                                                                    <span className="font-heading font-bold text-xs text-[#F4EFE6] block">
+                                                                        Kepuasan Santap
+                                                                    </span>
+                                                                    <span className="text-[11px] text-[#D4B886]/80">
+                                                                        Bagikan penilaian bintang Anda untuk hidangan ini.
+                                                                    </span>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setRatingOrder(order);
+                                                                        setSelectedStars(5);
+                                                                        setReviewComment('');
+                                                                    }}
+                                                                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:from-[#a88954] hover:to-[#c3a775] text-[#211D1B] font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
+                                                                >
+                                                                    <Star className="w-3.5 h-3.5 fill-current" />
+                                                                    <span>Beri Bintang</span>
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Refund Action & Badges */}
+                                                    {(order.order_status === 'Pending' || order.order_status === 'Refund Requested' || order.order_status === 'Refunded') && (
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            {order.order_status === 'Pending' && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleOpenRefundModal(order)}
+                                                                    className="px-3 py-1.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold hover:bg-rose-900 transition-all flex items-center gap-1.5"
+                                                                >
+                                                                    <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
+                                                                    <span>Ajukan Pembatalan & Refund</span>
+                                                                </button>
+                                                            )}
+                                                            {order.order_status === 'Refund Requested' && (
+                                                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-950/60 border border-purple-500/40 text-purple-200 text-xs font-semibold">
+                                                                    <RotateCcw className="w-3.5 h-3.5 text-purple-400 animate-spin" />
+                                                                    <span>Pengajuan Refund Sedang Ditinjau Admin</span>
+                                                                </div>
+                                                            )}
+                                                            {order.order_status === 'Refunded' && (
+                                                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 text-xs font-semibold">
+                                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                                                    <span>Dana Telah Dikembalikan (Refunded)</span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
 
@@ -2574,144 +2917,6 @@ export default function OrderApp({
                         )}
 
                         {/* ----------------------------------------------------
-                            TAB: RIWAYAT PESANAN SELESAI (STRICTLY COMPLETED ORDERS)
-                        ---------------------------------------------------- */}
-                        {activeTab === 'history' && (
-                            <div className="space-y-6 max-w-3xl mx-auto">
-                                <div className="flex items-center justify-between pb-3 border-b border-[#B99A65]/30">
-                                    <div>
-                                        <h2 className="font-heading text-2xl font-bold text-[#32151F]">
-                                            Riwayat Pesanan Selesai
-                                        </h2>
-                                        <p className="text-xs text-[#211D1B]/70 mt-0.5">
-                                            Daftar pesanan yang telah selesai disajikan dan dapat diberikan rating kepuasan.
-                                        </p>
-                                    </div>
-                                    <span className="px-3 py-1 rounded-full bg-[#32151F] text-[#D4B886] text-xs font-bold">
-                                        {completedOrders.length} Pesanan Selesai
-                                    </span>
-                                </div>
-
-                                {completedOrders.length === 0 ? (
-                                    <div className="text-center py-20 bg-white rounded-3xl border border-stone-300 p-8 space-y-4">
-                                        <div className="w-16 h-16 rounded-full bg-[#FAF7F2] border border-[#B99A65]/40 text-[#B99A65] mx-auto flex items-center justify-center">
-                                            <Clock className="w-8 h-8" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-heading text-2xl font-bold text-[#32151F]">
-                                                Belum Ada Riwayat Pesanan Selesai
-                                            </h3>
-                                            <p className="text-xs text-[#211D1B]/70 mt-1 max-w-sm mx-auto">
-                                                Pesanan yang sedang aktif dan diproses dapat dipantau langsung pada tab Pesanan Aktif.
-                                            </p>
-                                        </div>
-                                        {activeOrders.length > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setActiveTab('active_order')}
-                                                className="px-5 py-2.5 rounded-xl bg-[#32151F] text-[#D4B886] font-bold text-xs hover:bg-[#B99A65] hover:text-[#211D1B] transition-all shadow-md"
-                                            >
-                                                Pantau {activeOrders.length} Pesanan Aktif
-                                            </button>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {completedOrders.map(order => (
-                                            <div
-                                                key={order.id}
-                                                className="p-5 rounded-3xl bg-white border border-[#B99A65]/40 shadow-md space-y-4"
-                                            >
-                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-200 pb-3">
-                                                    <div>
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <span className="font-mono text-sm font-bold text-[#32151F]">
-                                                                #{order.order_code}
-                                                            </span>
-                                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                                                {order.order_status}
-                                                            </span>
-                                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-stone-100 text-stone-700">
-                                                                {order.order_type === 'dine_in' ? (order.table_number || 'Dine-in') : 'Takeaway'}
-                                                            </span>
-                                                        </div>
-                                                        <p className="text-[11px] text-stone-500 mt-1">
-                                                            {new Date(order.created_at).toLocaleString('id-ID')}
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="text-right">
-                                                        <span className="font-heading font-black text-base text-[#946E2D]">
-                                                            {formatRupiah(order.total)}
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Items summary */}
-                                                <div className="space-y-1.5">
-                                                    {order.items?.map(it => (
-                                                        <div key={it.id} className="flex justify-between text-xs text-[#211D1B]">
-                                                            <span>{it.quantity}x {it.menu_name_snapshot}</span>
-                                                            <span className="font-mono text-stone-600">{formatRupiah(it.subtotal)}</span>
-
-                                                            {/* Refund Action & Status Badges */}
-                                                            <div className="flex items-center gap-2 flex-wrap pt-2">
-                                                                {order.order_status === 'Pending' && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleOpenRefundModal(order)}
-                                                                        className="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs font-bold hover:bg-rose-100 transition-all flex items-center gap-1.5"
-                                                                    >
-                                                                        <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
-                                                                        <span>Ajukan Pembatalan & Refund</span>
-                                                                    </button>
-                                                                )}
-                                                                {order.order_status === 'Refund Requested' && (
-                                                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-semibold">
-                                                                        <RotateCcw className="w-3.5 h-3.5 text-purple-700 animate-spin" />
-                                                                        <span>Pengajuan Refund Sedang Ditinjau Admin</span>
-                                                                    </div>
-                                                                )}
-                                                                {order.order_status === 'Refunded' && (
-                                                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-semibold">
-                                                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                                                        <span>Dana Telah Dikembalikan (Refunded)</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-
-                                                {/* Rating Action */}
-                                                <div className="pt-3 border-t border-stone-200 flex items-center justify-between">
-                                                    {order.rating ? (
-                                                        <div className="flex items-center gap-1.5 text-xs text-amber-600 font-bold">
-                                                            <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-                                                            <span>Ulasan Bintang {order.rating.rating}/5 Telah Diberikan</span>
-                                                        </div>
-                                                    ) : (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setRatingOrder(order);
-                                                                setSelectedStars(5);
-                                                                setReviewComment('');
-                                                            }}
-                                                            className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs hover:scale-105 transition-all shadow-sm"
-                                                        >
-                                                            Beri Rating & Ulasan
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* ----------------------------------------------------
                             TAB: KONSORGE CHAT
                         ---------------------------------------------------- */}
                         {activeTab === 'chat' && (
@@ -2742,14 +2947,15 @@ export default function OrderApp({
                                     {initialChats.map(chat => {
                                         const isMe = chat.sender_type === 'customer';
                                         return (
-                                            <div
-                                                key={chat.id}
+                                            <div 
+                                                key={chat.id} 
                                                 className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                                             >
-                                                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs ${isMe
-                                                        ? 'bg-gradient-to-br from-[#D4B886] to-[#B99A65] text-[#211D1B] rounded-br-md shadow'
+                                                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs ${
+                                                    isMe 
+                                                        ? 'bg-gradient-to-br from-[#D4B886] to-[#B99A65] text-[#211D1B] rounded-br-md shadow' 
                                                         : 'bg-[#32151F] text-[#F4EFE6] border border-[#B99A65]/25 rounded-bl-md shadow'
-                                                    }`}>
+                                                }`}>
                                                     {!isMe && (
                                                         <span className="font-bold text-[10px] text-[#B99A65] block uppercase tracking-wider mb-0.5">
                                                             Kasir NUSARA
@@ -2785,10 +2991,10 @@ export default function OrderApp({
                             TAB: PENGATURAN AKUN PELANGGAN & 2FA GOOGLE AUTHENTICATOR
                         ---------------------------------------------------- */}
                         {activeTab === 'settings' && (
-                            <CustomerSettings
-                                user={auth?.user || null}
-                                isGuest={isGuest}
-                                onBackToMenu={() => setActiveTab('menu')}
+                            <CustomerSettings 
+                                user={auth?.user || null} 
+                                isGuest={isGuest} 
+                                onBackToMenu={() => setActiveTab('menu')} 
                             />
                         )}
                     </main>
@@ -2905,29 +3111,69 @@ export default function OrderApp({
                                     </div>
                                 </div>
 
-                                {/* Payment Toggle */}
-                                <div className="grid grid-cols-2 gap-1.5">
-                                    <button
-                                        type="button"
-                                        onClick={() => setPaymentMethod('cash')}
-                                        className={`py-1.5 px-2 rounded-xl border text-[11px] font-bold text-center ${paymentMethod === 'cash'
-                                                ? 'bg-[#32151F] text-[#D4B886] border-[#32151F]'
-                                                : 'bg-white text-stone-600 border-stone-200'
+                                {/* Payment Selector (Reservation Parity for Members) */}
+                                {auth?.user ? (
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between text-[11px]">
+                                            <span className="font-bold text-stone-700">Metode Bayar:</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setActiveTab('cart')}
+                                                className="text-[10px] text-[#946E2D] font-bold hover:underline cursor-pointer"
+                                            >
+                                                Pilih di Keranjang &gt;
+                                            </button>
+                                        </div>
+                                        <select
+                                            value={paymentMethod}
+                                            onChange={(e) => setPaymentMethod(e.target.value as any)}
+                                            className="w-full py-2 px-3 rounded-xl border border-[#B99A65]/40 bg-[#FAF7F2] text-xs font-bold text-[#32151F] focus:outline-none focus:ring-1 focus:ring-[#B99A65] cursor-pointer"
+                                        >
+                                            <optgroup label="Tunai">
+                                                <option value="cash">Tunai di Kasir (Cash)</option>
+                                            </optgroup>
+                                            <optgroup label="e-Wallet & QRIS">
+                                                <option value="qris">QRIS Instan (Semua e-Wallet & Bank)</option>
+                                                <option value="gopay">GoPay (GoPay App & Gojek)</option>
+                                                <option value="shopeepay">ShopeePay (Shopee App)</option>
+                                                <option value="dana">DANA (Dompet Digital)</option>
+                                                <option value="ovo">OVO Cash</option>
+                                            </optgroup>
+                                            <optgroup label="Virtual Account Bank">
+                                                <option value="bca_va">BCA Virtual Account</option>
+                                                <option value="mandiri_va">Mandiri Virtual Account</option>
+                                                <option value="bni_va">BNI Virtual Account</option>
+                                                <option value="bri_va">BRI Virtual Account</option>
+                                                <option value="permata_va">Permata & Bank Lainnya</option>
+                                            </optgroup>
+                                        </select>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPaymentMethod('cash')}
+                                            className={`py-1.5 px-2 rounded-xl border text-[11px] font-bold text-center ${
+                                                paymentMethod === 'cash'
+                                                    ? 'bg-[#32151F] text-[#D4B886] border-[#32151F]'
+                                                    : 'bg-white text-stone-600 border-stone-200'
                                             }`}
-                                    >
-                                        Kasir / Tunai
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPaymentMethod('qris')}
-                                        className={`py-1.5 px-2 rounded-xl border text-[11px] font-bold text-center ${paymentMethod === 'qris'
-                                                ? 'bg-[#32151F] text-[#D4B886] border-[#32151F]'
-                                                : 'bg-white text-stone-600 border-stone-200'
+                                        >
+                                            Kasir / Tunai
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPaymentMethod('qris')}
+                                            className={`py-1.5 px-2 rounded-xl border text-[11px] font-bold text-center ${
+                                                paymentMethod === 'qris'
+                                                    ? 'bg-[#32151F] text-[#D4B886] border-[#32151F]'
+                                                    : 'bg-white text-stone-600 border-stone-200'
                                             }`}
-                                    >
-                                        Midtrans QRIS {!midtransIsConfigured && '(Belum Aktif)'}
-                                    </button>
-                                </div>
+                                        >
+                                            Midtrans QRIS {!midtransIsConfigured && '(Belum Aktif)'}
+                                        </button>
+                                    </div>
+                                )}
 
                                 <button
                                     type="button"
@@ -3000,8 +3246,9 @@ export default function OrderApp({
                                 setActiveTab('menu');
                                 window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
-                            className={`flex flex-col items-center py-1 transition-all ${activeTab === 'menu' ? 'text-[#D4B886] font-bold' : 'text-[#F4EFE6]/60 hover:text-white'
-                                }`}
+                            className={`flex flex-col items-center py-1 transition-all ${
+                                activeTab === 'menu' ? 'text-[#D4B886] font-bold' : 'text-[#F4EFE6]/60 hover:text-white'
+                            }`}
                         >
                             <Home className="w-5 h-5" />
                             <span className="text-[10px] mt-1 tracking-tight">Beranda</span>
@@ -3015,8 +3262,9 @@ export default function OrderApp({
                                 const el = document.getElementById('katalog-menu');
                                 el?.scrollIntoView({ behavior: 'smooth' });
                             }}
-                            className={`flex flex-col items-center py-1 transition-all ${activeTab === 'menu' ? 'text-[#D4B886] font-bold' : 'text-[#F4EFE6]/60 hover:text-white'
-                                }`}
+                            className={`flex flex-col items-center py-1 transition-all ${
+                                activeTab === 'menu' ? 'text-[#D4B886] font-bold' : 'text-[#F4EFE6]/60 hover:text-white'
+                            }`}
                         >
                             <UtensilsCrossed className="w-5 h-5" />
                             <span className="text-[10px] mt-1 tracking-tight">Menu</span>
@@ -3043,8 +3291,9 @@ export default function OrderApp({
                         <button
                             type="button"
                             onClick={() => setActiveTab('active_order')}
-                            className={`flex flex-col items-center py-1 transition-all relative ${activeTab === 'active_order' ? 'text-[#D4B886] font-bold' : 'text-[#F4EFE6]/60 hover:text-white'
-                                }`}
+                            className={`flex flex-col items-center py-1 transition-all relative ${
+                                activeTab === 'active_order' ? 'text-[#D4B886] font-bold' : 'text-[#F4EFE6]/60 hover:text-white'
+                            }`}
                         >
                             <Clock className="w-5 h-5" />
                             <span className="text-[10px] mt-1 tracking-tight">Pesanan</span>
@@ -3178,8 +3427,9 @@ export default function OrderApp({
                                     onClick={() => setSelectedStars(star)}
                                     className="p-1 transition-transform hover:scale-125"
                                 >
-                                    <Star className={`w-8 h-8 ${star <= selectedStars ? 'text-amber-400 fill-amber-400' : 'text-stone-600'
-                                        }`} />
+                                    <Star className={`w-8 h-8 ${
+                                        star <= selectedStars ? 'text-amber-400 fill-amber-400' : 'text-stone-600'
+                                    }`} />
                                 </button>
                             ))}
                         </div>
@@ -3196,9 +3446,9 @@ export default function OrderApp({
                             <button
                                 type="submit"
                                 disabled={isSubmittingRating}
-                                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:shadow-xl transition-all disabled:opacity-50"
+                                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:from-[#a88954] hover:to-[#c3a775] text-[#211D1B] font-extrabold text-xs uppercase tracking-widest hover:shadow-xl transition-all disabled:opacity-50 active:scale-98 cursor-pointer"
                             >
-                                {isSubmittingRating ? 'Mengirim Ulasan...' : 'Kirim Rating Bintang 5'}
+                                {isSubmittingRating ? 'Mengirim Ulasan...' : `Kirim Rating (${selectedStars} Bintang)`}
                             </button>
                         </form>
                     </div>
@@ -3405,74 +3655,6 @@ export default function OrderApp({
                             >
                                 Ke Beranda
                             </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ========================================================
-                MODAL 5: TABLE UNAVAILABLE / OCCUPIED / RESERVED / CLEANING
-                (Tampil jika tamu memindai QR meja yang sedang tidak tersedia)
-            ======================================================== */}
-            {tableAlertModal && (
-                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-                    <div className="relative w-full max-w-md bg-[#141110] border-2 border-[#B99A65]/60 rounded-3xl p-6 sm:p-8 shadow-2xl text-[#F4EFE6] text-center overflow-hidden">
-                        {/* Ambient Glow */}
-                        <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#32151F] rounded-full blur-3xl pointer-events-none" />
-                        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-[#B99A65]/20 rounded-full blur-3xl pointer-events-none" />
-
-                        <div className="relative z-10 space-y-4">
-                            {/* Icon Indicator based on status */}
-                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#32151F] to-[#211D1B] border-2 border-[#B99A65]/60 text-[#D4B886] mx-auto flex items-center justify-center shadow-lg">
-                                {tableAlertModal.status === 'occupied' && <Users className="w-8 h-8 text-[#D4B886]" />}
-                                {tableAlertModal.status === 'reserved' && <Calendar className="w-8 h-8 text-[#D4B886]" />}
-                                {tableAlertModal.status === 'cleaning' && <Sparkles className="w-8 h-8 text-[#D4B886]" />}
-                                {(tableAlertModal.status === 'inactive' || tableAlertModal.status === 'not_found') && <Ban className="w-8 h-8 text-[#D4B886]" />}
-                            </div>
-
-                            {/* Table Badge */}
-                            <div>
-                                <span className="inline-block px-3.5 py-1 rounded-full bg-[#B99A65]/20 border border-[#B99A65]/50 text-[#D4B886] text-xs font-bold uppercase tracking-widest">
-                                    {tableAlertModal.table_number}
-                                </span>
-                            </div>
-
-                            {/* Title & Message */}
-                            <div className="space-y-2">
-                                <h3 className="font-heading text-xl sm:text-2xl font-bold text-[#F4EFE6]">
-                                    {tableAlertModal.title}
-                                </h3>
-                                <p className="text-xs sm:text-sm text-stone-300 leading-relaxed max-w-sm mx-auto">
-                                    {tableAlertModal.message}
-                                </p>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="pt-3 space-y-2.5">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setTableAlertModal(null);
-                                        setSelectedTable('');
-                                        setServiceMode('selecting_table');
-                                        localStorage.removeItem('nusara_selected_table');
-                                    }}
-                                    className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-[#B99A65]/20 flex items-center justify-center gap-2"
-                                >
-                                    <UtensilsCrossed className="w-4 h-4" />
-                                    <span>Pilih Meja Lain yang Tersedia</span>
-                                </button>
-
-                                <a
-                                    href="https://wa.me/6281299990000?text=Halo%20Concierge%20NUSARA,%20saya%20memerlukan%20bantuan%20mengenai%20ketersediaan%20meja%20di%20restoran."
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-full py-3 px-5 rounded-2xl bg-[#211D1B] border border-[#B99A65]/40 text-[#D4B886] hover:text-white hover:bg-[#32151F] font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                                >
-                                    <MessageSquare className="w-4 h-4" />
-                                    <span>Bantuan Concierge / Pramusaji</span>
-                                </a>
-                            </div>
                         </div>
                     </div>
                 </div>

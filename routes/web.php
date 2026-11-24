@@ -40,6 +40,7 @@ Route::get('/order', [OrderController::class, 'index'])->name('order.app');
 Route::post('/order/checkout', [OrderController::class, 'checkout'])->name('order.checkout');
 Route::post('/order/{id}/confirm-online-payment', [OrderController::class, 'confirmOnlinePayment'])->name('order.confirm-online-payment');
 Route::post('/order/{id}/refund', [OrderController::class, 'requestRefund'])->name('order.refund');
+Route::post('/order/{id}/rating', [OrderController::class, 'submitRating'])->name('order.rating');
 
 // Midtrans Webhook Notification Handler (Public & CSRF Exempted)
 Route::post('/api/midtrans/webhook', [OrderController::class, 'handleWebhook'])->name('midtrans.webhook');
@@ -47,7 +48,6 @@ Route::post('/midtrans/webhook', [OrderController::class, 'handleWebhook']);
 
 // Fitur Khusus Member Terdaftar & Pengaturan Akun Pelanggan
 Route::middleware('auth')->group(function () {
-    Route::post('/order/{id}/rating', [OrderController::class, 'submitRating'])->name('order.rating');
     Route::post('/chat/send', [OrderController::class, 'sendMessage'])->name('chat.send');
     Route::post('/chat/read', [OrderController::class, 'markAsRead'])->name('chat.read');
     Route::post('/favorites/toggle', [OrderController::class, 'toggleFavorite'])->name('favorites.toggle');

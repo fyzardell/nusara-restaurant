@@ -1,11 +1,11 @@
 import React from 'react';
 import { Menu } from '../types';
-import { Heart, AlertCircle, Plus, Check } from 'lucide-react';
+import { AlertCircle, Plus, Check } from 'lucide-react';
 
 interface Props {
     menu: Menu;
-    isFavorite: boolean;
-    onToggleFavorite: (menu: Menu) => void;
+    isFavorite?: boolean;
+    onToggleFavorite?: (menu: Menu) => void;
     onAddToCart?: (menu: Menu) => void;
 }
 
@@ -73,22 +73,6 @@ export default function MenuCard({ menu, isFavorite, onToggleFavorite, onAddToCa
                         {menu.category_name}
                     </span>
                 </div>
-
-                {/* Favorite Button */}
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleFavorite(menu);
-                    }}
-                    title={isFavorite ? "Hapus dari Favorit" : "Simpan ke Favorit"}
-                    className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-300 backdrop-blur-md shadow-lg ${
-                        isFavorite 
-                            ? 'bg-rose-950/90 text-rose-400 border border-rose-600/50 scale-110' 
-                            : 'bg-[#211D1B]/80 text-[#F4EFE6]/70 border border-[#B99A65]/30 hover:text-rose-400 hover:border-rose-400'
-                    }`}
-                >
-                    <Heart className={`w-4 h-4 ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`} />
-                </button>
             </div>
 
             {/* Content Details */}

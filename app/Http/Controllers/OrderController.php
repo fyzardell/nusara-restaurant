@@ -381,7 +381,7 @@ class OrderController extends Controller
             'items.*.menu_id' => 'required|integer',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.item_notes' => 'nullable|string',
-            'payment_method' => 'required|in:qris,bank_transfer,cash',
+            'payment_method' => 'required|in:cash,qris,gopay,shopeepay,dana,ovo,bca_va,mandiri_va,bni_va,bri_va,permata_va,bank_transfer',
         ]);
 
         // Proteksi Takeaway: Wajib Login
@@ -392,17 +392,6 @@ class OrderController extends Controller
         // Proteksi Dine In: Wajib pilih / input nomor meja
         if ($request->order_type === 'dine_in' && !$request->table_number) {
             return redirect()->back()->with('error', 'Silakan pilih atau ketik nomor meja yang sedang Anda tempati.');
-        }
-
-        // Proteksi Dine In: Hanya QRIS atau Tunai di Kasir (Tidak boleh Virtual Account / Transfer Bank)
-        if ($request->order_type === 'dine_in' && $request->payment_method === 'bank_transfer') {
-            if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Pesanan Dine-in (Makan di Tempat) hanya mendukung pembayaran via QRIS Instan atau Tunai di Kasir.',
-                ], 422);
-            }
-            return redirect()->back()->with('error', 'Pesanan Dine-in (Makan di Tempat) hanya mendukung pembayaran via QRIS Instan atau Tunai di Kasir.');
         }
 
         $customerName = trim($request->customer_name);
@@ -558,7 +547,7 @@ class OrderController extends Controller
 
             $snapToken = null;
             $midtransError = null;
-            if (in_array($request->payment_method, ['qris', 'bank_transfer'])) {
+            if ($request->payment_method !== 'cash') {
                 $serverKey = config('midtrans.server_key');
                 if (empty($serverKey)) {
                     DB::rollBack();
@@ -655,9 +644,6 @@ class OrderController extends Controller
     public function submitRating(Request $request, $orderId)
     {
         $user = Auth::user();
-        if (!$user) {
-            return redirect()->route('login');
-        }
 
         $request->validate([
             'rating' => 'required|integer|min:1|max:5',
@@ -666,15 +652,29 @@ class OrderController extends Controller
 
         $order = DB::table('orders')->where('id', $orderId)->first();
         if (!$order) {
+            if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pesanan tidak ditemukan.',
+                ], 404);
+            }
             return redirect()->back()->with('error', 'Pesanan tidak ditemukan.');
+        }
+
+        $userId = $user?->id;
+        if (!$userId && $order->customer_id) {
+            $userId = DB::table('customers')->where('id', $order->customer_id)->value('user_id');
+        }
+        if (!$userId) {
+            $userId = DB::table('users')->orderBy('id', 'asc')->value('id') ?? 1;
         }
 
         DB::table('order_ratings')->updateOrInsert(
             [
                 'order_id' => $orderId,
-                'user_id' => $user->id,
             ],
             [
+                'user_id' => $userId,
                 'rating' => $request->rating,
                 'review' => $request->review,
                 'created_at' => now(),
@@ -682,7 +682,15 @@ class OrderController extends Controller
             ]
         );
 
-        return redirect()->back()->with('success', 'Terima kasih atas ulasan dan rating bintang 5 Anda!');
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Rating & ulasan bintang berhasil dikirim! Terima kasih atas ulasan Anda.',
+                'rating' => (int) $request->rating,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Rating & ulasan bintang berhasil dikirim! Terima kasih atas ulasan Anda.');
     }
 
     public function sendMessage(Request $request)
