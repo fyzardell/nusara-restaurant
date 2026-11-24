@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import FlashToast from '../../Components/FlashToast';
 import TableQrExportModal from '../../Components/TableQrExportModal';
+import LuxuryAlertModal, { LuxuryAlertState } from '../../Components/LuxuryAlertModal';
 import {
     AdminMetrics,
     Order,
@@ -161,11 +162,7 @@ export function AdminHeader({ adminUser, active, onSelect, metrics }: {
                 )}
                 <button
                     type="button"
-                    onClick={() => {
-                        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin keluar dari sesi Admin?')) {
-                            router.post('/logout');
-                        }
-                    }}
+                    onClick={() => router.post('/logout')}
                     className="p-1.5 rounded-lg text-stone-400 hover:text-rose-400 hover:bg-[#211D1B] transition-colors"
                     title="Keluar / Logout"
                 >
@@ -358,49 +355,88 @@ export default function AdminDashboard({
         setTimeout(() => setCopiedAccountKey(null), 2500);
     };
 
+    // Alert Modal State
+    const [luxuryAlert, setLuxuryAlert] = useState<LuxuryAlertState | null>(null);
+
+    const handleConfirmLogout = () => {
+        setLuxuryAlert({
+            isOpen: true,
+            title: 'Konfirmasi Keluar',
+            message: 'Apakah Anda yakin ingin keluar dari sesi operasional Admin NUSARA?',
+            type: 'warning',
+            showCancel: true,
+            confirmText: 'Ya, Keluar',
+            cancelText: 'Tetap di Sini',
+            onConfirm: () => {
+                router.post('/logout');
+            }
+        });
+    };
+
     const handleApproveRefund = (item: RefundRequestItem) => {
         const nominalStr = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(item.amount);
-        if (!window.confirm(`Konfirmasi Transfer Pengembalian Dana:\n\nApakah dana sebesar ${nominalStr} sudah berhasil Anda transfer ke ${item.bank_or_wallet} (${item.account_number} a/n ${item.account_holder})?`)) {
-            return;
-        }
-        const key = `${item.type}-${item.id}`;
-        setProcessingRefundKey(key);
-        router.post(`/admin/refund/${item.type}/${item.id}/approve`, {
-            admin_notes: `Pengembalian dana ${nominalStr} telah diselesaikan oleh Admin ke ${item.bank_or_wallet} ${item.account_number} a/n ${item.account_holder}.`
-        }, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => {
-                setActiveTab('refunds');
-                if (typeof window !== 'undefined') {
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('tab', 'refunds');
-                    window.history.replaceState({}, '', url.toString());
-                }
-            },
-            onFinish: () => setProcessingRefundKey(null)
+        setLuxuryAlert({
+            isOpen: true,
+            title: 'Konfirmasi Pengembalian Dana',
+            message: `Apakah dana sebesar ${nominalStr} sudah berhasil Anda transfer ke rekening ${item.bank_or_wallet} (${item.account_number} a/n ${item.account_holder})?`,
+            type: 'warning',
+            showCancel: true,
+            confirmText: 'Ya, Setujui Refund',
+            cancelText: 'Batal',
+            onConfirm: () => {
+                const key = `${item.type}-${item.id}`;
+                setProcessingRefundKey(key);
+                router.post(`/admin/refund/${item.type}/${item.id}/approve`, {
+                    admin_notes: `Pengembalian dana ${nominalStr} telah diselesaikan oleh Admin ke ${item.bank_or_wallet} ${item.account_number} a/n ${item.account_holder}.`
+                }, {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => {
+                        setActiveTab('refunds');
+                        if (typeof window !== 'undefined') {
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('tab', 'refunds');
+                            window.history.replaceState({}, '', url.toString());
+                        }
+                    },
+                    onFinish: () => setProcessingRefundKey(null)
+                });
+            }
         });
     };
 
     const handleRejectRefund = (item: RefundRequestItem) => {
-        const reason = window.prompt(`Masukkan alasan penolakan pengajuan refund untuk ${item.reference_code}:`, 'Data rekening tidak valid atau pesanan sudah selesai diproses');
-        if (!reason) return;
-        const key = `${item.type}-${item.id}`;
-        setProcessingRefundKey(key);
-        router.post(`/admin/refund/${item.type}/${item.id}/reject`, {
-            reject_reason: reason
-        }, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => {
-                setActiveTab('refunds');
-                if (typeof window !== 'undefined') {
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('tab', 'refunds');
-                    window.history.replaceState({}, '', url.toString());
-                }
-            },
-            onFinish: () => setProcessingRefundKey(null)
+        setLuxuryAlert({
+            isOpen: true,
+            title: 'Tolak Pengajuan Refund',
+            message: `Masukkan alasan penolakan pengembalian dana untuk ${item.reference_code}:`,
+            type: 'warning',
+            showCancel: true,
+            promptInput: true,
+            promptPlaceholder: 'Tuliskan alasan penolakan...',
+            promptDefaultValue: 'Data rekening tidak valid atau pesanan sudah selesai diproses',
+            confirmText: 'Tolak Refund',
+            cancelText: 'Batal',
+            onConfirmWithInput: (reason) => {
+                if (!reason.trim()) return;
+                const key = `${item.type}-${item.id}`;
+                setProcessingRefundKey(key);
+                router.post(`/admin/refund/${item.type}/${item.id}/reject`, {
+                    reject_reason: reason.trim()
+                }, {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => {
+                        setActiveTab('refunds');
+                        if (typeof window !== 'undefined') {
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('tab', 'refunds');
+                            window.history.replaceState({}, '', url.toString());
+                        }
+                    },
+                    onFinish: () => setProcessingRefundKey(null)
+                });
+            }
         });
     };
 
@@ -1028,11 +1064,7 @@ export default function AdminDashboard({
                         </div>
 
                         <button
-                            onClick={() => {
-                        if (window.confirm('Konfirmasi Keluar: Apakah Anda yakin ingin keluar dari sesi Admin?')) {
-                            router.post('/logout');
-                        }
-                    }}
+                            onClick={handleConfirmLogout}
                             title="Keluar"
                             className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-950/60 transition-colors flex-shrink-0"
                         >
@@ -3388,6 +3420,12 @@ export default function AdminDashboard({
                 isOpen={!!selectedQrTable}
                 onClose={() => setSelectedQrTable(null)}
                 table={selectedQrTable}
+            />
+
+            {/* Custom Luxury Alert / Confirm / Prompt Modal */}
+            <LuxuryAlertModal
+                alert={luxuryAlert}
+                onClose={() => setLuxuryAlert(null)}
             />
         </div>
     );

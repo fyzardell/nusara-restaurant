@@ -33,6 +33,8 @@ Route::get('/menu', [LandingPageController::class, 'index'])->name('menu');
 Route::get('/reservation', [ReservationController::class, 'index'])->name('reservation');
 Route::post('/reservation', [ReservationController::class, 'store'])->name('reservation.store');
 Route::post('/reservation/{id}/pay', [ReservationController::class, 'getPayToken'])->name('reservation.pay');
+Route::post('/reservation/{id}/pay-balance', [ReservationController::class, 'payBalance'])->name('reservation.pay-balance');
+Route::post('/reservation/{id}/confirm-online-payment', [ReservationController::class, 'confirmOnlinePayment'])->name('reservation.confirm-online-payment');
 Route::post('/reservation/{id}/refund', [ReservationController::class, 'requestRefund'])->name('reservation.refund');
 
 // Customer Ordering App (Akses Publik / Tamu Meja & Member)

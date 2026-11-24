@@ -1,5 +1,5 @@
-import React from 'react';
-import { CheckCircle2, AlertCircle, Info, ShieldCheck, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 export interface LuxuryAlertState {
     isOpen: boolean;
@@ -7,7 +7,15 @@ export interface LuxuryAlertState {
     title?: string;
     message: string;
     confirmText?: string;
+    cancelText?: string;
+    showCancel?: boolean;
+    promptInput?: boolean;
+    promptPlaceholder?: string;
+    promptDefaultValue?: string;
     onClose?: () => void;
+    onCancel?: () => void;
+    onConfirm?: () => void;
+    onConfirmWithInput?: (value: string) => void;
 }
 
 interface Props {
@@ -16,6 +24,14 @@ interface Props {
 }
 
 export default function LuxuryAlertModal({ alert, onClose }: Props) {
+    const [inputValue, setInputValue] = useState<string>('');
+
+    useEffect(() => {
+        if (alert?.isOpen) {
+            setInputValue(alert.promptDefaultValue || '');
+        }
+    }, [alert]);
+
     if (!alert || !alert.isOpen) return null;
 
     const type = alert.type || 'info';
@@ -49,14 +65,25 @@ export default function LuxuryAlertModal({ alert, onClose }: Props) {
     };
 
     const handleConfirm = () => {
-        if (alert.onClose) {
+        if (alert.promptInput && alert.onConfirmWithInput) {
+            alert.onConfirmWithInput(inputValue);
+        } else if (alert.onConfirm) {
+            alert.onConfirm();
+        } else if (alert.onClose) {
             alert.onClose();
         }
         onClose();
     };
 
+    const handleCancel = () => {
+        if (alert.onCancel) {
+            alert.onCancel();
+        }
+        onClose();
+    };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
             <div 
                 className="relative w-full max-w-md p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-[#211D1B] via-[#2A2421] to-[#211D1B] border border-[#B99A65]/50 shadow-2xl text-[#F4EFE6] space-y-5 animate-scaleUp"
                 onClick={(e) => e.stopPropagation()}
@@ -64,7 +91,7 @@ export default function LuxuryAlertModal({ alert, onClose }: Props) {
                 {/* Close X Button */}
                 <button
                     type="button"
-                    onClick={handleConfirm}
+                    onClick={handleCancel}
                     className="absolute top-4 right-4 p-2 rounded-full text-stone-400 hover:text-white hover:bg-white/10 transition-colors"
                 >
                     <X className="w-4 h-4" />
@@ -85,12 +112,41 @@ export default function LuxuryAlertModal({ alert, onClose }: Props) {
                     </div>
                 </div>
 
-                {/* Action Button */}
-                <div className="pt-2">
+                {/* Optional Prompt Input */}
+                {alert.promptInput && (
+                    <div className="space-y-1.5 pt-1">
+                        <input
+                            type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            placeholder={alert.promptPlaceholder || 'Ketik di sini...'}
+                            autoFocus
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleConfirm();
+                                }
+                            }}
+                            className="w-full px-4 py-3 rounded-2xl bg-[#181413] border border-[#B99A65]/40 text-[#F4EFE6] text-xs placeholder:text-stone-500 focus:outline-none focus:border-[#D4B886] transition-colors"
+                        />
+                    </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className={`pt-2 flex gap-3 ${alert.showCancel ? 'flex-row' : 'flex-col'}`}>
+                    {alert.showCancel && (
+                        <button
+                            type="button"
+                            onClick={handleCancel}
+                            className="flex-1 py-3 px-4 rounded-2xl bg-white/5 hover:bg-white/10 text-stone-300 border border-white/10 font-bold text-xs uppercase tracking-wider transition-all active:scale-[0.98]"
+                        >
+                            {alert.cancelText || 'Batal'}
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={handleConfirm}
-                        className="w-full py-3 px-5 rounded-2xl bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-extrabold text-xs uppercase tracking-widest shadow-lg hover:brightness-110 active:scale-[0.98] transition-all"
+                        className={`${alert.showCancel ? 'flex-1' : 'w-full'} py-3 px-5 rounded-2xl bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-extrabold text-xs uppercase tracking-widest shadow-lg hover:brightness-110 active:scale-[0.98] transition-all`}
                     >
                         {alert.confirmText || 'Mengerti'}
                     </button>

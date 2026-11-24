@@ -159,7 +159,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
     const executeLogin = async (idToUse?: string, passToUse?: string, customRedirect?: string) => {
         clearLoginErrors();
         setIsLoggingIn(true);
-        setLoadingStatusText('Memverifikasi Akun...');
+        setLoadingStatusText(requires2FA ? 'Memverifikasi Kode 2FA...' : 'Memverifikasi Akun...');
         const startTime = Date.now();
 
         const id = idToUse ?? loginData.login_id;
@@ -169,6 +169,21 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
+            const payload: Record<string, any> = {
+                remember: loginData.remember,
+                redirect: targetRedirect,
+            };
+
+            if (requires2FA) {
+                payload.two_factor_code = loginData.two_factor_code;
+            } else {
+                payload.login_id = id;
+                payload.password = pass;
+                if (loginData.two_factor_code) {
+                    payload.two_factor_code = loginData.two_factor_code;
+                }
+            }
+
             const res = await fetch('/login', {
                 method: 'POST',
                 headers: {
@@ -177,13 +192,7 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
                     'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-TOKEN': csrfToken,
                 },
-                body: JSON.stringify({
-                    login_id: id,
-                    password: pass,
-                    two_factor_code: loginData.two_factor_code,
-                    remember: loginData.remember,
-                    redirect: targetRedirect,
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (!res.ok) {
@@ -347,122 +356,153 @@ export default function Login({ demoAccounts, status, initialMode = 'login' }: P
 
                             {/* Form Input Fields */}
                             <form onSubmit={handleLoginSubmit} className="space-y-4">
-                                {/* Email / Phone */}
-                                <div>
-                                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#B99A65] mb-1.5">
-                                        Email atau Nomor WhatsApp
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#B99A65]">
-                                            <Mail className="w-4 h-4" />
+                                {requires2FA ? (
+                                    <div className="space-y-4 animate-fadeIn">
+                                        <div className="p-4 rounded-2xl bg-[#32151F] border border-[#B99A65]/60 space-y-3 shadow-xl">
+                                            <div className="flex items-center gap-2 text-sm text-[#D4B886] font-bold">
+                                                <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                                                <span>Verifikasi Dua Langkah (2FA)</span>
+                                            </div>
+                                            <p className="text-xs text-stone-300 leading-relaxed">
+                                                Kata sandi Anda telah terverifikasi. Silakan buka aplikasi Google Authenticator di ponsel Anda dan masukkan 6-digit kode verifikasi:
+                                            </p>
+                                            <div className="pt-1">
+                                                <input
+                                                    type="text"
+                                                    maxLength={6}
+                                                    autoFocus
+                                                    required
+                                                    value={loginData.two_factor_code}
+                                                    onChange={(e) => setLoginData('two_factor_code', e.target.value.replace(/[^0-9]/g, ''))}
+                                                    placeholder="000000"
+                                                    className="w-full text-center tracking-[0.4em] font-mono text-2xl font-black py-3 rounded-xl bg-black/50 border-2 border-[#B99A65] text-[#D4B886] focus:outline-none focus:ring-2 focus:ring-[#D4B886] placeholder-stone-600 shadow-inner"
+                                                />
+                                            </div>
+                                            {(loginErrors as any).two_factor_code && (
+                                                <p className="text-xs text-rose-400 flex items-center gap-1">
+                                                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                                                    <span>{(loginErrors as any).two_factor_code}</span>
+                                                </p>
+                                            )}
                                         </div>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={loginData.login_id}
-                                            onChange={(e) => setLoginData('login_id', e.target.value)}
-                                            placeholder="nama@email.com atau 081234..."
-                                            className="w-full pl-10 pr-4 py-3 rounded-2xl bg-[#32151F]/50 border border-[#B99A65]/35 text-[#F4EFE6] text-xs focus:outline-none focus:border-[#D4B886] focus:ring-1 focus:ring-[#D4B886] placeholder-[#F4EFE6]/30 transition-all font-mono"
-                                        />
-                                    </div>
-                                    {loginErrors.login_id && (
-                                        <p className="mt-1 text-[11px] text-rose-400 flex items-center gap-1">
-                                            <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                                            <span>{loginErrors.login_id}</span>
-                                        </p>
-                                    )}
-                                </div>
 
-                                {/* Password */}
-                                <div>
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <label className="text-[11px] font-semibold uppercase tracking-wider text-[#B99A65]">
-                                            Kata Sandi
-                                        </label>
+                                        {/* Submit Button */}
+                                        <button
+                                            type="submit"
+                                            disabled={loginProcessing || loginData.two_factor_code.length !== 6}
+                                            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:brightness-110 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-[#B99A65]/20"
+                                        >
+                                            <span>{loginProcessing ? 'Memverifikasi...' : 'Verifikasi & Masuk Sekarang'}</span>
+                                            <ArrowRight className="w-4 h-4" />
+                                        </button>
+
                                         <button
                                             type="button"
-                                            onClick={() => showAlert('Petunjuk pemulihan kata sandi dapat dikonfirmasi melalui Concierge WhatsApp NUSARA: +62 21 5567 8900', 'info', 'Pemulihan Sandi')}
-                                            className="text-[11px] text-[#D4B886] hover:underline transition-colors"
+                                            onClick={() => {
+                                                setRequires2FA(false);
+                                                setLoginData('two_factor_code', '');
+                                            }}
+                                            className="w-full py-2.5 text-xs text-stone-400 hover:text-[#D4B886] transition-colors flex items-center justify-center gap-1.5"
                                         >
-                                            Lupa Sandi?
+                                            <ArrowLeft className="w-3.5 h-3.5" />
+                                            <span>Kembali / Masuk dengan Akun Lain</span>
                                         </button>
                                     </div>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#B99A65]">
-                                            <Lock className="w-4 h-4" />
+                                ) : (
+                                    <>
+                                        {/* Email / Phone */}
+                                        <div>
+                                            <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#B99A65] mb-1.5">
+                                                Email atau Nomor WhatsApp
+                                            </label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#B99A65]">
+                                                    <Mail className="w-4 h-4" />
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={loginData.login_id}
+                                                    onChange={(e) => setLoginData('login_id', e.target.value)}
+                                                    placeholder="nama@email.com atau 081234..."
+                                                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-[#32151F]/50 border border-[#B99A65]/35 text-[#F4EFE6] text-xs focus:outline-none focus:border-[#D4B886] focus:ring-1 focus:ring-[#D4B886] placeholder-[#F4EFE6]/30 transition-all font-mono"
+                                                />
+                                            </div>
+                                            {loginErrors.login_id && (
+                                                <p className="mt-1 text-[11px] text-rose-400 flex items-center gap-1">
+                                                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                                                    <span>{loginErrors.login_id}</span>
+                                                </p>
+                                            )}
                                         </div>
-                                        <input
-                                            type={showLoginPassword ? 'text' : 'password'}
-                                            required
-                                            value={loginData.password}
-                                            onChange={(e) => setLoginData('password', e.target.value)}
-                                            placeholder="Masukkan kata sandi..."
-                                            className="w-full pl-10 pr-10 py-3 rounded-2xl bg-[#32151F]/50 border border-[#B99A65]/35 text-[#F4EFE6] text-xs focus:outline-none focus:border-[#D4B886] focus:ring-1 focus:ring-[#D4B886] placeholder-[#F4EFE6]/30 transition-all"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowLoginPassword(!showLoginPassword)}
-                                            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#F4EFE6]/50 hover:text-[#D4B886] transition-colors"
-                                            tabIndex={-1}
-                                        >
-                                            {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    </div>
-                                    {loginErrors.password && (
-                                        <p className="mt-1 text-[11px] text-rose-400 flex items-center gap-1">
-                                            <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                                            <span>{loginErrors.password}</span>
-                                        </p>
-                                    )}
-                                </div>
 
-                                {/* 2FA Input Verification Code if required */}
-                                {requires2FA && (
-                                    <div className="p-3.5 rounded-2xl bg-[#32151F] border border-[#B99A65]/50 space-y-2 animate-fadeIn">
-                                        <div className="flex items-center gap-2 text-xs text-[#D4B886] font-bold">
-                                            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                                            <span>Verifikasi 2FA (Google Authenticator)</span>
+                                        {/* Password */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <label className="text-[11px] font-semibold uppercase tracking-wider text-[#B99A65]">
+                                                    Kata Sandi
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => showAlert('Petunjuk pemulihan kata sandi dapat dikonfirmasi melalui Concierge WhatsApp NUSARA: +62 21 5567 8900', 'info', 'Pemulihan Sandi')}
+                                                    className="text-[11px] text-[#D4B886] hover:underline transition-colors"
+                                                >
+                                                    Lupa Sandi?
+                                                </button>
+                                            </div>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#B99A65]">
+                                                    <Lock className="w-4 h-4" />
+                                                </div>
+                                                <input
+                                                    type={showLoginPassword ? 'text' : 'password'}
+                                                    required
+                                                    value={loginData.password}
+                                                    onChange={(e) => setLoginData('password', e.target.value)}
+                                                    placeholder="Masukkan kata sandi..."
+                                                    className="w-full pl-10 pr-10 py-3 rounded-2xl bg-[#32151F]/50 border border-[#B99A65]/35 text-[#F4EFE6] text-xs focus:outline-none focus:border-[#D4B886] focus:ring-1 focus:ring-[#D4B886] placeholder-[#F4EFE6]/30 transition-all"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                                                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#F4EFE6]/50 hover:text-[#D4B886] transition-colors"
+                                                    tabIndex={-1}
+                                                >
+                                                    {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                            </div>
+                                            {loginErrors.password && (
+                                                <p className="mt-1 text-[11px] text-rose-400 flex items-center gap-1">
+                                                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                                                    <span>{loginErrors.password}</span>
+                                                </p>
+                                            )}
                                         </div>
-                                        <p className="text-[11px] text-stone-300">
-                                            Buka aplikasi Google Authenticator di ponsel Anda dan masukkan 6-digit kode verifikasi:
-                                        </p>
-                                        <input
-                                            type="text"
-                                            maxLength={6}
-                                            autoFocus
-                                            value={loginData.two_factor_code}
-                                            onChange={(e) => setLoginData('two_factor_code', e.target.value.replace(/[^0-9]/g, ''))}
-                                            placeholder="Contoh: 123456"
-                                            className="w-full text-center tracking-[0.3em] font-mono text-base font-bold py-2.5 rounded-xl bg-black/40 border border-[#B99A65] text-[#D4B886] focus:outline-none focus:ring-2 focus:ring-[#D4B886]"
-                                        />
-                                        {(loginErrors as any).two_factor_code && (
-                                            <p className="text-[11px] text-rose-400">{(loginErrors as any).two_factor_code}</p>
-                                        )}
-                                    </div>
+
+                                        {/* Remember Me */}
+                                        <div className="flex items-center justify-between pt-1">
+                                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={loginData.remember}
+                                                    onChange={(e) => setLoginData('remember', e.target.checked)}
+                                                    className="w-4 h-4 rounded bg-[#32151F] border-[#B99A65]/50 text-[#B99A65] focus:ring-0 cursor-pointer"
+                                                />
+                                                <span className="text-xs text-[#F4EFE6]/70">Ingat sesi saya</span>
+                                            </label>
+                                        </div>
+
+                                        {/* Submit Button */}
+                                        <button
+                                            type="submit"
+                                            disabled={loginProcessing}
+                                            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:brightness-110 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-[#B99A65]/20 mt-2"
+                                        >
+                                            <span>{loginProcessing ? 'Memverifikasi...' : 'Masuk Sekarang'}</span>
+                                            <ArrowRight className="w-4 h-4" />
+                                        </button>
+                                    </>
                                 )}
-
-                                {/* Remember Me */}
-                                <div className="flex items-center justify-between pt-1">
-                                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            checked={loginData.remember}
-                                            onChange={(e) => setLoginData('remember', e.target.checked)}
-                                            className="w-4 h-4 rounded bg-[#32151F] border-[#B99A65]/50 text-[#B99A65] focus:ring-0 cursor-pointer"
-                                        />
-                                        <span className="text-xs text-[#F4EFE6]/70">Ingat sesi saya</span>
-                                    </label>
-                                </div>
-
-                                {/* Submit Button */}
-                                <button
-                                    type="submit"
-                                    disabled={loginProcessing}
-                                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#B99A65] via-[#D4B886] to-[#B99A65] text-[#211D1B] font-bold text-xs uppercase tracking-widest hover:brightness-110 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-[#B99A65]/20 mt-2"
-                                >
-                                    <span>{loginProcessing ? 'Memverifikasi...' : (requires2FA ? 'Verifikasi Kode 2FA' : 'Masuk Sekarang')}</span>
-                                    <ArrowRight className="w-4 h-4" />
-                                </button>
                             </form>
 
                             {/* Divider & Social Login */}

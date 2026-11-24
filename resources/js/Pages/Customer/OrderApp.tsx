@@ -523,7 +523,7 @@ export default function OrderApp({
         setSelectedOrderForRefund(order);
         setRefundBank('BCA');
         setRefundAccountNumber('');
-        setRefundAccountHolder(customer?.name || (order as any).customer_name || '');
+        setRefundAccountHolder(auth?.user?.name || (order as any).customer_name || '');
         setRefundReason('');
         setRefundError('');
         setIsRefundModalOpen(true);
@@ -620,7 +620,7 @@ export default function OrderApp({
         const interval = setInterval(() => {
             if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !isPolling) {
                 isPolling = true;
-                router.reload({
+                (router.reload as any)({
                     only: ['orders', 'tables', 'chatMessages'],
                     preserveScroll: true,
                     preserveState: true,
@@ -638,7 +638,9 @@ export default function OrderApp({
     // Otomatis verifikasi pesanan online Midtrans di latar belakang (langsung ke 'Preparing' saat pembayaran berhasil di ponsel)
     useEffect(() => {
         const pendingOnlineOrder = orders.find(
-            o => o.payment_status === 'Pending' && o.payment_method !== 'cash' && !['Cancelled', 'Refunded'].includes(o.order_status)
+            o => ((o.payment?.payment_status === 'Pending' || (o as any).payment_status === 'Pending')) && 
+                 (o.payment?.payment_method !== 'cash' && (o as any).payment_method !== 'cash') && 
+                 !['Cancelled', 'Refunded'].includes(o.order_status)
         );
         if (!pendingOnlineOrder) return;
 
@@ -659,7 +661,7 @@ export default function OrderApp({
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    router.reload({ only: ['orders'], preserveScroll: true, preserveState: true });
+                    (router.reload as any)({ only: ['orders'], preserveScroll: true, preserveState: true });
                 }
             } catch (e) {
                 // Silently ignore temporary network retry
@@ -1048,6 +1050,10 @@ export default function OrderApp({
                     return {
                         ...o,
                         rating: {
+                            id: (o.rating as any)?.id || Date.now(),
+                            order_id: o.id,
+                            user_id: (o as any).user_id || 0,
+                            created_at: new Date().toISOString(),
                             rating: selectedStars,
                             review: reviewComment,
                         }
@@ -2766,7 +2772,7 @@ export default function OrderApp({
                                                                 {order.transaction?.payment_url && (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => handlePayWithSnap(order.transaction.payment_url, order.id)}
+                                                                        onClick={() => order.transaction?.payment_url && handlePayWithSnap(order.transaction.payment_url, order.id)}
                                                                         className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:from-[#a88954] hover:to-[#c3a775] text-[#211D1B] font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
                                                                     >
                                                                         <QrCode className="w-4 h-4" />
@@ -2812,7 +2818,7 @@ export default function OrderApp({
                                                                                 <Star
                                                                                     key={star}
                                                                                     className={`w-3.5 h-3.5 ${
-                                                                                        star <= (order.rating.rating || 5)
+                                                                                        star <= ((order.rating?.rating) || 5)
                                                                                             ? 'fill-amber-400 text-amber-400'
                                                                                             : 'text-stone-600'
                                                                                     }`}
@@ -2820,10 +2826,10 @@ export default function OrderApp({
                                                                             ))}
                                                                         </div>
                                                                         <span className="font-bold text-amber-200">
-                                                                            Rating Terkirim ({order.rating.rating || 5} Bintang)
+                                                                            Rating Terkirim ({order.rating?.rating || 5} Bintang)
                                                                         </span>
                                                                     </div>
-                                                                    {order.rating.review && (
+                                                                    {order.rating?.review && (
                                                                         <span className="text-[11px] text-[#D4B886]/90 italic max-w-xs truncate">
                                                                             "{order.rating.review}"
                                                                         </span>

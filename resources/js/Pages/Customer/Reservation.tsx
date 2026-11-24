@@ -212,13 +212,13 @@ export default function Reservation({
             if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !isPolling) {
                 isPolling = true;
                 router.reload({
-                    only: ['reservationsHistory'],
+                    only: ['customerReservations', 'reservations'],
                     onFinish: () => {
                         isPolling = false;
                     },
                 });
             }
-        }, 3500);
+        }, 3000);
         return () => clearInterval(interval);
     }, [pageView]);
 
@@ -684,22 +684,44 @@ export default function Reservation({
                 const snapReady = await ensureSnapLoaded();
                 if (snapReady && (window as any).snap) {
                     (window as any).snap.pay(resData.snap_token, {
-                        onSuccess: function (result: any) {
-                            showAlert(`Pembayaran DP Berhasil! Reservasi #${resData.reservation_code} resmi terkonfirmasi & meja Anda telah terkunci khusus untuk Anda (disiapkan 1 jam sebelum jam kedatangan).`, 'success', 'Reservasi Terkonfirmasi', () => {
+                        onSuccess: async function (result: any) {
+                            try {
+                                const targetId = resData.reservation_id || resData.id;
+                                if (targetId) {
+                                    await fetch(`/reservation/${targetId}/confirm-online-payment`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Accept': 'application/json',
+                                            'X-CSRF-TOKEN': csrfToken,
+                                        },
+                                        body: JSON.stringify({
+                                            payment_type: result?.payment_type || 'snap',
+                                            gross_amount: result?.gross_amount || data.dp_amount,
+                                        })
+                                    });
+                                }
+                            } catch (e) {
+                                console.error('Gagal konfirmasi instan pembayaran reservasi:', e);
+                            }
+                            const successMsg = data.payment_type === 'full'
+                                ? `Pembayaran Lunas 100% Berhasil! Reservasi #${resData.reservation_code} telah terkonfirmasi resmi (Lunas Bebas Tagihan). Meja Anda telah terkunci.`
+                                : `Pembayaran DP Berhasil! Reservasi #${resData.reservation_code} resmi terkonfirmasi & meja Anda telah terkunci khusus untuk Anda.`;
+                            showAlert(successMsg, 'success', 'Reservasi Terkonfirmasi', () => {
                                 router.reload();
                                 setPageView('history');
                                 setCurrentStep(1);
                             });
                         },
                         onPending: function (result: any) {
-                            showAlert(`Reservasi #${resData.reservation_code} tersimpan! Silakan selesaikan pembayaran DP Anda via QRIS atau Virtual Account agar meja resmi terkunci.`, 'info', 'Menunggu Pembayaran DP', () => {
+                            showAlert(`Reservasi #${resData.reservation_code} tersimpan! Silakan selesaikan pembayaran Anda via QRIS atau Virtual Account agar meja resmi terkunci.`, 'info', 'Menunggu Pembayaran', () => {
                                 router.reload();
                                 setPageView('history');
                                 setCurrentStep(1);
                             });
                         },
                         onError: function (result: any) {
-                            showAlert('Pembayaran DP belum berhasil atau dibatalkan.', 'error', 'Pembayaran Tertunda', () => {
+                            showAlert('Pembayaran belum berhasil atau dibatalkan.', 'error', 'Pembayaran Tertunda', () => {
                                 router.reload();
                                 setPageView('history');
                                 setCurrentStep(1);
@@ -735,7 +757,7 @@ export default function Reservation({
         }
     };
 
-    // Bayar DP Reservasi Tertunda via Midtrans Snap Pop-up
+    // Bayar Reservasi Tertunda via Midtrans Snap Pop-up
     const handlePayReservationDP = async (res: CustomerReservationHistory) => {
         try {
             setPayingReservationId(res.id);
@@ -751,17 +773,41 @@ export default function Reservation({
 
             const resData = await response.json();
             if (!response.ok || !resData.success) {
-                throw new Error(resData.message || 'Gagal menyiapkan pembayaran DP.');
+                throw new Error(resData.message || 'Gagal menyiapkan pembayaran.');
             }
 
             if (resData.snap_token) {
                 const snapReady = await ensureSnapLoaded();
                 if (snapReady && (window as any).snap) {
                     (window as any).snap.pay(resData.snap_token, {
-                        onSuccess: function (result: any) {
-                            showAlert(`Pembayaran DP Berhasil! Reservasi #${res.reservation_code} resmi terkonfirmasi & meja Anda telah terkunci khusus untuk Anda (disiapkan 1 jam sebelum jam kedatangan).`, 'success', 'Pembayaran Terkonfirmasi', () => {
-                                router.reload();
-                            });
+                        onSuccess: async function (result: any) {
+                            try {
+                                await fetch(`/reservation/${res.id}/confirm-online-payment`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json',
+                                        'X-CSRF-TOKEN': csrfToken,
+                                    },
+                                    body: JSON.stringify({
+                                        payment_type: result?.payment_type || 'snap',
+                                        gross_amount: resData.dp_amount,
+                                    })
+                                });
+                            } catch (e) {
+                                console.error('Gagal konfirmasi instan:', e);
+                            }
+                            const isFull = res.special_request?.includes('LUNAS 100%');
+                            showAlert(
+                                isFull
+                                    ? `Pembayaran Lunas 100% Berhasil! Reservasi #${res.reservation_code} resmi terkonfirmasi (Bebas Tagihan di Restoran). Meja Anda telah terkunci.`
+                                    : `Pembayaran DP Berhasil! Reservasi #${res.reservation_code} resmi terkonfirmasi & meja Anda telah terkunci khusus untuk Anda.`,
+                                'success',
+                                'Pembayaran Terkonfirmasi',
+                                () => {
+                                    router.reload();
+                                }
+                            );
                         },
                         onPending: function (result: any) {
                             showAlert(`Reservasi #${res.reservation_code}: Instruksi pembayaran telah dibuat. Silakan selesaikan pembayaran via QRIS atau Virtual Account pilihan Anda.`, 'info', 'Instruksi Pembayaran', () => {
@@ -769,7 +815,7 @@ export default function Reservation({
                             });
                         },
                         onError: function (result: any) {
-                            showAlert('Pembayaran DP belum berhasil atau dibatalkan.', 'error', 'Pembayaran Tertunda', () => {
+                            showAlert('Pembayaran belum berhasil atau dibatalkan.', 'error', 'Pembayaran Tertunda', () => {
                                 router.reload();
                             });
                         },
@@ -785,7 +831,76 @@ export default function Reservation({
                 showAlert(resData.message || 'Token pembayaran tidak ditemukan.', 'error', 'Token Tidak Ditemukan');
             }
         } catch (err: any) {
-            showAlert(err.message || 'Terjadi kendala saat memproses pembayaran DP.', 'error', 'Kendala Pembayaran');
+            showAlert(err.message || 'Terjadi kendala saat memproses pembayaran.', 'error', 'Kendala Pembayaran');
+        } finally {
+            setPayingReservationId(null);
+        }
+    };
+
+    // Lunasi Sisa Pembayaran Reservasi (Untuk Reservasi yang Sebelumnya Memilih Bayar DP)
+    const handlePayReservationBalance = async (res: CustomerReservationHistory) => {
+        try {
+            setPayingReservationId(res.id);
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+            const response = await fetch(`/reservation/${res.id}/pay-balance`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+            });
+
+            const resData = await response.json();
+            if (!response.ok || !resData.success) {
+                throw new Error(resData.message || 'Gagal menyiapkan pelunasan sisa tagihan.');
+            }
+
+            if (resData.snap_token) {
+                const snapReady = await ensureSnapLoaded();
+                if (snapReady && (window as any).snap) {
+                    (window as any).snap.pay(resData.snap_token, {
+                        onSuccess: async function (result: any) {
+                            try {
+                                await fetch(`/reservation/${res.id}/confirm-online-payment`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json',
+                                        'X-CSRF-TOKEN': csrfToken,
+                                    },
+                                    body: JSON.stringify({
+                                        is_balance: true,
+                                        payment_type: result?.payment_type || 'snap',
+                                        gross_amount: resData.balance_amount,
+                                    })
+                                });
+                            } catch (e) {
+                                console.error('Gagal konfirmasi pelunasan:', e);
+                            }
+                            showAlert(`Pelunasan Berhasil! Reservasi #${res.reservation_code} kini telah LUNAS 100% (Bebas Tagihan di Restoran).`, 'success', 'Pelunasan Sukses', () => {
+                                router.reload();
+                            });
+                        },
+                        onPending: function () {
+                            showAlert(`Instruksi pelunasan dibuat. Silakan selesaikan pembayaran agar bebas tagihan di kasir.`, 'info', 'Menunggu Pelunasan');
+                        },
+                        onError: function () {
+                            showAlert('Pelunasan belum berhasil atau dibatalkan.', 'error', 'Pelunasan Tertunda');
+                        },
+                        onClose: function () {
+                            router.reload();
+                        }
+                    });
+                    return;
+                } else {
+                    showAlert('Sistem gateway Midtrans sedang memuat. Mohon ulangi kembali.', 'warning', 'Memuat Gateway');
+                }
+            } else {
+                showAlert(resData.message || 'Token pembayaran tidak ditemukan.', 'error', 'Token Tidak Ditemukan');
+            }
+        } catch (err: any) {
+            showAlert(err.message || 'Terjadi kendala saat memproses pelunasan.', 'error', 'Kendala Pelunasan');
         } finally {
             setPayingReservationId(null);
         }
@@ -2648,44 +2763,67 @@ export default function Reservation({
                                             </div>
                                         </div>
 
-                                        {res.status === 'Confirmed' && (
-                                            <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 text-[11px] text-emerald-950 space-y-1">
-                                                <div className="flex items-center gap-1.5 font-bold text-emerald-900">
-                                                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                                                    <span>Meja Resmi Terkunci (Anti-Ghost Booking)</span>
-                                                </div>
-                                                <p className="text-emerald-800 leading-relaxed text-[11px]">
-                                                    Uang muka (DP) telah diverifikasi dan meja resmi terkunci khusus untuk Anda. Meja akan disiapkan dan disterilkan 1 jam sebelum jadwal kedatangan Anda. Sisa pembayaran hidangan saat santap di tempat dapat dilunasi di kasir dengan <strong>Tunai (Cash)</strong>, QRIS, atau Kartu.
-                                                </p>
-                                            </div>
-                                        )}
+                                        {(() => {
+                                            const isFullPay = res.special_request?.includes('LUNAS 100%');
+                                            const hasRemainingBalance = !isFullPay && (res.special_request?.includes('Sisa Kasir: Rp') && !res.special_request?.includes('Sisa Kasir: LUNAS Rp 0'));
 
-                                        {res.status === 'Pending' && (
-                                            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-950 space-y-2.5">
-                                                <div className="flex items-center justify-between gap-2 flex-wrap">
-                                                    <div className="flex items-center gap-1.5 font-bold text-amber-900">
-                                                        <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                                                        <span>Menunggu Penyelesaian Pembayaran DP</span>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        disabled={payingReservationId === res.id}
-                                                        onClick={() => handlePayReservationDP(res)}
-                                                        className="px-3 py-1 rounded-lg bg-[#32151F] hover:bg-[#4A1525] text-[#D4B886] font-bold text-[11px] flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                                                    >
-                                                        {payingReservationId === res.id ? (
-                                                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D4B886]" />
+                                            return (
+                                                <>
+                                                    {res.status === 'Confirmed' && (
+                                                        isFullPay ? (
+                                                            <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-[11px] text-emerald-200 space-y-1">
+                                                                <div className="flex items-center gap-1.5 font-bold text-emerald-300">
+                                                                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                                                                    <span>Reservasi LUNAS 100% (Bebas Tagihan di Restoran)</span>
+                                                                </div>
+                                                                <p className="text-emerald-300/80 leading-relaxed text-[11px]">
+                                                                    Pembayaran Anda telah lunas sepenuhnya via Midtrans. Meja resmi terkunci dan disterilkan 1 jam sebelum jadwal jamuan. Saat tiba di restoran, Anda langsung menikmati hidangan tanpa perlu membayar tagihan lagi.
+                                                                </p>
+                                                            </div>
                                                         ) : (
-                                                            <CreditCard className="w-3.5 h-3.5 text-[#D4B886]" />
-                                                        )}
-                                                        <span>Bayar Sekarang</span>
-                                                    </button>
-                                                </div>
-                                                <p className="text-amber-800 leading-relaxed text-[11px]">
-                                                    Selesaikan pembayaran DP agar meja resmi terkunci khusus untuk Anda dan jadwal kunjungan tidak dialihkan. Meja akan disiapkan dan disterilkan 1 jam sebelum jadwal kedatangan Anda.
-                                                </p>
-                                            </div>
-                                        )}
+                                                            <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-[11px] text-amber-200 space-y-1">
+                                                                <div className="flex items-center gap-1.5 font-bold text-amber-300">
+                                                                    <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                                                                    <span>Meja Terkunci Resmi (DP Terverifikasi)</span>
+                                                                </div>
+                                                                <p className="text-amber-300/80 leading-relaxed text-[11px]">
+                                                                    Uang muka (DP) telah diverifikasi dan meja resmi terkunci. Sisa pembayaran paket santap dapat Anda lunasi di kasir saat tiba di restoran (Cash/QRIS/Card) atau dilunasi sekarang melalui tombol di bawah.
+                                                                </p>
+                                                            </div>
+                                                        )
+                                                    )}
+
+                                                    {res.status === 'Pending' && (
+                                                        <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-950 space-y-2.5">
+                                                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                                <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                                                                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                                                                    <span>{isFullPay ? 'Menunggu Pembayaran Lunas (100%)' : 'Menunggu Pembayaran Uang Muka (DP)'}</span>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={payingReservationId === res.id}
+                                                                    onClick={() => handlePayReservationDP(res)}
+                                                                    className="px-3 py-1 rounded-lg bg-[#32151F] hover:bg-[#4A1525] text-[#D4B886] font-bold text-[11px] flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                                                                >
+                                                                    {payingReservationId === res.id ? (
+                                                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D4B886]" />
+                                                                    ) : (
+                                                                        <CreditCard className="w-3.5 h-3.5 text-[#D4B886]" />
+                                                                    )}
+                                                                    <span>{isFullPay ? 'Bayar Lunas Sekarang' : 'Bayar DP Sekarang'}</span>
+                                                                </button>
+                                                            </div>
+                                                            <p className="text-amber-800 leading-relaxed text-[11px]">
+                                                                {isFullPay
+                                                                    ? 'Selesaikan pembayaran lunas agar meja resmi terkunci dan Anda bebas tagihan di restoran.'
+                                                                    : 'Selesaikan pembayaran DP agar meja resmi terkunci khusus untuk Anda dan jadwal kunjungan tidak dialihkan.'}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
 
                                         {res.status === 'Refund Requested' && (
                                             <div className="p-3.5 rounded-2xl bg-orange-50/80 border border-orange-200/80 text-[11px] text-orange-950 space-y-1">
@@ -2732,27 +2870,54 @@ export default function Reservation({
 
                                         <div className="pt-3 flex flex-wrap items-center justify-between gap-2.5 border-t border-[#FAF6F0]">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                {res.status === 'Pending' && (
-                                                    <button
-                                                        type="button"
-                                                        disabled={payingReservationId === res.id}
-                                                        onClick={() => handlePayReservationDP(res)}
-                                                        className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#32151F] via-[#4A1525] to-[#32151F] hover:from-[#4A1525] hover:to-[#5B1A2E] text-[#FAF6F0] border border-[#B99A65]/40 text-xs font-bold tracking-wide transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
-                                                    >
-                                                        {payingReservationId === res.id ? (
-                                                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D4B886]" />
-                                                        ) : (
-                                                            <CreditCard className="w-3.5 h-3.5 text-[#D4B886]" />
-                                                        )}
-                                                        <span>Bayar DP Sekarang</span>
-                                                    </button>
-                                                )}
-                                                {res.status === 'Confirmed' && (
+                                                {(() => {
+                                                    const isFullPay = res.special_request?.includes('LUNAS 100%');
+                                                    const hasRemainingBalance = !isFullPay && (res.special_request?.includes('Sisa Kasir: Rp') && !res.special_request?.includes('Sisa Kasir: LUNAS Rp 0'));
+
+                                                    return (
+                                                        <>
+                                                            {/* Tombol Pembayaran Saat Belum Bayar (Pending) */}
+                                                            {res.status === 'Pending' && (
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={payingReservationId === res.id}
+                                                                    onClick={() => handlePayReservationDP(res)}
+                                                                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#32151F] via-[#4A1525] to-[#32151F] hover:from-[#4A1525] hover:to-[#5B1A2E] text-[#FAF6F0] border border-[#B99A65]/40 text-xs font-bold tracking-wide transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+                                                                >
+                                                                    {payingReservationId === res.id ? (
+                                                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D4B886]" />
+                                                                    ) : (
+                                                                        <CreditCard className="w-3.5 h-3.5 text-[#D4B886]" />
+                                                                    )}
+                                                                    <span>{isFullPay ? 'Bayar Lunas Sekarang' : 'Bayar DP Sekarang'}</span>
+                                                                </button>
+                                                            )}
+
+                                                            {/* Tombol Lunasi Sisa Pembayaran (Hanya Muncul Jika Status Confirmed dan Memilih DP yang Masih Ada Sisa Tagihan) */}
+                                                            {res.status === 'Confirmed' && !isFullPay && hasRemainingBalance && (
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={payingReservationId === res.id}
+                                                                    onClick={() => handlePayReservationBalance(res)}
+                                                                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#B99A65] to-[#D4B886] hover:brightness-110 text-[#211D1B] font-extrabold text-xs tracking-wide transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+                                                                >
+                                                                    {payingReservationId === res.id ? (
+                                                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#211D1B]" />
+                                                                    ) : (
+                                                                        <Sparkles className="w-3.5 h-3.5 text-[#211D1B]" />
+                                                                    )}
+                                                                    <span>Lunasi Sisa Pembayaran</span>
+                                                                </button>
+                                                            )}
+                                                        </>
+                                                    );
+                                                })()}
+                                                {(res.status === 'Confirmed' || res.status === 'Pending') && (
                                                     <button
                                                         type="button"
                                                         onClick={() => handleOpenRefundModal(res)}
                                                         className="px-3.5 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-bold tracking-wide transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
-                                                        title="Ajukan pembatalan reservasi dan pengembalian dana DP"
+                                                        title="Ajukan pembatalan reservasi dan pengembalian dana"
                                                     >
                                                         <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
                                                         <span>Ajukan Refund</span>

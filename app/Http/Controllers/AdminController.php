@@ -369,7 +369,10 @@ class AdminController extends Controller
             ->leftJoin('dining_experiences', 'reservations.experience_id', '=', 'dining_experiences.id')
             ->where(function ($q) {
                 $q->whereIn('reservations.status', ['Refund Requested', 'Refunded'])
-                  ->orWhere('reservations.special_request', 'LIKE', '%[Pengajuan Refund%');
+                  ->orWhere(function ($sub) {
+                      $sub->whereNotIn('reservations.status', ['Confirmed', 'Cancelled', 'Rejected'])
+                          ->where('reservations.special_request', 'LIKE', '%[Pengajuan Refund%');
+                  });
             })
             ->select(
                 'reservations.id',
@@ -618,9 +621,10 @@ class AdminController extends Controller
             if (!$order) {
                 return redirect()->back()->with('error', 'Pesanan tidak ditemukan.');
             }
+            $cleanNotes = trim(preg_replace('/\[Pengajuan Refund:[^\]]+\]/i', '', $order->customer_notes ?? ''));
             DB::table('orders')->where('id', $id)->update([
                 'order_status' => 'Pending',
-                'customer_notes' => trim(($order->customer_notes ?? '') . " [Refund Ditolak: {$reason}]"),
+                'customer_notes' => trim($cleanNotes . " [Refund Ditolak: {$reason}]"),
                 'updated_at' => now(),
             ]);
 
@@ -639,9 +643,10 @@ class AdminController extends Controller
             if (!$reservation) {
                 return redirect()->back()->with('error', 'Reservasi tidak ditemukan.');
             }
+            $cleanSpecialRequest = trim(preg_replace('/\[Pengajuan Refund DP:[^\]]+\]/i', '', $reservation->special_request ?? ''));
             DB::table('reservations')->where('id', $id)->update([
                 'status' => 'Confirmed',
-                'special_request' => trim(($reservation->special_request ?? '') . " [Refund Ditolak: {$reason}]"),
+                'special_request' => trim($cleanSpecialRequest . " [Refund DP Ditolak: {$reason}]"),
                 'updated_at' => now(),
             ]);
 
@@ -920,12 +925,40 @@ class AdminController extends Controller
 
         $prevStatus = $reservation->status;
         $newStatus = $request->status;
+        $reason = $request->input('reject_reason', $request->input('notes', ''));
 
-        DB::table('reservations')->where('id', $reservationId)->update([
+        $updatePayload = [
             'status' => $newStatus,
             'confirmed_by' => in_array($newStatus, ['Confirmed', 'Rejected']) ? $user->id : $reservation->confirmed_by,
             'updated_at' => now(),
-        ]);
+        ];
+
+        if ($reason && in_array($newStatus, ['Rejected', 'Cancelled'])) {
+            $updatePayload['special_request'] = trim(($reservation->special_request ?? '') . " [Penolakan/Batal: {$reason}]");
+        }
+
+        DB::table('reservations')->where('id', $reservationId)->update($updatePayload);
+
+        // Jika status ditolak, dibatalkan, atau selesai, bebaskan meja jika tidak ada reservasi aktif lain
+        if (in_array($newStatus, ['Rejected', 'Cancelled', 'Completed'])) {
+            $tableIds = DB::table('reservation_tables')->where('reservation_id', $reservationId)->pluck('table_id')->toArray();
+            foreach ($tableIds as $tId) {
+                $otherActive = DB::table('reservation_tables')
+                    ->join('reservations', 'reservation_tables.reservation_id', '=', 'reservations.id')
+                    ->where('reservation_tables.table_id', $tId)
+                    ->where('reservations.id', '!=', $reservationId)
+                    ->whereIn('reservations.status', ['Pending', 'Confirmed', 'Seated'])
+                    ->whereDate('reservations.reservation_datetime', now()->toDateString())
+                    ->exists();
+
+                if (!$otherActive) {
+                    DB::table('restaurant_tables')->where('id', $tId)->where('status', 'Reserved')->update([
+                        'status' => 'Available',
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
 
         DB::table('reservation_status_histories')->insert([
             'reservation_id' => $reservationId,

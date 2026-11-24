@@ -439,7 +439,7 @@ class CashierController extends Controller
     {
         $user = Auth::user();
         $request->validate([
-            'status' => 'required|in:Pending,Confirmed,Seated,Completed,Cancelled,Refund Requested,Refunded',
+            'status' => 'required|in:Pending,Confirmed,Seated,Completed,Rejected,Cancelled,Refund Requested,Refunded',
         ]);
 
         $res = DB::table('reservations')->where('id', $reservationId)->first();
@@ -447,10 +447,38 @@ class CashierController extends Controller
             return redirect()->back()->with('error', 'Reservasi tidak ditemukan.');
         }
 
-        DB::table('reservations')->where('id', $reservationId)->update([
+        $reason = $request->input('reject_reason', $request->input('notes', ''));
+        $updatePayload = [
             'status' => $request->status,
             'updated_at' => now(),
-        ]);
+        ];
+
+        if ($reason && in_array($request->status, ['Rejected', 'Cancelled'])) {
+            $updatePayload['special_request'] = trim(($res->special_request ?? '') . " [Penolakan/Batal: {$reason}]");
+        }
+
+        DB::table('reservations')->where('id', $reservationId)->update($updatePayload);
+
+        // Jika status ditolak, dibatalkan, atau selesai, bebaskan meja jika tidak ada reservasi aktif lain
+        if (in_array($request->status, ['Rejected', 'Cancelled', 'Completed'])) {
+            $tableIds = DB::table('reservation_tables')->where('reservation_id', $reservationId)->pluck('table_id')->toArray();
+            foreach ($tableIds as $tId) {
+                $otherActive = DB::table('reservation_tables')
+                    ->join('reservations', 'reservation_tables.reservation_id', '=', 'reservations.id')
+                    ->where('reservation_tables.table_id', $tId)
+                    ->where('reservations.id', '!=', $reservationId)
+                    ->whereIn('reservations.status', ['Pending', 'Confirmed', 'Seated'])
+                    ->whereDate('reservations.reservation_datetime', now()->toDateString())
+                    ->exists();
+
+                if (!$otherActive) {
+                    DB::table('restaurant_tables')->where('id', $tId)->where('status', 'Reserved')->update([
+                        'status' => 'Available',
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
 
         DB::table('audit_logs')->insert([
             'user_id' => $user->id,

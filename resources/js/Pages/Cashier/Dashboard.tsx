@@ -4,6 +4,7 @@ import FlashToast from '../../Components/FlashToast';
 import CircularFloorPlan from '../../Components/CircularFloorPlan';
 import OperationalChatModal from '../../Components/OperationalChatModal';
 import LogoutConfirmModal from '../../Components/LogoutConfirmModal';
+import LuxuryAlertModal, { LuxuryAlertState } from '../../Components/LuxuryAlertModal';
 import { 
     Clock, 
     Search, 
@@ -161,6 +162,7 @@ export default function CashierDashboard({
     const [currentCalYear, setCurrentCalYear] = useState<number>(today.getFullYear());
     const [selectedCalDate, setSelectedCalDate] = useState<Date>(today);
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const [luxuryAlert, setLuxuryAlert] = useState<LuxuryAlertState | null>(null);
 
     // Logout with confirmation alert
     const handleLogout = () => {
@@ -982,9 +984,16 @@ export default function CashierDashboard({
                                                             <button
                                                                 type="button"
                                                                 onClick={() => {
-                                                                    if (window.confirm(`Batalkan pesanan #${order.order_code}?`)) {
-                                                                        handleUpdateStatus(order.id, 'Cancelled');
-                                                                    }
+                                                                    setLuxuryAlert({
+                                                                        isOpen: true,
+                                                                        title: 'Batalkan Pesanan',
+                                                                        message: `Apakah Anda yakin ingin membatalkan pesanan #${order.order_code}?`,
+                                                                        type: 'warning',
+                                                                        showCancel: true,
+                                                                        confirmText: 'Ya, Batalkan',
+                                                                        cancelText: 'Kembali',
+                                                                        onConfirm: () => handleUpdateStatus(order.id, 'Cancelled')
+                                                                    });
                                                                 }}
                                                                 className="p-1.5 rounded-lg bg-[#241F1D] hover:bg-rose-950/60 text-rose-400 border border-rose-900/40 transition-colors"
                                                                 title="Batalkan Pesanan"
@@ -1576,6 +1585,12 @@ export default function CashierDashboard({
                 userName={cashierUser?.name}
                 userRole="Kasir"
                 customNotice="Pastikan seluruh transaksi aktif telah diverifikasi dan dicetak sebelum mengakhiri sesi kasir."
+            />
+
+            {/* Custom Luxury Alert / Confirm Modal */}
+            <LuxuryAlertModal
+                alert={luxuryAlert}
+                onClose={() => setLuxuryAlert(null)}
             />
         </div>
     );

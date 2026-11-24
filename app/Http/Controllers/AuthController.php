@@ -88,6 +88,52 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        // Jika sedang memverifikasi kode 2FA (tahap 2, tidak perlu masukkan kata sandi lagi)
+        if ($request->filled('two_factor_code') && $request->session()->has('2fa_pending_user_id')) {
+            $request->validate([
+                'two_factor_code' => 'required|string',
+            ]);
+            $pendingUserId = $request->session()->get('2fa_pending_user_id');
+            $user = DB::table('users')->where('id', $pendingUserId)->first();
+            if (!$user || empty($user->two_factor_secret) || empty($user->two_factor_confirmed_at)) {
+                throw ValidationException::withMessages([
+                    'two_factor_code' => ['Sesi verifikasi 2FA kadaluarsa. Silakan masukkan sandi kembali.'],
+                ]);
+            }
+
+            if (!\App\Services\TwoFactorService::verifyCode($user->two_factor_secret, trim($request->two_factor_code))) {
+                throw ValidationException::withMessages([
+                    'two_factor_code' => ['Kode 6-digit Google Authenticator tidak cocok atau telah kadaluarsa.'],
+                ]);
+            }
+
+            // 2FA Sukses! Login pengguna
+            $remember = $request->session()->pull('2fa_pending_remember', true);
+            $request->session()->forget('2fa_pending_user_id');
+            Auth::loginUsingId($user->id, $remember);
+            $request->session()->regenerate();
+
+            $role = DB::table('roles')->where('id', $user->role_id)->first();
+            $roleName = $role ? $role->name : 'customer';
+
+            $redirectUrl = match ($roleName) {
+                'admin' => route('admin.dashboard'),
+                'cashier' => route('cashier.dashboard'),
+                'waiter' => route('waiter.dashboard'),
+                default => $request->input('redirect', route('order.app')),
+            };
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'redirect' => $redirectUrl,
+                    'role' => $roleName,
+                ]);
+            }
+
+            return redirect()->intended($redirectUrl);
+        }
+
         $request->validate([
             'login_id' => 'required|string',
             'password' => 'required|string',
@@ -192,9 +238,12 @@ class AuthController extends Controller
         if (!empty($user->two_factor_secret) && !empty($user->two_factor_confirmed_at)) {
             $twoFactorCode = trim($request->input('two_factor_code', ''));
             if (empty($twoFactorCode)) {
+                $request->session()->put('2fa_pending_user_id', $user->id);
+                $request->session()->put('2fa_pending_remember', $remember);
                 if ($request->wantsJson()) {
                     return response()->json([
                         'requires_2fa' => true,
+                        'email' => $user->email,
                         'message' => 'Akun Anda diproteksi oleh Google Authenticator (2FA). Silakan masukkan 6 digit kode.',
                     ]);
                 }

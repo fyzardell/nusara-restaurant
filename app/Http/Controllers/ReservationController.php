@@ -434,6 +434,7 @@ class ReservationController extends Controller
         if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
+                'reservation_id' => $reservationId,
                 'reservation_code' => $code,
                 'snap_token' => $snapToken,
                 'midtrans_error' => $midtransError,
@@ -643,5 +644,182 @@ class ReservationController extends Controller
             'success' => true,
             'message' => "Pengajuan pengembalian dana (refund) untuk reservasi #{$reservation->reservation_code} berhasil diajukan. Tim Konsierge & Keuangan NUSARA akan memverifikasi dan mentransfer ke {$request->bank_or_wallet} {$request->account_number} (1x24 jam kerja).",
         ]);
+    }
+
+    /**
+     * Konfirmasi pembayaran online secara instan saat Midtrans Snap menyelesaikan transaksi (onSuccess).
+     */
+    public function confirmOnlinePayment(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Silakan masuk ke akun terlebih dahulu.'], 401);
+        }
+
+        $customer = DB::table('customers')->where('user_id', $user->id)->first();
+        $customerId = $customer ? $customer->id : -1;
+
+        $reservation = DB::table('reservations')
+            ->where('id', $id)
+            ->where(function ($q) use ($user, $customerId) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('customer_id', $customerId);
+            })
+            ->first();
+
+        if (!$reservation) {
+            return response()->json(['success' => false, 'message' => 'Reservasi tidak ditemukan.'], 404);
+        }
+
+        $paymentType = $request->input('payment_type', 'qris');
+        $isBalancePayment = $request->boolean('is_balance', false);
+        $grossAmount = floatval($request->input('gross_amount', 0));
+        $isFull = str_contains($reservation->special_request ?? '', 'LUNAS 100%') || $isBalancePayment;
+
+        if ($grossAmount <= 0) {
+            if ($isBalancePayment && preg_match('/\(Sisa Kasir:\s*Rp\s*([0-9\.]+)\)/i', $reservation->special_request ?? '', $remMatches)) {
+                $grossAmount = floatval(str_replace('.', '', $remMatches[1]));
+            } elseif (preg_match('/\[Pembayaran:\s*(?:LUNAS 100%|DP Jaminan Meja)\s*Rp\s*([0-9\.]+)/i', $reservation->special_request ?? '', $m)) {
+                $grossAmount = floatval(str_replace('.', '', $m[1]));
+            }
+        }
+
+        $amtFmt = number_format($grossAmount, 0, ',', '.');
+        $existingNotes = $reservation->special_request ?? '';
+
+        if ($isBalancePayment) {
+            // Sisa tagihan telah dilunasi
+            $noteTag = "[LUNAS 100% SISA TERBAYAR MIDTRANS Rp {$amtFmt} ({$paymentType}) - BEBAS TAGIHAN RESTO] ";
+            // Hilangkan tulisan sisa kasir
+            $cleaned = preg_replace('/\(Sisa Kasir:\s*Rp\s*[0-9\.]+\)/i', '(Sisa Kasir: LUNAS Rp 0)', $existingNotes);
+            $updatedNotes = $noteTag . $cleaned;
+        } else {
+            $noteTag = $isFull
+                ? "[LUNAS 100% TERBAYAR MIDTRANS Rp {$amtFmt} ({$paymentType}) - BEBAS TAGIHAN RESTO] "
+                : "[DP TERBAYAR MIDTRANS Rp {$amtFmt} ({$paymentType}) - VALIDASI SUKSES] ";
+            $updatedNotes = $noteTag . $existingNotes;
+        }
+
+        DB::table('reservations')->where('id', $id)->update([
+            'status' => 'Confirmed',
+            'special_request' => $updatedNotes,
+            'updated_at' => now(),
+        ]);
+
+        // Kunci meja menjadi Reserved
+        $resTableIds = DB::table('reservation_tables')->where('reservation_id', $id)->pluck('table_id')->toArray();
+        if (!empty($resTableIds)) {
+            DB::table('restaurant_tables')->whereIn('id', $resTableIds)->where('status', 'Available')->update([
+                'status' => 'Reserved',
+                'updated_at' => now(),
+            ]);
+        }
+
+        DB::table('reservation_status_histories')->insert([
+            'reservation_id' => $id,
+            'changed_by' => $user->id,
+            'previous_status' => $reservation->status,
+            'new_status' => 'Confirmed',
+            'notes' => "Pembayaran online terverifikasi instan via Snap ({$paymentType})",
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('audit_logs')->insert([
+            'user_id' => $user->id,
+            'action' => 'reservation.confirm_online',
+            'entity_type' => 'Reservation',
+            'entity_id' => $id,
+            'description' => "Pembayaran online reservasi #{$reservation->reservation_code} terverifikasi via Midtrans Snap. Status menjadi Confirmed.",
+            'created_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'status' => 'Confirmed',
+            'special_request' => $updatedNotes,
+            'message' => 'Pembayaran berhasil dikonfirmasi. Reservasi resmi berstatus Confirmed!',
+        ]);
+    }
+
+    /**
+     * Lunasi sisa pembayaran reservasi yang sebelumnya hanya bayar DP
+     */
+    public function payBalance(Request $request, $id)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Silakan masuk ke akun terlebih dahulu.'], 401);
+        }
+
+        $customer = DB::table('customers')->where('user_id', $user->id)->first();
+        $customerId = $customer ? $customer->id : -1;
+
+        $reservation = DB::table('reservations')
+            ->where('id', $id)
+            ->where(function ($q) use ($user, $customerId) {
+                $q->where('created_by', $user->id)
+                  ->orWhere('customer_id', $customerId);
+            })
+            ->first();
+
+        if (!$reservation) {
+            return response()->json(['success' => false, 'message' => 'Reservasi tidak ditemukan.'], 404);
+        }
+
+        // Cek sisa tagihan dari special_request
+        $remainingAmount = 0;
+        if (preg_match('/\(Sisa Kasir:\s*Rp\s*([0-9\.]+)\)/i', $reservation->special_request ?? '', $remMatches)) {
+            $remainingAmount = intval(str_replace('.', '', $remMatches[1]));
+        }
+
+        if ($remainingAmount <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reservasi ini tidak memiliki sisa tagihan (sudah Lunas 100%).',
+            ], 400);
+        }
+
+        try {
+            $midtrans = app(\App\Services\MidtransService::class);
+            $customerName = $customer ? $customer->name : ($user->name ?? 'Tamu NUSARA');
+            $customerPhone = $customer ? $customer->phone_normalized : ($user->phone ?? null);
+
+            $orderCode = $reservation->reservation_code . '-BAL-' . time();
+            $itemLabel = "Pelunasan Sisa Reservasi {$reservation->reservation_code} ({$reservation->guest_count} Tamu)";
+
+            $snapToken = $midtrans->createSnapToken(
+                orderCode: $orderCode,
+                grossAmount: $remainingAmount,
+                items: [
+                    [
+                        'menu_id' => 'BAL-' . $reservation->reservation_code,
+                        'unit_price_snapshot' => $remainingAmount,
+                        'quantity' => 1,
+                        'menu_name_snapshot' => $itemLabel,
+                    ]
+                ],
+                taxAmount: 0,
+                customerName: $customerName,
+                customerEmail: $user->email,
+                customerPhone: $customerPhone,
+                paymentMethod: 'all'
+            );
+
+            return response()->json([
+                'success' => true,
+                'snap_token' => $snapToken,
+                'reservation_code' => $reservation->reservation_code,
+                'balance_amount' => $remainingAmount,
+                'message' => 'Token pelunasan berhasil dibuat.',
+            ]);
+        } catch (\Exception $ex) {
+            \Illuminate\Support\Facades\Log::error("Midtrans Snap Balance Error: " . $ex->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghubungkan ke Midtrans: ' . $ex->getMessage(),
+            ], 500);
+        }
+    }
     }
 }
